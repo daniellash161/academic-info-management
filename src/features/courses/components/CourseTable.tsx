@@ -66,7 +66,7 @@ const CourseTable: React.FC = () => {
 
     return (
         <div style={{ padding: '20px', direction: 'rtl', fontFamily: 'Arial' }}>
-            <h1>ניהול קורסים (תרגול)</h1>
+            <h1>ניהול קורסים</h1>
             
             {/* כפתורי שליטה */}
             <div style={{ marginBottom: '20px' }}>
