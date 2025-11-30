@@ -4,10 +4,10 @@ import { Course } from '../models/Course';
 
 const CourseTable: React.FC = () => {
     
-    // State שומרס את רשימת הקורסים
+    // ניהול ה-State של רשימת הקורסים
     const [courses, setCourses] = useState<Course[]>([]);
 
-    // טעינת נתונים מהזיכרון כשהדף עולה (רץ פעם אחת)
+    // טעינת נתונים שמורים (אם יש) בעת טעינת הקומפוננטה
     useEffect(() => {
         const savedData = localStorage.getItem('courses-data');
         if (savedData) {
@@ -15,9 +15,8 @@ const CourseTable: React.FC = () => {
         }
     }, []);
 
-    // פונקציה להוספת קורס (נתונים אקראיים לתרגול)
+    // פונקציה ליצירת קורס עם נתונים אקראיים והוספתו לרשימה
     const addRandomCourse = () => {
-        
         // מאגרי נתונים להגרלה
         const courseTypes = [
             { name: 'מבוא למדעי המחשב', code: 'CS101', credits: 5, syl: 'יסודות התכנות בשפת Java' },
@@ -31,14 +30,14 @@ const CourseTable: React.FC = () => {
         const semesters = ['א\'', 'ב\'', 'קיץ'];
         const prereqOptions = ['אין', 'מבוא למדמ"ח', 'מתמטיקה בדידה', 'מבני נתונים'];
 
-        // הגרלה
+        // ביצוע ההגרלה
         const randomType = courseTypes[Math.floor(Math.random() * courseTypes.length)];
         const uniqueCode = randomType.code + '-' + Math.floor(Math.random() * 999); 
         const randomSemester = semesters[Math.floor(Math.random() * semesters.length)];
         const randomLecturer = lecturers[Math.floor(Math.random() * lecturers.length)];
         const randomPrereq = prereqOptions[Math.floor(Math.random() * prereqOptions.length)];
 
-        // יצירת אובייקט חדש
+        // יצירת האובייקט ועדכון ה-State
         const newCourse = new Course(
             uniqueCode,          
             randomType.name,     
@@ -49,17 +48,16 @@ const CourseTable: React.FC = () => {
             randomPrereq         
         );
 
-        // עדכון ה-State
         setCourses(prev => [...prev, newCourse]);
     };
 
-    // שמירה ל-LocalStorage
+    // שמירת הרשימה הנוכחית ל-LocalStorage
     const saveData = () => {
         localStorage.setItem('courses-data', JSON.stringify(courses));
         alert('הנתונים נשמרו בהצלחה!');
     };
 
-    // ניקוי
+    // איפוס הנתונים (מחיקה מהמסך ומהזיכרון)
     const clearData = () => {
         setCourses([]);
         localStorage.removeItem('courses-data');
@@ -70,12 +68,12 @@ const CourseTable: React.FC = () => {
             <h1>ניהול קורסים</h1>
             
             <div style={{ marginBottom: '20px' }}>
-                
                 <button onClick={addRandomCourse}>➕ הוסף קורס חדש</button>
                 <button onClick={saveData} style={{ margin: '0 10px' }}>💾 שמור</button>
                 <button onClick={clearData}>🗑️ נקה הכל</button>
             </div>
 
+            {/* טבלת הנתונים */}
             <table border={1} style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center' }}>
                 <thead>
                     <tr style={{ backgroundColor: '#eee' }}>
@@ -103,7 +101,6 @@ const CourseTable: React.FC = () => {
                 </tbody>
             </table>
 
-            
             <p style={{ marginTop: '15px', fontWeight: 'bold' }}>
                 סה"כ קורסים רשומים: {courses.length}
             </p>
