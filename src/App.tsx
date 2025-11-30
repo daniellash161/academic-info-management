@@ -1,7 +1,7 @@
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 // 1. הוספנו את הייבוא של הטבלה
-import CourseTable from "./components/CourseTable"; 
+import CourseTable from "./features/courses/components/CourseTable"; 
 
 function App() {
   return (
