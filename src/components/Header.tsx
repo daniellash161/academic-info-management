@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import { AppBar, Toolbar, Typography, IconButton, Drawer, List, ListItem, ListItemButton, ListItemText, ListItemIcon, Box } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import { useNavigate } from 'react-router-dom';
-
-// אייקונים
 import HomeIcon from '@mui/icons-material/Home';
 import GroupIcon from '@mui/icons-material/Group';
 import AssignmentIcon from '@mui/icons-material/Assignment';
@@ -30,10 +28,7 @@ export default function Header() {
         { text: 'מועמדים', icon: <GroupIcon />, path: '/' },
         { text: 'בקשות הרשמה', icon: <AssignmentIcon />, path: '/' },
         { text: 'ניהול קורסים', icon: <SchoolIcon />, path: '/courses' },
-        
-        // 3. הקישור המעודכן לדרישות קבלה
         { text: 'דרישות קבלה', icon: <VerifiedUserIcon />, path: '/requirements' },
-        
         { text: 'עזרה', icon: <HelpIcon />, path: '/help' },
     ];
 
