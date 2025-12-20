@@ -1,15 +1,9 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-// 1. האם השורה הזו קיימת?
-import { BrowserRouter } from 'react-router-dom' 
-import './index.css'
-import App from './App.tsx'
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./app/App";
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    {/* 2. האם App עטוף בתוך זה? חובה! */}
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
-  </StrictMode>,
-)
+ReactDOM.createRoot(document.getElementById("root")!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
