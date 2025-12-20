@@ -3,8 +3,15 @@ import { readLS, writeLS } from "../storage/storage";
 import type { RegistrationRequest, RequestStatus } from "../models/registrationRequest";
 import { usersService } from "./usersService";
 
+function normalizeStatus(s: string): RequestStatus {
+  if (s === "בהמתנה") return "נשלחה";
+  if (s === "בטיוטה" || s === "נשלחה" || s === "מאושרת" || s === "נדחתה") return s;
+  return "בטיוטה";
+}
+
 function readAll(): RegistrationRequest[] {
-  return readLS<RegistrationRequest[]>(LS_KEYS.requests, []);
+  const items = readLS<RegistrationRequest[]>(LS_KEYS.requests, []);
+  return items.map((r) => ({ ...r, status: normalizeStatus(String(r.status)) }));
 }
 
 function writeAll(items: RegistrationRequest[]) {
@@ -34,6 +41,7 @@ export const requestsService = {
     const all = readAll();
     const newItem: RegistrationRequest = {
       ...input,
+      status: normalizeStatus(String(input.status)),
       requestNumber: nextRequestNumber(all),
     };
 
@@ -56,7 +64,12 @@ export const requestsService = {
       }
     }
 
-    const updated: RegistrationRequest = { ...all[idx], ...patch };
+    const updated: RegistrationRequest = {
+      ...all[idx],
+      ...patch,
+      status: patch.status ? normalizeStatus(String(patch.status)) : all[idx].status,
+    };
+
     all[idx] = updated;
     writeAll(all);
     return updated;
