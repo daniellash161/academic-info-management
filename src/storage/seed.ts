@@ -4,6 +4,7 @@ import { hasLS, makeId, writeLS } from "./storage";
 import type { User } from "../models/user";
 import type { RegistrationRequest } from "../models/registrationRequest";
 import type { Course } from "../models/course";
+import type { Requirement } from "../models/requirement";
 
 import { usersService } from "../services/usersService";
 
@@ -80,4 +81,53 @@ export function seedCoursesIfEmpty() {
   ];
 
   writeLS(LS_KEYS.courses, courses);
+}
+
+export function seedRequirementsIfEmpty() {
+  if (hasLS(LS_KEYS.requirements)) return;
+
+  const reqs: Requirement[] = [
+    {
+      id: makeId(),
+      type: "פסיכומטרי",
+      minScore: 550,
+      title: "ציון פסיכומטרי מינימלי",
+      description: "ציון סף לקבלה לתוכנית.",
+      extraInfo: "במקרים חריגים תישקל ועדה.",
+      displayOrder: 1,
+      isMandatory: true,
+    },
+    {
+      id: makeId(),
+      type: "בגרות",
+      minScore: 95,
+      title: "ממוצע בגרויות מינימלי",
+      description: "ממוצע בגרות בהתאם לדרישות התוכנית.",
+      extraInfo: "",
+      displayOrder: 2,
+      isMandatory: true,
+    },
+    {
+      id: makeId(),
+      type: "אנגלית",
+      minScore: 85,
+      title: "רמת אנגלית",
+      description: "עמידה בדרישות סיווג אנגלית.",
+      extraInfo: "ניתן להשלים קורסי אנגלית בהתאם לצורך.",
+      displayOrder: 3,
+      isMandatory: false,
+    },
+    ...Array.from({ length: 7 }).map((_, i) => ({
+      id: makeId(),
+      type: (i % 3 === 0 ? "פסיכומטרי" : i % 3 === 1 ? "בגרות" : "אנגלית") as any,
+      minScore: 60 + i * 5,
+      title: `דרישה לדוגמה ${i + 1}`,
+      description: "טקסט דוגמה קצר.",
+      extraInfo: "",
+      displayOrder: 4 + i,
+      isMandatory: i % 2 === 0,
+    })),
+  ];
+
+  writeLS(LS_KEYS.requirements, reqs);
 }
