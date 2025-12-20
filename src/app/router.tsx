@@ -2,6 +2,8 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import { AdminLayout } from "./AdminLayout";
 
 // Admin pages
+import { AdminHomePage } from "../pages/admin/AdminHomePage";
+
 import { CandidatesPage } from "../pages/admin/CandidatesPage";
 import { CandidateFormPage } from "../pages/admin/CandidateFormPage";
 
@@ -19,29 +21,23 @@ import { HelpPage } from "../pages/admin/HelpPage";
 // Auth
 import { LoginPage } from "../pages/auth/LoginPage";
 
-function AdminHome() {
-  return (
-    <div>
-      <h1>Admin Home</h1>
-      <p>Admin routes ✅</p>
-    </div>
-  );
-}
-
 export const router = createBrowserRouter([
+  // Root -> admin
   { path: "/", element: <Navigate to="/admin" replace /> },
 
+  // Admin layout wrapper (Header + Drawer)
   {
     element: <AdminLayout />,
     children: [
-      { path: "/admin", element: <AdminHome /> },
+      // ✅ Dashboard
+      { path: "/admin", element: <AdminHomePage /> },
 
       // Candidates
       { path: "/admin/candidates", element: <CandidatesPage /> },
       { path: "/admin/candidates/new", element: <CandidateFormPage /> },
       { path: "/admin/candidates/:id/edit", element: <CandidateFormPage /> },
 
-      // Requests
+      // Registration Requests
       { path: "/admin/requests", element: <RequestsPage /> },
       { path: "/admin/requests/new", element: <RequestFormPage /> },
       { path: "/admin/requests/:requestNumber/edit", element: <RequestFormPage /> },
@@ -51,7 +47,7 @@ export const router = createBrowserRouter([
       { path: "/admin/courses/new", element: <CourseFormPage /> },
       { path: "/admin/courses/:code/edit", element: <CourseFormPage /> },
 
-      // Requirements ✅
+      // Requirements
       { path: "/admin/requirements", element: <RequirementsPage /> },
       { path: "/admin/requirements/new", element: <RequirementFormPage /> },
       { path: "/admin/requirements/:id/edit", element: <RequirementFormPage /> },
@@ -61,6 +57,9 @@ export const router = createBrowserRouter([
     ],
   },
 
+  // Login (for logout destination)
   { path: "/login", element: <LoginPage /> },
+
+  // Fallback
   { path: "*", element: <div style={{ padding: 24 }}>404</div> },
 ]);
