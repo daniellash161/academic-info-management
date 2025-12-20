@@ -9,6 +9,8 @@ import { RequestsPage } from "../pages/admin/RequestsPage";
 import { RequestFormPage } from "../pages/admin/RequestFormPage";
 
 import { CoursesPage } from "../pages/admin/CoursesPage";
+import { CourseFormPage } from "../pages/admin/CourseFormPage";
+
 import { RequirementsPage } from "../pages/admin/RequirementsPage";
 import { HelpPage } from "../pages/admin/HelpPage";
 
@@ -16,13 +18,13 @@ import { HelpPage } from "../pages/admin/HelpPage";
 import { LoginPage } from "../pages/auth/LoginPage";
 
 /**
- * מסך בית מנהל (placeholder)
+ * Admin Home (placeholder) - later will be replaced by dashboard per project plan
  */
 function AdminHome() {
   return (
     <div>
       <h1>Admin Home</h1>
-      <p>Routes ✅</p>
+      <p>Admin routes ✅</p>
     </div>
   );
 }
@@ -45,19 +47,20 @@ export const router = createBrowserRouter([
       // Registration Requests
       { path: "/admin/requests", element: <RequestsPage /> },
       { path: "/admin/requests/new", element: <RequestFormPage /> },
-      {
-        path: "/admin/requests/:requestNumber/edit",
-        element: <RequestFormPage />,
-      },
+      { path: "/admin/requests/:requestNumber/edit", element: <RequestFormPage /> },
 
-      // Other sections
+      // Courses 
       { path: "/admin/courses", element: <CoursesPage /> },
+      { path: "/admin/courses/new", element: <CourseFormPage /> },
+      { path: "/admin/courses/:code/edit", element: <CourseFormPage /> },
+
+      // Requirements + Help
       { path: "/admin/requirements", element: <RequirementsPage /> },
       { path: "/admin/help", element: <HelpPage /> },
     ],
   },
 
-  // Login (for "logout" link)
+  // Login (for logout destination)
   { path: "/login", element: <LoginPage /> },
 
   // Fallback
