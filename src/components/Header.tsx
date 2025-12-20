@@ -12,7 +12,7 @@ export function Header() {
           sx={{ cursor: "pointer" }}
           onClick={() => navigate("/admin")}
         >
-          CS Info Hub
+          Academic Info Manager
         </Typography>
       </Toolbar>
     </AppBar>

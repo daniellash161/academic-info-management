@@ -1,20 +1,11 @@
-import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
-import { Header } from "../components/Header";
-
-function AdminLayout() {
-  return (
-    <div>
-      <Header />
-      <Outlet />
-    </div>
-  );
-}
+import { createBrowserRouter, Navigate } from "react-router-dom";
+import { AdminLayout } from "./AdminLayout";
 
 function AdminHome() {
   return (
-    <div style={{ padding: 24 }}>
+    <div>
       <h1>Admin Home</h1>
-      <p>Header עובד ✅</p>
+      <p>Header + Layout עובדים ✅</p>
     </div>
   );
 }
