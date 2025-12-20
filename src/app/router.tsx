@@ -12,14 +12,13 @@ import { CoursesPage } from "../pages/admin/CoursesPage";
 import { CourseFormPage } from "../pages/admin/CourseFormPage";
 
 import { RequirementsPage } from "../pages/admin/RequirementsPage";
+import { RequirementFormPage } from "../pages/admin/RequirementFormPage";
+
 import { HelpPage } from "../pages/admin/HelpPage";
 
 // Auth
 import { LoginPage } from "../pages/auth/LoginPage";
 
-/**
- * Admin Home (placeholder) - later will be replaced by dashboard per project plan
- */
 function AdminHome() {
   return (
     <div>
@@ -30,10 +29,8 @@ function AdminHome() {
 }
 
 export const router = createBrowserRouter([
-  // Root -> admin
   { path: "/", element: <Navigate to="/admin" replace /> },
 
-  // Admin layout wrapper (Header + Drawer)
   {
     element: <AdminLayout />,
     children: [
@@ -44,25 +41,26 @@ export const router = createBrowserRouter([
       { path: "/admin/candidates/new", element: <CandidateFormPage /> },
       { path: "/admin/candidates/:id/edit", element: <CandidateFormPage /> },
 
-      // Registration Requests
+      // Requests
       { path: "/admin/requests", element: <RequestsPage /> },
       { path: "/admin/requests/new", element: <RequestFormPage /> },
       { path: "/admin/requests/:requestNumber/edit", element: <RequestFormPage /> },
 
-      // Courses 
+      // Courses
       { path: "/admin/courses", element: <CoursesPage /> },
       { path: "/admin/courses/new", element: <CourseFormPage /> },
       { path: "/admin/courses/:code/edit", element: <CourseFormPage /> },
 
-      // Requirements + Help
+      // Requirements ✅
       { path: "/admin/requirements", element: <RequirementsPage /> },
+      { path: "/admin/requirements/new", element: <RequirementFormPage /> },
+      { path: "/admin/requirements/:id/edit", element: <RequirementFormPage /> },
+
+      // Help
       { path: "/admin/help", element: <HelpPage /> },
     ],
   },
 
-  // Login (for logout destination)
   { path: "/login", element: <LoginPage /> },
-
-  // Fallback
   { path: "*", element: <div style={{ padding: 24 }}>404</div> },
 ]);
