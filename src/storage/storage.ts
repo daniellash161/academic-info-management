@@ -16,6 +16,5 @@ export function hasLS(key: string) {
 }
 
 export function makeId() {
-  // Safe fallback that works everywhere (no TS/crypto typing issues)
   return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }

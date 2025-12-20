@@ -1,6 +1,8 @@
 import { LS_KEYS } from "./lsKeys";
 import { hasLS, makeId, writeLS } from "./storage";
 import type { User } from "../models/user";
+import type { RegistrationRequest } from "../models/registrationRequest";
+import { usersService } from "../services/usersService";
 
 export function seedUsersIfEmpty() {
   if (hasLS(LS_KEYS.users)) return;
@@ -18,4 +20,30 @@ export function seedUsersIfEmpty() {
   }));
 
   writeLS(LS_KEYS.users, users);
+}
+
+export function seedRequestsIfEmpty() {
+  if (hasLS(LS_KEYS.requests)) return;
+
+  const candidates = usersService.getCandidates();
+  const statuses: RegistrationRequest["status"][] = ["בטיוטה", "נשלחה", "מאושרת", "נדחתה"];
+
+  const today = new Date();
+  const ymd = (d: Date) => d.toISOString().slice(0, 10);
+
+  const requests: RegistrationRequest[] = Array.from({ length: 10 }).map((_, i) => {
+    const candidate = candidates[i % candidates.length];
+    const d = new Date(today);
+    d.setDate(today.getDate() - i); // לא עתידי
+
+    return {
+      requestNumber: i + 1,
+      candidateId: candidate.id,
+      status: statuses[i % statuses.length],
+      createdAt: ymd(d),
+      notes: i % 3 === 0 ? "בקשה לדוגמה" : "",
+    };
+  });
+
+  writeLS(LS_KEYS.requests, requests);
 }
