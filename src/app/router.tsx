@@ -1,7 +1,7 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { AdminLayout } from "./AdminLayout";
+import { RequireAdmin } from "./RequireAdmin";
 
-// Admin pages
 import { AdminHomePage } from "../pages/admin/AdminHomePage";
 
 import { CandidatesPage } from "../pages/admin/CandidatesPage";
@@ -24,14 +24,17 @@ import { DocumentFormPage } from "../pages/admin/DocumentFormPage";
 
 import { HelpPage } from "../pages/admin/HelpPage";
 
-// Auth
 import { LoginPage } from "../pages/auth/LoginPage";
 
 export const router = createBrowserRouter([
   { path: "/", element: <Navigate to="/admin" replace /> },
 
   {
-    element: <AdminLayout />,
+    element: (
+      <RequireAdmin>
+        <AdminLayout />
+      </RequireAdmin>
+    ),
     children: [
       { path: "/admin", element: <AdminHomePage /> },
 
