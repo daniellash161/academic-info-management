@@ -8,7 +8,11 @@ export function readLS<T>(key: string, fallback: T): T {
 }
 
 export function writeLS<T>(key: string, value: T) {
-  localStorage.setItem(key, JSON.stringify(value));
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+  
+  }
 }
 
 export function hasLS(key: string) {
@@ -16,5 +20,7 @@ export function hasLS(key: string) {
 }
 
 export function makeId() {
-  return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+  return `${Date.now()}_${Math.random().toString(16).slice(2)}_${Math.random()
+    .toString(16)
+    .slice(2)}`;
 }
