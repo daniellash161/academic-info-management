@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from "react-router-dom";
+import { createBrowserRouter, Navigate, useParams } from "react-router-dom";
 import { AdminLayout } from "./AdminLayout";
 
 // Admin pages
@@ -26,6 +26,12 @@ import { HelpPage } from "../pages/admin/HelpPage";
 
 // Auth
 import { LoginPage } from "../pages/auth/LoginPage";
+
+// ✅ Redirect לעריכה ישנה -> חדשה
+function RedirectContactEdit() {
+  const { id } = useParams();
+  return <Navigate to={`/admin/contact-messages/${id}/edit`} replace />;
+}
 
 export const router = createBrowserRouter([
   { path: "/", element: <Navigate to="/admin" replace /> },
@@ -55,13 +61,17 @@ export const router = createBrowserRouter([
       { path: "/admin/faqs/new", element: <FaqFormPage /> },
       { path: "/admin/faqs/:id/edit", element: <FaqFormPage /> },
 
-      { path: "/admin/contacts", element: <ContactMessagesPage /> },
-      { path: "/admin/contacts/:id/edit", element: <ContactMessageFormPage /> },
+      { path: "/admin/contact-messages", element: <ContactMessagesPage /> },
+      { path: "/admin/contact-messages/:id/edit", element: <ContactMessageFormPage /> },
+
+      { path: "/admin/contacts", element: <Navigate to="/admin/contact-messages" replace /> },
+      { path: "/admin/contacts/:id/edit", element: <RedirectContactEdit /> },
 
       { path: "/admin/help", element: <HelpPage /> },
     ],
   },
 
+  // public help
   { path: "/help", element: <HelpPage /> },
 
   { path: "/login", element: <LoginPage /> },

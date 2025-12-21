@@ -19,11 +19,16 @@ import { useNavigate } from "react-router-dom";
 import type { ContactMessage } from "../../models/contactMessage";
 import { contactMessagesService } from "../../services/contactMessagesService";
 
+type ViewFilter = "ACTIVE" | "ARCHIVE" | "ALL";
+
 export function ContactMessagesPage() {
   const navigate = useNavigate();
   const [rows, setRows] = useState<ContactMessage[]>([]);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<ContactMessage["status"] | "ALL">("ALL");
+
+  // ✅ חדש: תצוגה (ברירת מחדל: פניות פתוחות)
+  const [view, setView] = useState<ViewFilter>("ACTIVE");
 
   function refresh() {
     setRows(contactMessagesService.getAll());
@@ -33,27 +38,48 @@ export function ContactMessagesPage() {
     refresh();
   }, []);
 
+  const statuses = contactMessagesService.statuses();
+
   const filtered = useMemo(() => {
-    return contactMessagesService.search(query, statusFilter);
-  }, [query, statusFilter, rows]);
+    const base =
+      statusFilter === "ALL"
+        ? contactMessagesService.search(query, "ALL")
+        : contactMessagesService.search(query, statusFilter);
+
+    if (view === "ACTIVE") return base.filter((m) => m.status !== "נסגר");
+    if (view === "ARCHIVE") return base.filter((m) => m.status === "נסגר");
+    return base;
+  }, [query, statusFilter, view, rows]);
 
   function onDelete(id: string) {
     contactMessagesService.remove(id);
     refresh();
   }
 
-  const statuses = contactMessagesService.statuses();
-
   return (
     <Box>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
         <Typography variant="h5">ניהול פניות צור קשר</Typography>
-        <Button variant="contained" onClick={() => navigate("/help")}>
+
+        {/* עדיף /admin/help אם זה מסך מנהל */}
+        <Button variant="contained" onClick={() => navigate("/admin/help")}>
           מעבר למסך עזרה/צור קשר
         </Button>
       </Box>
 
-      <Box sx={{ display: "flex", gap: 2, mb: 2, maxWidth: 980 }}>
+      <Box sx={{ display: "flex", gap: 2, mb: 2, maxWidth: 1100, flexWrap: "wrap" }}>
+        <TextField
+          select
+          label="תצוגה"
+          value={view}
+          onChange={(e) => setView(e.target.value as ViewFilter)}
+          sx={{ width: 220 }}
+        >
+          <MenuItem value="ACTIVE">פניות פתוחות</MenuItem>
+          <MenuItem value="ARCHIVE">ארכיון (נסגר)</MenuItem>
+          <MenuItem value="ALL">הכל</MenuItem>
+        </TextField>
+
         <TextField
           select
           label="סינון לפי סטטוס"
@@ -70,7 +96,7 @@ export function ContactMessagesPage() {
         </TextField>
 
         <TextField
-          fullWidth
+          sx={{ minWidth: 420, flexGrow: 1 }}
           label="חיפוש לפי שם / מייל / טלפון / נושא / הודעה / הערות"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
