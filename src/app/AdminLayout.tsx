@@ -1,165 +1,133 @@
-import { useMemo, useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import {
-  AppBar,
-  Box,
-  CssBaseline,
-  Divider,
-  Drawer,
-  IconButton,
-  List,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Toolbar,
-  Typography,
-} from "@mui/material";
-
+// src/app/AdminLayout.tsx
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { AppBar, Box, Button, IconButton, Toolbar, Typography } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
+import LogoutIcon from "@mui/icons-material/Logout";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import PeopleIcon from "@mui/icons-material/People";
-import AssignmentIcon from "@mui/icons-material/Assignment";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
+import AssignmentIcon from "@mui/icons-material/Assignment";
 import RuleIcon from "@mui/icons-material/Rule";
-import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
-import ContactMailIcon from "@mui/icons-material/ContactMail";
 import QuizIcon from "@mui/icons-material/Quiz";
+import ContactSupportIcon from "@mui/icons-material/ContactSupport";
 import EventIcon from "@mui/icons-material/Event";
-import LogoutIcon from "@mui/icons-material/Logout";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import { useMemo, useState } from "react";
+import type { ReactNode } from "react";
+import { AdminNav } from "../components/AdminNav";
 
-const drawerWidth = 260;
+type NavItem = {
+  label: string;
+  path: string;
+  icon: ReactNode;
+};
 
 export function AdminLayout() {
+  const [navOpen, setNavOpen] = useState(false);
   const navigate = useNavigate();
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const location = useLocation();
 
-  const navItems = useMemo(
+  const items: NavItem[] = useMemo(
     () => [
-      { label: "דף הבית", to: "/admin", icon: <DashboardIcon /> },
-      { label: "מועמדים", to: "/admin/candidates", icon: <PeopleIcon /> },
-      { label: "בקשות הרשמה", to: "/admin/requests", icon: <AssignmentIcon /> },
-      { label: "קורסים", to: "/admin/courses", icon: <MenuBookIcon /> },
-      { label: "דרישות קבלה", to: "/admin/requirements", icon: <RuleIcon /> },
-      { label: "שאלות נפוצות", to: "/admin/faqs", icon: <QuizIcon /> },
-      { label: "פניות צור קשר", to: "/admin/contacts", icon: <ContactMailIcon /> },
-
-      // ✅ חדש: מועדי הרשמה
-      { label: "מועדי הרשמה", to: "/admin/deadlines", icon: <EventIcon /> },
-
-      { label: "עזרה", to: "/admin/help", icon: <HelpOutlineIcon /> },
+      { label: "בית", path: "/admin", icon: <DashboardIcon fontSize="small" /> },
+      { label: "מועמדים", path: "/admin/candidates", icon: <PeopleIcon fontSize="small" /> },
+      { label: "בקשות הרשמה", path: "/admin/requests", icon: <AssignmentIcon fontSize="small" /> },
+      { label: "קורסים", path: "/admin/courses", icon: <MenuBookIcon fontSize="small" /> },
+      { label: "דרישות קבלה", path: "/admin/requirements", icon: <RuleIcon fontSize="small" /> },
+      { label: "שאלות נפוצות", path: "/admin/faqs", icon: <QuizIcon fontSize="small" /> },
+      { label: "פניות", path: "/admin/contacts", icon: <ContactSupportIcon fontSize="small" /> },
+      { label: "מועדי הרשמה", path: "/admin/deadlines", icon: <EventIcon fontSize="small" /> },
+      { label: "עזרה", path: "/admin/help", icon: <HelpOutlineIcon fontSize="small" /> },
     ],
     []
   );
 
-  function toggleDrawer() {
-    setMobileOpen((x) => !x);
+  function isActive(path: string) {
+    if (path === "/admin") return location.pathname === "/admin";
+    return location.pathname === path || location.pathname.startsWith(path + "/");
   }
 
   function logout() {
-    navigate("/login");
+    localStorage.removeItem("csih_auth");
+    navigate("/login", { replace: true });
   }
 
-  const drawer = (
-    <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      <Toolbar>
-        <Typography sx={{ fontWeight: 900 }}>תפריט ניהול</Typography>
-      </Toolbar>
-
-      <Divider />
-
-      <List sx={{ flex: 1 }}>
-        {navItems.map((item) => (
-          <ListItemButton
-            key={item.to}
-            component={NavLink}
-            to={item.to}
-            onClick={() => setMobileOpen(false)}
-            sx={{
-              "&.active": {
-                bgcolor: "action.selected",
-              },
-            }}
-          >
-            <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
-            <ListItemText primary={item.label} />
-          </ListItemButton>
-        ))}
-      </List>
-
-      <Divider />
-
-      <List>
-        <ListItemButton onClick={logout}>
-          <ListItemIcon sx={{ minWidth: 40 }}>
-            <LogoutIcon />
-          </ListItemIcon>
-          <ListItemText primary="התנתקות" />
-        </ListItemButton>
-      </List>
-    </Box>
-  );
-
   return (
-    <Box sx={{ display: "flex" }}>
-      <CssBaseline />
-
+    <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
       <AppBar
-        position="fixed"
-        sx={{
-          width: { md: `calc(100% - ${drawerWidth}px)` },
-          ml: { md: `${drawerWidth}px` },
-        }}
+        position="sticky"
+        color="inherit"
+        elevation={0}
+        sx={{ borderBottom: "1px solid rgba(0,0,0,0.08)" }}
       >
-        <Toolbar sx={{ gap: 1 }}>
+        <Toolbar sx={{ minHeight: 64 }}>
           <IconButton
-            color="inherit"
-            edge="start"
-            onClick={toggleDrawer}
-            sx={{ display: { md: "none" } }}
-            aria-label="open drawer"
+            onClick={() => setNavOpen(true)}
+            sx={{ display: { xs: "inline-flex", md: "none" } }}
+            aria-label="open menu"
           >
             <MenuIcon />
           </IconButton>
 
-          <Typography sx={{ fontWeight: 900 }}>מערכת ניהול</Typography>
+          <Box sx={{ flex: 1 }} />
+
+          <Typography
+            sx={{ fontWeight: 900, cursor: "pointer", userSelect: "none" }}
+            variant="h6"
+            onClick={() => navigate("/admin")}
+          >
+            מערכת ניהול
+          </Typography>
+
+          <Box sx={{ flex: 1 }} />
+
+          <IconButton onClick={logout} aria-label="logout" title="התנתקות">
+            <LogoutIcon />
+          </IconButton>
+        </Toolbar>
+
+        <Toolbar
+          variant="dense"
+          sx={{
+            display: { xs: "none", md: "flex" },
+            justifyContent: "center",
+            gap: 1,
+            pb: 1.5,
+            pt: 0.5,
+          }}
+        >
+          {items.map((it) => {
+            const active = isActive(it.path);
+            return (
+              <Button
+                key={it.path}
+                onClick={() => navigate(it.path)}
+                startIcon={it.icon}
+                variant={active ? "contained" : "text"}
+                color={active ? "primary" : "inherit"}
+                sx={{
+                  borderRadius: 999,
+                  px: 2,
+                  height: 40,
+                  fontWeight: 900,
+                  bgcolor: active ? "primary.main" : "transparent",
+                  color: active ? "#fff" : "text.primary",
+                  "& .MuiButton-startIcon": {
+                    marginInlineStart: 0,
+                    marginInlineEnd: "10px",
+                  },
+                }}
+              >
+                {it.label}
+              </Button>
+            );
+          })}
         </Toolbar>
       </AppBar>
 
-      <Box component="nav" sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}>
-        <Drawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={toggleDrawer}
-          ModalProps={{ keepMounted: true }}
-          sx={{
-            display: { xs: "block", md: "none" },
-            "& .MuiDrawer-paper": { width: drawerWidth },
-          }}
-        >
-          {drawer}
-        </Drawer>
+      <AdminNav open={navOpen} onClose={() => setNavOpen(false)} />
 
-        <Drawer
-          variant="permanent"
-          sx={{
-            display: { xs: "none", md: "block" },
-            "& .MuiDrawer-paper": { width: drawerWidth, boxSizing: "border-box" },
-          }}
-          open
-        >
-          {drawer}
-        </Drawer>
-      </Box>
-
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          width: { md: `calc(100% - ${drawerWidth}px)` },
-          p: 3,
-        }}
-      >
-        <Toolbar />
+      <Box sx={{ p: { xs: 2, md: 3 } }}>
         <Outlet />
       </Box>
     </Box>
