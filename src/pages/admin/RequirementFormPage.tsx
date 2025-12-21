@@ -45,6 +45,7 @@ function validate(v: FormState) {
 export function RequirementFormPage() {
   const { id } = useParams();
   const isEdit = Boolean(id);
+
   const navigate = useNavigate();
   const snackbar = useSnackbar();
 
@@ -96,15 +97,19 @@ export function RequirementFormPage() {
       isMandatory: values.isMandatory,
     };
 
-    if (isEdit && id) {
-      requirementsService.update(id, payload);
-      snackbar.show("הדרישה עודכנה בהצלחה");
-    } else {
-      requirementsService.create(payload);
-      snackbar.show("הדרישה נשמרה בהצלחה");
-    }
+    try {
+      if (isEdit && id) {
+        requirementsService.update(id, payload);
+        snackbar.show("הדרישה עודכנה בהצלחה");
+      } else {
+        requirementsService.create(payload);
+        snackbar.show("הדרישה נשמרה בהצלחה");
+      }
 
-    navigate("/admin/requirements");
+      navigate("/admin/requirements");
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה בשמירה");
+    }
   }
 
   return (
@@ -171,9 +176,7 @@ export function RequirementFormPage() {
           required
           type="number"
           value={values.displayOrder}
-          onChange={(e) =>
-            setField("displayOrder", e.target.value === "" ? "" : Number(e.target.value))
-          }
+          onChange={(e) => setField("displayOrder", e.target.value === "" ? "" : Number(e.target.value))}
           error={Boolean(errors.displayOrder)}
           helperText={errors.displayOrder ?? " "}
         />
