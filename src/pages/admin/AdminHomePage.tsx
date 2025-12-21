@@ -1,33 +1,69 @@
-// src/pages/admin/AdminHomePage.tsx
+
 import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
   Card,
   CardContent,
-  Divider,
   Paper,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
   Typography,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
+
+import PeopleIcon from "@mui/icons-material/People";
+import MenuBookIcon from "@mui/icons-material/MenuBook";
+import AssignmentIcon from "@mui/icons-material/Assignment";
+import RuleIcon from "@mui/icons-material/Rule";
 
 import { usersService } from "../../services/usersService";
 import { requestsService } from "../../services/requestsService";
 import { coursesService } from "../../services/coursesService";
 import { requirementsService } from "../../services/requirementsService";
 
-type PendingRequestRow = {
-  requestNumber: number;
-  candidateName: string;
-  status: string;
-  createdAt: string;
+type StatCardProps = {
+  title: string;
+  value: number;
+  color: string;
+  icon: React.ReactNode;
+  onClick: () => void;
 };
+
+function StatCard({ title, value, color, icon, onClick }: StatCardProps) {
+  return (
+    <Card sx={{ flex: 1, position: "relative", overflow: "hidden" }}>
+      <Box sx={{ height: 4, bgcolor: color }} />
+      <CardContent sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <Box
+          sx={{
+            width: 44,
+            height: 44,
+            borderRadius: 12,
+            bgcolor: color,
+            color: "#fff",
+            display: "grid",
+            placeItems: "center",
+            flexShrink: 0,
+          }}
+        >
+          {icon}
+        </Box>
+
+        <Box sx={{ flex: 1 }}>
+          <Typography variant="body2" sx={{ opacity: 0.7, fontWeight: 800 }}>
+            {title}
+          </Typography>
+          <Typography variant="h4" sx={{ fontWeight: 900, lineHeight: 1.1 }}>
+            {value}
+          </Typography>
+          <Button onClick={onClick} size="small" sx={{ mt: 0.5, px: 0 }}>
+            מעבר למסך
+          </Button>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+}
 
 export function AdminHomePage() {
   const navigate = useNavigate();
@@ -35,198 +71,122 @@ export function AdminHomePage() {
   const [candidatesCount, setCandidatesCount] = useState(0);
   const [coursesCount, setCoursesCount] = useState(0);
   const [requirementsCount, setRequirementsCount] = useState(0);
-
-  const [pendingRequests, setPendingRequests] = useState<PendingRequestRow[]>([]);
-  const [recentCandidates, setRecentCandidates] = useState<
-    { id: string; fullName: string; createdAt: string }[]
-  >([]);
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
 
   function refresh() {
-    const candidates = usersService.getCandidates();
-    setCandidatesCount(candidates.length);
+    setCandidatesCount(usersService.getCandidates().length);
+    setCoursesCount(coursesService.getAll().length);
+    setRequirementsCount(requirementsService.getAll().length);
 
-    const courses = coursesService.getAll();
-    setCoursesCount(courses.length);
-
-    const reqs = requirementsService.getAll();
-    setRequirementsCount(reqs.length);
-
-    const allRequests = requestsService.getAll();
-
-    const pendingStatusSet = new Set(["נשלחה"]);
-
-    const pending = allRequests
-      .filter((r: any) => pendingStatusSet.has(r.status))
-      .slice(0, 5)
-      .map((r: any) => {
-        const cand = usersService.getById(r.candidateId);
-        return {
-          requestNumber: r.requestNumber,
-          candidateName: cand?.fullName ?? "(מועמד לא נמצא)",
-          status: r.status,
-          createdAt: r.createdAt,
-        };
-      });
-
-    setPendingRequests(pending);
-
-    const recent = [...candidates]
-      .sort((a: any, b: any) => String(b.createdAt).localeCompare(String(a.createdAt)))
-      .slice(0, 5)
-      .map((c: any) => ({ id: c.id, fullName: c.fullName, createdAt: c.createdAt }));
-
-    setRecentCandidates(recent);
+    const pending = requestsService.getAll().filter((r: any) => r.status === "נשלחה");
+    setPendingRequestsCount(pending.length);
   }
 
   useEffect(() => {
     refresh();
   }, []);
 
-  const pendingCount = useMemo(() => pendingRequests.length, [pendingRequests]);
+  const stats = useMemo(
+    () => [
+      {
+        title: "דרישות קבלה",
+        value: requirementsCount,
+        color: "#2EAD4A", // ירוק
+        icon: <RuleIcon />,
+        onClick: () => navigate("/admin/requirements"),
+      },
+      {
+        title: "קורסים פעילים",
+        value: coursesCount,
+        color: "#6C63FF", // סגול
+        icon: <MenuBookIcon />,
+        onClick: () => navigate("/admin/courses"),
+      },
+      {
+        title: "בקשות הרשמה",
+        value: pendingRequestsCount,
+        color: "#FF7A1A", // כתום
+        icon: <AssignmentIcon />,
+        onClick: () => navigate("/admin/requests"),
+      },
+      {
+        title: "מועמדים",
+        value: candidatesCount,
+        color: "#1E88E5", // כחול
+        icon: <PeopleIcon />,
+        onClick: () => navigate("/admin/candidates"),
+      },
+    ],
+    [requirementsCount, coursesCount, pendingRequestsCount, candidatesCount, navigate]
+  );
 
   return (
     <Box>
-      <Typography variant="h5" sx={{ mb: 2 }}>
-        מסך בית - מנהל מערכת
+      <Typography variant="h5" sx={{ mb: 0.5 }}>
+        לוח בקרה – מערכת הניהול
+      </Typography>
+      <Typography sx={{ opacity: 0.75, mb: 2 }}>
+        צפייה מהירה בסטטוס המערכת וקישורים לפעולות מרכזיות
       </Typography>
 
-      <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ mb: 3 }}>
-        <Card sx={{ flex: 1 }}>
-          <CardContent>
-            <Typography variant="overline">כמות מועמדים</Typography>
-            <Typography variant="h4">{candidatesCount}</Typography>
-            <Button sx={{ mt: 1 }} onClick={() => navigate("/admin/candidates")}>
-              מעבר לניהול מועמדים
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card sx={{ flex: 1 }}>
-          <CardContent>
-            <Typography variant="overline">בקשות ממתינות</Typography>
-            <Typography variant="h4">{pendingCount}</Typography>
-            <Button sx={{ mt: 1 }} onClick={() => navigate("/admin/requests")}>
-              מעבר לניהול בקשות
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card sx={{ flex: 1 }}>
-          <CardContent>
-            <Typography variant="overline">כמות קורסים פעילים</Typography>
-            <Typography variant="h4">{coursesCount}</Typography>
-            <Button sx={{ mt: 1 }} onClick={() => navigate("/admin/courses")}>
-              מעבר לניהול קורסים
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card sx={{ flex: 1 }}>
-          <CardContent>
-            <Typography variant="overline">כמות דרישות קבלה</Typography>
-            <Typography variant="h4">{requirementsCount}</Typography>
-            <Button sx={{ mt: 1 }} onClick={() => navigate("/admin/requirements")}>
-              מעבר לדרישות קבלה
-            </Button>
-          </CardContent>
-        </Card>
+      <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ mb: 2 }}>
+        {stats.map((s) => (
+          <StatCard key={s.title} {...s} />
+        ))}
       </Stack>
 
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <Typography variant="h6" sx={{ mb: 1 }}>
-          גישה מהירה
-        </Typography>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-          <Button variant="contained" onClick={() => navigate("/admin/candidates/new")}>
-            הוספת מועמד חדש
-          </Button>
-          <Button variant="contained" onClick={() => navigate("/admin/requests/new")}>
-            הוספת בקשת הרשמה
-          </Button>
-          <Button variant="contained" onClick={() => navigate("/admin/courses/new")}>
-            הוספת קורס חדש
-          </Button>
-          <Button variant="contained" onClick={() => navigate("/admin/requirements/new")}>
-            הוספת דרישת קבלה
-          </Button>
-        </Stack>
-      </Paper>
+      <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ mb: 2 }}>
+        <Paper sx={{ p: 2, flex: 1 }}>
+          <Typography sx={{ fontWeight: 900, mb: 1 }}>בקשות הרשמה לטיפול</Typography>
+          <Typography sx={{ opacity: 0.75 }}>
+            כאן יוצג בהמשך טבלה/רשימה של בקשות בסטטוס “נשלחה”.
+          </Typography>
+        </Paper>
+
+        <Paper sx={{ p: 2, flex: 1 }}>
+          <Typography sx={{ fontWeight: 900, mb: 1 }}>מועמדים אחרונים</Typography>
+          <Typography sx={{ opacity: 0.75 }}>
+            כאן יוצג בהמשך טבלה/רשימה של מועמדים שנוספו לאחרונה.
+          </Typography>
+        </Paper>
+      </Stack>
+
+      <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 1 }}>
+        <Typography sx={{ fontWeight: 900 }}>פעולות מהירות</Typography>
+      </Box>
 
       <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-        <Paper sx={{ p: 2, flex: 1 }}>
-          <Typography variant="h6" sx={{ mb: 1 }}>
-            בקשות ממתינות לטיפול
-          </Typography>
-          <Divider sx={{ mb: 2 }} />
+        <Button
+          variant="contained"
+          sx={{ bgcolor: "#2EAD4A" }}
+          onClick={() => navigate("/admin/requirements/new")}
+        >
+          הוספת דרישה
+        </Button>
 
-          {pendingRequests.length === 0 ? (
-            <Typography>אין בקשות ממתינות 🎉</Typography>
-          ) : (
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>מס׳ בקשה</TableCell>
-                  <TableCell>מועמד</TableCell>
-                  <TableCell>סטטוס</TableCell>
-                  <TableCell>תאריך</TableCell>
-                  <TableCell align="right">פעולה</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {pendingRequests.map((r) => (
-                  <TableRow key={r.requestNumber} hover>
-                    <TableCell>{r.requestNumber}</TableCell>
-                    <TableCell>{r.candidateName}</TableCell>
-                    <TableCell>{r.status}</TableCell>
-                    <TableCell>{r.createdAt}</TableCell>
-                    <TableCell align="right">
-                      <Button
-                        size="small"
-                        onClick={() => navigate(`/admin/requests/${r.requestNumber}/edit`)}
-                      >
-                        עריכה
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </Paper>
+        <Button
+          variant="contained"
+          sx={{ bgcolor: "#6C63FF" }}
+          onClick={() => navigate("/admin/courses/new")}
+        >
+          הוספת קורס
+        </Button>
 
-        <Paper sx={{ p: 2, flex: 1 }}>
-          <Typography variant="h6" sx={{ mb: 1 }}>
-            מועמדים אחרונים שנוספו
-          </Typography>
-          <Divider sx={{ mb: 2 }} />
+        <Button
+          variant="contained"
+          sx={{ bgcolor: "#FF7A1A" }}
+          onClick={() => navigate("/admin/requests/new")}
+        >
+          הוספת בקשה
+        </Button>
 
-          {recentCandidates.length === 0 ? (
-            <Typography>אין מועמדים במערכת</Typography>
-          ) : (
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>שם מלא</TableCell>
-                  <TableCell>נוצר בתאריך</TableCell>
-                  <TableCell align="right">פעולה</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {recentCandidates.map((c) => (
-                  <TableRow key={c.id} hover>
-                    <TableCell>{c.fullName}</TableCell>
-                    <TableCell>{String(c.createdAt).slice(0, 10)}</TableCell>
-                    <TableCell align="right">
-                      <Button size="small" onClick={() => navigate(`/admin/candidates/${c.id}/edit`)}>
-                        עריכה
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </Paper>
+        <Button
+          variant="contained"
+          sx={{ bgcolor: "#1E88E5" }}
+          onClick={() => navigate("/admin/candidates/new")}
+        >
+          הוספת מועמד
+        </Button>
       </Stack>
     </Box>
   );
