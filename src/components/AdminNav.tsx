@@ -1,4 +1,4 @@
-// src/components/AdminNav.tsx
+
 import {
   Drawer,
   List,
@@ -57,6 +57,10 @@ export function AdminNav({ open, onClose }: Props) {
 
           <ListItemButton onClick={() => go("/admin/contacts")}>
             <ListItemText primary="פניות" />
+          </ListItemButton>
+
+          <ListItemButton onClick={() => go("/admin/deadlines")}>
+            <ListItemText primary="מועדי הרשמה" />
           </ListItemButton>
 
           <ListItemButton onClick={() => go("/admin/help")}>

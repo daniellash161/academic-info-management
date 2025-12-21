@@ -1,7 +1,6 @@
-import { createBrowserRouter, Navigate, useParams } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 import { AdminLayout } from "./AdminLayout";
 
-// Admin pages
 import { AdminHomePage } from "../pages/admin/AdminHomePage";
 
 import { CandidatesPage } from "../pages/admin/CandidatesPage";
@@ -22,16 +21,12 @@ import { FaqFormPage } from "../pages/admin/FaqFormPage";
 import { ContactMessagesPage } from "../pages/admin/ContactMessagesPage";
 import { ContactMessageFormPage } from "../pages/admin/ContactMessageFormPage";
 
+import { RegistrationDeadlinesPage } from "../pages/admin/RegistrationDeadlinesPage";
+import { RegistrationDeadlineFormPage } from "../pages/admin/RegistrationDeadlineFormPage";
+
 import { HelpPage } from "../pages/admin/HelpPage";
 
-// Auth
 import { LoginPage } from "../pages/auth/LoginPage";
-
-// ✅ Redirect לעריכה ישנה -> חדשה
-function RedirectContactEdit() {
-  const { id } = useParams();
-  return <Navigate to={`/admin/contact-messages/${id}/edit`} replace />;
-}
 
 export const router = createBrowserRouter([
   { path: "/", element: <Navigate to="/admin" replace /> },
@@ -61,20 +56,18 @@ export const router = createBrowserRouter([
       { path: "/admin/faqs/new", element: <FaqFormPage /> },
       { path: "/admin/faqs/:id/edit", element: <FaqFormPage /> },
 
-      { path: "/admin/contact-messages", element: <ContactMessagesPage /> },
-      { path: "/admin/contact-messages/:id/edit", element: <ContactMessageFormPage /> },
+      { path: "/admin/contacts", element: <ContactMessagesPage /> },
+      { path: "/admin/contacts/:id/edit", element: <ContactMessageFormPage /> },
 
-      { path: "/admin/contacts", element: <Navigate to="/admin/contact-messages" replace /> },
-      { path: "/admin/contacts/:id/edit", element: <RedirectContactEdit /> },
+      { path: "/admin/deadlines", element: <RegistrationDeadlinesPage /> },
+      { path: "/admin/deadlines/new", element: <RegistrationDeadlineFormPage /> },
+      { path: "/admin/deadlines/:id/edit", element: <RegistrationDeadlineFormPage /> },
 
       { path: "/admin/help", element: <HelpPage /> },
     ],
   },
 
-  // public help
   { path: "/help", element: <HelpPage /> },
-
   { path: "/login", element: <LoginPage /> },
-
   { path: "*", element: <div style={{ padding: 24 }}>404</div> },
 ]);

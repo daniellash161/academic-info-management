@@ -1,8 +1,9 @@
-// src/storage/lsKeys.ts
 export const LS_KEYS = {
-  users: "csih_users",
-  requests: "csih_requests",
-  courses: "csih_courses",
-  requirements: "csih_requirements",
-  contactMessages: "csih_contact_messages",
+  users: "users",
+  requests: "requests",
+  courses: "courses",
+  requirements: "requirements",
+  faqs: "faqs",
+  contactMessages: "contactMessages",
+  registrationDeadlines: "registrationDeadlines",
 } as const;
