@@ -1,3 +1,4 @@
+
 import {
   Drawer,
   List,
@@ -18,11 +19,11 @@ export function AdminNav({ open, onClose }: Props) {
 
   function go(path: string) {
     navigate(path);
-    onClose(); 
+    onClose();
   }
 
   function logout() {
-    localStorage.removeItem("csih_auth"); 
+    localStorage.removeItem("csih_auth");
     go("/login");
   }
 
@@ -50,12 +51,10 @@ export function AdminNav({ open, onClose }: Props) {
             <ListItemText primary="דרישות קבלה" />
           </ListItemButton>
 
-         
           <ListItemButton onClick={() => go("/admin/announcements")}>
             <ListItemText primary="עדכונים" />
           </ListItemButton>
 
-          
           <ListItemButton onClick={() => go("/admin/documents")}>
             <ListItemText primary="מסמכים" />
           </ListItemButton>
