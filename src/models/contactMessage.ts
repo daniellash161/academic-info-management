@@ -1,15 +1,14 @@
-export type ContactStatus = "חדש" | "בטיפול" | "טופל";
+export type ContactMessageStatus = "חדש" | "בטיפול" | "נסגר";
 
 export type ContactMessage = {
   id: string;
+  createdAt: string; // ISO
   fullName: string;
   email: string;
   phone: string;
   subject: string;
   message: string;
 
-  status: ContactStatus;
-  adminNotes?: string;
-
-  createdAt: string; // ISO
+  status: ContactMessageStatus;
+  adminNote?: string;
 };
