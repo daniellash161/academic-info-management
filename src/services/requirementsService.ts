@@ -1,12 +1,15 @@
 import { LS_KEYS } from "../storage/lsKeys";
-import { readLS, writeLS, makeId } from "../storage/storage";
+import { makeId, readLS, writeLS } from "../storage/storage";
 import type { Requirement, RequirementType } from "../models/requirement";
 
-function readAll(): Requirement[] {
+type CreateInput = Omit<Requirement, "id">;
+type UpdatePatch = Partial<Omit<Requirement, "id">>;
+
+function getAll(): Requirement[] {
   return readLS<Requirement[]>(LS_KEYS.requirements, []);
 }
 
-function writeAll(items: Requirement[]) {
+function saveAll(items: Requirement[]) {
   writeLS(LS_KEYS.requirements, items);
 }
 
@@ -16,51 +19,87 @@ export const requirementsService = {
   },
 
   getAll(): Requirement[] {
-    // סדר לפי displayOrder ואז לפי title
-    return [...readAll()].sort((a, b) => {
-      if (a.displayOrder !== b.displayOrder) return a.displayOrder - b.displayOrder;
-      return a.title.localeCompare(b.title);
-    });
+    return getAll();
   },
 
   getById(id: string): Requirement | undefined {
-    return readAll().find((r) => r.id === id);
+    return getAll().find((r) => r.id === id);
   },
 
-  searchAndFilter(query: string, typeFilter: RequirementType | "ALL"): Requirement[] {
-    const items = this.getAll();
+  create(input: Omit<CreateInput, "courseCodes"> & { courseCodes?: string[] }) {
+    const item: Requirement = {
+      ...input,
+      id: makeId(),
+      title: input.title.trim(),
+      description: input.description?.trim() ? input.description.trim() : undefined,
+      extraInfo: input.extraInfo?.trim() ? input.extraInfo.trim() : undefined,
+      courseCodes: input.courseCodes ?? [],
+    };
 
-    const filteredByType =
-      typeFilter === "ALL" ? items : items.filter((r) => r.type === typeFilter);
-
-    const q = query.trim().toLowerCase();
-    if (!q) return filteredByType;
-
-    return filteredByType.filter((r) => {
-      const hay = `${r.title} ${r.type} ${r.description ?? ""} ${r.extraInfo ?? ""}`.toLowerCase();
-      return hay.includes(q);
-    });
+    const all = getAll();
+    saveAll([item, ...all]);
+    return item;
   },
 
-  create(input: Omit<Requirement, "id">): Requirement {
-    const newItem: Requirement = { ...input, id: makeId() };
-    const all = readAll();
-    writeAll([newItem, ...all]);
-    return newItem;
-  },
-
-  update(id: string, patch: Partial<Omit<Requirement, "id">>): Requirement | undefined {
-    const all = readAll();
+  update(id: string, patch: UpdatePatch) {
+    const all = getAll();
     const idx = all.findIndex((r) => r.id === id);
-    if (idx === -1) return undefined;
+    if (idx === -1) throw new Error("דרישה לא נמצאה");
 
-    const updated: Requirement = { ...all[idx], ...patch, id };
+    const current = all[idx];
+
+    const updated: Requirement = {
+      ...current,
+      ...patch,
+      title: patch.title !== undefined ? patch.title.trim() : current.title,
+      description:
+        patch.description !== undefined
+          ? patch.description.trim()
+            ? patch.description.trim()
+            : undefined
+          : current.description,
+      extraInfo:
+        patch.extraInfo !== undefined
+          ? patch.extraInfo.trim()
+            ? patch.extraInfo.trim()
+            : undefined
+          : current.extraInfo,
+      courseCodes: patch.courseCodes !== undefined ? patch.courseCodes : current.courseCodes,
+    };
+
     all[idx] = updated;
-    writeAll(all);
+    saveAll(all);
     return updated;
   },
 
   remove(id: string) {
-    writeAll(readAll().filter((r) => r.id !== id));
+    saveAll(getAll().filter((r) => r.id !== id));
+  },
+
+  searchAndFilter(query: string, typeFilter: RequirementType | "ALL"): Requirement[] {
+    const q = query.trim().toLowerCase();
+
+    let rows = getAll();
+
+    if (typeFilter !== "ALL") {
+      rows = rows.filter((r) => r.type === typeFilter);
+    }
+
+    if (q) {
+      rows = rows.filter((r) => {
+        const hay = [
+          r.type,
+          r.title,
+          r.description ?? "",
+          r.extraInfo ?? "",
+          (r.courseCodes ?? []).join(","),
+        ]
+          .join(" ")
+          .toLowerCase();
+        return hay.includes(q);
+      });
+    }
+
+    return rows.sort((a, b) => a.displayOrder - b.displayOrder);
   },
 };

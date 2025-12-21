@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Box, Button, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import { Box, Button, MenuItem, Stack, TextField, Typography, Paper } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
 import type { RegistrationRequest, RequestStatus } from "../../models/registrationRequest";
 import { requestsService } from "../../services/requestsService";
@@ -48,7 +48,7 @@ export function RequestFormPage() {
 
   const [values, setValues] = useState<FormState>({
     candidateId: "",
-    status: "", 
+    status: "בטיוטה",
     createdAt: todayYmd(),
     notes: "",
   });
@@ -66,6 +66,10 @@ export function RequestFormPage() {
       notes: existing.notes ?? "",
     });
   }, [requestNumber]);
+
+  const selectedCandidate = useMemo(() => {
+    return values.candidateId ? usersService.getById(values.candidateId) : undefined;
+  }, [values.candidateId]);
 
   const errors = useMemo(() => validate(values), [values]);
   const canSave = Object.keys(errors).length === 0;
@@ -101,7 +105,7 @@ export function RequestFormPage() {
         {isEdit ? `עריכת בקשה #${requestNumber}` : "הוספת בקשת הרשמה"}
       </Typography>
 
-      <Stack spacing={2} sx={{ maxWidth: 520 }}>
+      <Stack spacing={2} sx={{ maxWidth: 560 }}>
         <TextField
           select
           label="מועמד"
@@ -119,6 +123,15 @@ export function RequestFormPage() {
           ))}
         </TextField>
 
+        {selectedCandidate && (
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Typography sx={{ fontWeight: 800, mb: 1 }}>פרטי מועמד (לצפייה בלבד)</Typography>
+            <Typography>שם: {selectedCandidate.fullName}</Typography>
+            <Typography>מייל: {selectedCandidate.email}</Typography>
+            <Typography>טלפון: {selectedCandidate.phone}</Typography>
+          </Paper>
+        )}
+
         <TextField
           select
           label="סטטוס"
@@ -128,7 +141,6 @@ export function RequestFormPage() {
           error={Boolean(errors.status)}
           helperText={errors.status ?? " "}
         >
-          <MenuItem value="">— בחרי סטטוס —</MenuItem>
           {statuses.map((s) => (
             <MenuItem key={s} value={s}>
               {s}

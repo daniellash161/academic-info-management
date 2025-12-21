@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
+  Checkbox,
   FormControlLabel,
   MenuItem,
   Stack,
@@ -12,6 +13,7 @@ import {
 import { useNavigate, useParams } from "react-router-dom";
 import type { RequirementType } from "../../models/requirement";
 import { requirementsService } from "../../services/requirementsService";
+import { coursesService } from "../../services/coursesService";
 import { useSnackbar } from "../../hooks/useSnackbar";
 import { AppSnackbar } from "../../components/AppSnackbar";
 
@@ -23,6 +25,8 @@ type FormState = {
   extraInfo: string;
   displayOrder: number | "";
   isMandatory: boolean;
+
+  courseCodes: string[];
 };
 
 function validate(v: FormState) {
@@ -45,11 +49,11 @@ function validate(v: FormState) {
 export function RequirementFormPage() {
   const { id } = useParams();
   const isEdit = Boolean(id);
-
   const navigate = useNavigate();
   const snackbar = useSnackbar();
 
   const types = requirementsService.types();
+  const courses = coursesService.getAll(); // ישות קיימת במערכת
 
   const [values, setValues] = useState<FormState>({
     type: "",
@@ -59,6 +63,7 @@ export function RequirementFormPage() {
     extraInfo: "",
     displayOrder: 1,
     isMandatory: false,
+    courseCodes: [],
   });
 
   useEffect(() => {
@@ -74,6 +79,7 @@ export function RequirementFormPage() {
       extraInfo: existing.extraInfo ?? "",
       displayOrder: existing.displayOrder,
       isMandatory: existing.isMandatory,
+      courseCodes: existing.courseCodes ?? [],
     });
   }, [id]);
 
@@ -95,21 +101,18 @@ export function RequirementFormPage() {
       extraInfo: values.extraInfo.trim() ? values.extraInfo.trim() : undefined,
       displayOrder: Number(values.displayOrder),
       isMandatory: values.isMandatory,
+      courseCodes: values.courseCodes,
     };
 
-    try {
-      if (isEdit && id) {
-        requirementsService.update(id, payload);
-        snackbar.show("הדרישה עודכנה בהצלחה");
-      } else {
-        requirementsService.create(payload);
-        snackbar.show("הדרישה נשמרה בהצלחה");
-      }
-
-      navigate("/admin/requirements");
-    } catch (e: any) {
-      snackbar.show(e?.message ?? "שגיאה בשמירה");
+    if (isEdit && id) {
+      requirementsService.update(id, payload);
+      snackbar.show("הדרישה עודכנה בהצלחה");
+    } else {
+      requirementsService.create(payload);
+      snackbar.show("הדרישה נשמרה בהצלחה");
     }
+
+    navigate("/admin/requirements");
   }
 
   return (
@@ -118,7 +121,7 @@ export function RequirementFormPage() {
         {isEdit ? "עריכת דרישת קבלה" : "הוספת דרישת קבלה"}
       </Typography>
 
-      <Stack spacing={2} sx={{ maxWidth: 600 }}>
+      <Stack spacing={2} sx={{ maxWidth: 640 }}>
         <TextField
           select
           label="סוג דרישה"
@@ -176,10 +179,31 @@ export function RequirementFormPage() {
           required
           type="number"
           value={values.displayOrder}
-          onChange={(e) => setField("displayOrder", e.target.value === "" ? "" : Number(e.target.value))}
+          onChange={(e) =>
+            setField("displayOrder", e.target.value === "" ? "" : Number(e.target.value))
+          }
           error={Boolean(errors.displayOrder)}
           helperText={errors.displayOrder ?? " "}
         />
+
+        <TextField
+          select
+          label="קורסים קשורים (רשות)"
+          value={values.courseCodes}
+          onChange={(e) => setField("courseCodes", e.target.value as any)}
+          SelectProps={{
+            multiple: true,
+            renderValue: (selected) => (selected as string[]).join(", "),
+          }}
+          helperText="אפשר לשייך דרישה לקורס/ים לפי התכנון"
+        >
+          {courses.map((c) => (
+            <MenuItem key={c.code} value={c.code}>
+              <Checkbox checked={values.courseCodes.includes(c.code)} />
+              {c.code} — {c.name}
+            </MenuItem>
+          ))}
+        </TextField>
 
         <FormControlLabel
           control={
