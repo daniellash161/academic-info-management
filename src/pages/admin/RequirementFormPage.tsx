@@ -4,17 +4,15 @@ import {
   Button,
   Checkbox,
   FormControlLabel,
-  ListItemText,
   MenuItem,
-  OutlinedInput,
-  Select,
+  ListItemText,
   Stack,
   Switch,
   TextField,
   Typography,
 } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
-import type { RequirementType } from "../../models/requirement";
+import type { Requirement, RequirementType } from "../../models/requirement";
 import { requirementsService } from "../../services/requirementsService";
 import { coursesService } from "../../services/coursesService";
 import { useSnackbar } from "../../hooks/useSnackbar";
@@ -28,10 +26,10 @@ type FormState = {
   extraInfo: string;
   displayOrder: number | "";
   isMandatory: boolean;
-  courseCodes: string[];
+  courseCodes: string[]; 
 };
 
-function validate(v: FormState, validCourseCodes: string[]) {
+function validate(v: FormState, validCourseCodes: Set<string>) {
   const errors: Partial<Record<keyof FormState, string>> = {};
 
   if (!v.type) errors.type = "שדה חובה";
@@ -45,8 +43,12 @@ function validate(v: FormState, validCourseCodes: string[]) {
     errors.displayOrder = "סדר תצוגה חייב להיות מספר שלם >= 1";
   }
 
-  const invalid = (v.courseCodes ?? []).filter((c) => !validCourseCodes.includes(c));
-  if (invalid.length > 0) errors.courseCodes = "נבחרו קורסים לא קיימים";
+  for (const code of v.courseCodes) {
+    if (!validCourseCodes.has(code)) {
+      errors.courseCodes = `קורס לא קיים: ${code}`;
+      break;
+    }
+  }
 
   return errors;
 }
@@ -58,8 +60,8 @@ export function RequirementFormPage() {
   const snackbar = useSnackbar();
 
   const types = requirementsService.types();
-  const courses = useMemo(() => coursesService.getAll(), []);
-  const validCourseCodes = useMemo(() => courses.map((c) => c.code), [courses]);
+  const courses = coursesService.getAll(); // קיים אצלך כבר במערכת
+  const validCourseCodes = useMemo(() => new Set(courses.map((c) => c.code)), [courses]);
 
   const [values, setValues] = useState<FormState>({
     type: "",
@@ -99,7 +101,7 @@ export function RequirementFormPage() {
   function onSave() {
     if (!canSave) return;
 
-    const payload = {
+    const payload: Omit<Requirement, "id"> = {
       type: values.type as RequirementType,
       minScore: Number(values.minScore),
       title: values.title.trim(),
@@ -107,7 +109,7 @@ export function RequirementFormPage() {
       extraInfo: values.extraInfo.trim() ? values.extraInfo.trim() : undefined,
       displayOrder: Number(values.displayOrder),
       isMandatory: values.isMandatory,
-      courseCodes: values.courseCodes ?? [],
+      courseCodes: values.courseCodes,
     };
 
     if (isEdit && id) {
@@ -127,7 +129,7 @@ export function RequirementFormPage() {
         {isEdit ? "עריכת דרישת קבלה" : "הוספת דרישת קבלה"}
       </Typography>
 
-      <Stack spacing={2} sx={{ maxWidth: 640 }}>
+      <Stack spacing={2} sx={{ maxWidth: 620 }}>
         <TextField
           select
           label="סוג דרישה"
@@ -190,36 +192,38 @@ export function RequirementFormPage() {
           helperText={errors.displayOrder ?? " "}
         />
 
-        <Box>
-          <Typography sx={{ fontWeight: 800, mb: 0.5 }}>קורסים קשורים (רשות)</Typography>
-
-          <Select
-            multiple
-            fullWidth
-            value={values.courseCodes}
-            onChange={(e) => setField("courseCodes", e.target.value as string[])}
-            input={<OutlinedInput size="small" />}
-            renderValue={(selected) => (selected.length ? selected.join(", ") : "— לא נבחרו —")}
-            error={Boolean(errors.courseCodes)}
-          >
-            {courses.map((c) => {
-              const checked = values.courseCodes.includes(c.code);
-              return (
-                <MenuItem key={c.code} value={c.code}>
-                  <Checkbox checked={checked} />
-                  <ListItemText primary={`${c.code} — ${c.name}`} />
-                </MenuItem>
-              );
-            })}
-          </Select>
-
-          <Typography variant="caption" sx={{ color: errors.courseCodes ? "error.main" : "text.secondary" }}>
-            {errors.courseCodes ?? "בחרי קורסים שהדרישה הזו קשורה אליהם (אפשר להשאיר ריק)"}
-          </Typography>
-        </Box>
+        {/* קשר דרישה ↔ קורסים */}
+        <TextField
+          select
+          label="קורסים רלוונטיים (רשות)"
+          value={values.courseCodes}
+          onChange={(e) => setField("courseCodes", e.target.value as unknown as string[])}
+          SelectProps={{
+            multiple: true,
+            renderValue: (selected) =>
+              (selected as string[]).length ? (selected as string[]).join(", ") : "—",
+          }}
+          error={Boolean(errors.courseCodes)}
+          helperText={errors.courseCodes ?? "אפשר לבחור כמה קורסים, או להשאיר ריק"}
+        >
+          {courses.map((c) => {
+            const checked = values.courseCodes.includes(c.code);
+            return (
+              <MenuItem key={c.code} value={c.code}>
+                <Checkbox checked={checked} />
+                <ListItemText primary={`${c.code} — ${c.name}`} />
+              </MenuItem>
+            );
+          })}
+        </TextField>
 
         <FormControlLabel
-          control={<Switch checked={values.isMandatory} onChange={(e) => setField("isMandatory", e.target.checked)} />}
+          control={
+            <Switch
+              checked={values.isMandatory}
+              onChange={(e) => setField("isMandatory", e.target.checked)}
+            />
+          }
           label="דרישת חובה"
         />
 

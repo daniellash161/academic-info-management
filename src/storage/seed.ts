@@ -77,10 +77,6 @@ export function seedCoursesIfEmpty() {
 export function seedRequirementsIfEmpty() {
   if (hasLS(LS_KEYS.requirements)) return;
 
-  seedCoursesIfEmpty();
-  const courses = readLS<Course[]>(LS_KEYS.courses, []);
-  const courseCodes = courses.map((c) => c.code);
-
   const reqs: Requirement[] = [
     {
       id: makeId(),
@@ -91,7 +87,7 @@ export function seedRequirementsIfEmpty() {
       extraInfo: "במקרים חריגים תישקל ועדה.",
       displayOrder: 1,
       isMandatory: true,
-      courseCodes: [],
+      courseCodes: ["CS101"],
     },
     {
       id: makeId(),
@@ -113,7 +109,7 @@ export function seedRequirementsIfEmpty() {
       extraInfo: "ניתן להשלים קורסי אנגלית בהתאם לצורך.",
       displayOrder: 3,
       isMandatory: false,
-      courseCodes: [],
+      courseCodes: ["CS102"],
     },
     ...Array.from({ length: 7 }).map((_, i) => ({
       id: makeId(),
@@ -124,7 +120,7 @@ export function seedRequirementsIfEmpty() {
       extraInfo: "",
       displayOrder: 4 + i,
       isMandatory: i % 2 === 0,
-      courseCodes: i % 2 === 0 ? [courseCodes[i % courseCodes.length]] : [],
+      courseCodes: i % 2 === 0 ? ["CS101"] : [],
     })),
   ];
 
