@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { RouterProvider } from "react-router-dom";
 import { router } from "./router";
@@ -6,6 +7,8 @@ import {
   seedRequestsIfEmpty,
   seedCoursesIfEmpty,
   seedRequirementsIfEmpty,
+  seedAnnouncementsIfEmpty,
+  seedDocumentsIfEmpty,
 } from "../storage/seed";
 
 export default function App() {
@@ -14,6 +17,8 @@ export default function App() {
     seedRequestsIfEmpty();
     seedCoursesIfEmpty();
     seedRequirementsIfEmpty();
+    seedAnnouncementsIfEmpty();
+    seedDocumentsIfEmpty();
   }, []);
 
   return <RouterProvider router={router} />;

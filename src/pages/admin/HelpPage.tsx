@@ -1,4 +1,3 @@
-// src/pages/admin/HelpPage.tsx
 import {
   Accordion,
   AccordionDetails,

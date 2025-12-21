@@ -1,4 +1,3 @@
-// src/storage/seed.ts
 import { LS_KEYS } from "./lsKeys";
 import { hasLS, makeId, writeLS } from "./storage";
 
@@ -6,6 +5,8 @@ import type { User } from "../models/user";
 import type { RegistrationRequest } from "../models/registrationRequest";
 import type { Course } from "../models/course";
 import type { Requirement } from "../models/requirement";
+import type { Announcement } from "../models/announcement";
+import type { ApplicationDocument } from "../models/applicationDocument";
 
 import { usersService } from "../services/usersService";
 
@@ -120,4 +121,56 @@ export function seedRequirementsIfEmpty() {
   ];
 
   writeLS(LS_KEYS.requirements, reqs);
+}
+
+export function seedAnnouncementsIfEmpty() {
+  if (hasLS(LS_KEYS.announcements)) return;
+
+  const today = new Date();
+  const ymd = (d: Date) => d.toISOString().slice(0, 10);
+
+  const items: Announcement[] = Array.from({ length: 10 }).map((_, i) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+
+    return {
+      id: makeId(),
+      title: `עדכון מערכת #${i + 1}`,
+      content: `זהו עדכון לדוגמה מספר ${i + 1}.`,
+      publishedAt: ymd(d),
+      isActive: i % 5 !== 0, // חלק לא פעילים
+    };
+  });
+
+  writeLS(LS_KEYS.announcements, items);
+}
+
+export function seedDocumentsIfEmpty() {
+  if (hasLS(LS_KEYS.documents)) return;
+
+  const candidates = usersService.getCandidates();
+  const today = new Date();
+  const ymd = (d: Date) => d.toISOString().slice(0, 10);
+
+  const docTypes: ApplicationDocument["docType"][] = ["תעודת זהות", "גליון ציונים", "בגרות", "פסיכומטרי", "אחר"];
+  const statuses: ApplicationDocument["status"][] = ["חסר", "הועלה", "אושר", "נדחה"];
+
+  const items: ApplicationDocument[] = Array.from({ length: 10 }).map((_, i) => {
+    const candidate = candidates[i % candidates.length];
+    const status = statuses[i % statuses.length];
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+
+    return {
+      id: makeId(),
+      candidateId: candidate.id,
+      docType: docTypes[i % docTypes.length],
+      title: `מסמך ${i + 1}`,
+      status,
+      uploadedAt: status === "חסר" ? undefined : ymd(d),
+      notes: i % 3 === 0 ? "הערה לדוגמה" : "",
+    };
+  });
+
+  writeLS(LS_KEYS.documents, items);
 }
