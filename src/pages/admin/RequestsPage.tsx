@@ -2,6 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   IconButton,
   MenuItem,
   Paper,
@@ -19,23 +24,39 @@ import { useNavigate } from "react-router-dom";
 import type { RegistrationRequest, RequestStatus } from "../../models/registrationRequest";
 import { requestsService } from "../../services/requestsService";
 import { usersService } from "../../services/usersService";
+import { useSnackbar } from "../../hooks/useSnackbar";
+import { AppSnackbar } from "../../components/AppSnackbar";
 
 export function RequestsPage() {
   const [rows, setRows] = useState<RegistrationRequest[]>([]);
   const [statusFilter, setStatusFilter] = useState<RequestStatus | "ALL">("ALL");
+  const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
+
   const navigate = useNavigate();
+  const snackbar = useSnackbar();
 
   function refresh() {
     setRows(requestsService.getAll());
   }
 
   useEffect(() => {
-    refresh(); // טעינה ראשונית מ-localStorage
+    refresh();
   }, []);
 
-  function onDelete(requestNumber: number) {
-    requestsService.remove(requestNumber);
+  function onAskDelete(requestNumber: number) {
+    setDeleteTarget(requestNumber);
+  }
+
+  function onCancelDelete() {
+    setDeleteTarget(null);
+  }
+
+  function onConfirmDelete() {
+    if (deleteTarget === null) return;
+    requestsService.remove(deleteTarget);
+    setDeleteTarget(null);
     refresh();
+    snackbar.show("הבקשה נמחקה בהצלחה");
   }
 
   const filtered = useMemo(() => {
@@ -88,17 +109,20 @@ export function RequestsPage() {
             {filtered.map((r) => {
               const candidate = usersService.getById(r.candidateId);
               return (
-                <TableRow key={r.requestNumber}>
+                <TableRow key={r.requestNumber} hover>
                   <TableCell>{r.requestNumber}</TableCell>
                   <TableCell>{candidate?.fullName ?? "(מועמד לא נמצא)"}</TableCell>
                   <TableCell>{r.status}</TableCell>
                   <TableCell>{r.createdAt}</TableCell>
                   <TableCell>{r.notes ? r.notes.slice(0, 40) : "-"}</TableCell>
                   <TableCell align="right">
-                    <IconButton onClick={() => navigate(`/admin/requests/${r.requestNumber}/edit`)}>
+                    <IconButton
+                      aria-label="edit"
+                      onClick={() => navigate(`/admin/requests/${r.requestNumber}/edit`)}
+                    >
                       <EditIcon />
                     </IconButton>
-                    <IconButton onClick={() => onDelete(r.requestNumber)}>
+                    <IconButton aria-label="delete" onClick={() => onAskDelete(r.requestNumber)}>
                       <DeleteIcon />
                     </IconButton>
                   </TableCell>
@@ -116,6 +140,23 @@ export function RequestsPage() {
           </TableBody>
         </Table>
       </Paper>
+
+      <Dialog open={deleteTarget !== null} onClose={onCancelDelete}>
+        <DialogTitle>מחיקת בקשה</DialogTitle>
+        <DialogContent>
+          <DialogContentText>האם למחוק את הבקשה לצמיתות?</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="outlined" onClick={onCancelDelete}>
+            ביטול
+          </Button>
+          <Button variant="contained" color="error" onClick={onConfirmDelete}>
+            מחיקה
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <AppSnackbar open={snackbar.open} message={snackbar.message} onClose={snackbar.close} />
     </Box>
   );
 }

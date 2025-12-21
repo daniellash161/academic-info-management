@@ -1,12 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Box,
-  Button,
-  MenuItem,
-  Stack,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { Box, Button, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
 import type { RegistrationRequest, RequestStatus } from "../../models/registrationRequest";
 import { requestsService } from "../../services/requestsService";
@@ -55,7 +48,7 @@ export function RequestFormPage() {
 
   const [values, setValues] = useState<FormState>({
     candidateId: "",
-    status: "בטיוטה",
+    status: "", 
     createdAt: todayYmd(),
     notes: "",
   });
@@ -135,6 +128,7 @@ export function RequestFormPage() {
           error={Boolean(errors.status)}
           helperText={errors.status ?? " "}
         >
+          <MenuItem value="">— בחרי סטטוס —</MenuItem>
           {statuses.map((s) => (
             <MenuItem key={s} value={s}>
               {s}
@@ -173,11 +167,7 @@ export function RequestFormPage() {
         </Stack>
       </Stack>
 
-      <AppSnackbar
-        open={snackbar.open}
-        message={snackbar.message}
-        onClose={snackbar.close}
-      />
+      <AppSnackbar open={snackbar.open} message={snackbar.message} onClose={snackbar.close} />
     </Box>
   );
 }
