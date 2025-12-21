@@ -1,3 +1,4 @@
+// src/models/requirement.ts
 export type RequirementType = "פסיכומטרי" | "בגרות" | "אנגלית";
 
 export type Requirement = {
@@ -9,6 +10,4 @@ export type Requirement = {
   extraInfo?: string;
   displayOrder: number;
   isMandatory: boolean;
-
-  courseCodes: string[];
 };

@@ -5,12 +5,30 @@ import type { Requirement, RequirementType } from "../models/requirement";
 type CreateInput = Omit<Requirement, "id">;
 type UpdatePatch = Partial<Omit<Requirement, "id">>;
 
-function getAll(): Requirement[] {
+function readAll(): Requirement[] {
   return readLS<Requirement[]>(LS_KEYS.requirements, []);
 }
 
 function saveAll(items: Requirement[]) {
   writeLS(LS_KEYS.requirements, items);
+}
+
+function normalizeType(t: string): RequirementType {
+  if (t === "פסיכומטרי" || t === "בגרות" || t === "אנגלית") return t;
+  return "פסיכומטרי";
+}
+
+function assertValidInput(input: CreateInput) {
+  if (!input.title?.trim()) throw new Error("כותרת היא שדה חובה");
+  if (!input.type) throw new Error("סוג דרישה הוא שדה חובה");
+
+  const minScore = Number(input.minScore);
+  if (!Number.isFinite(minScore) || minScore < 0) throw new Error("מינימום ציון חייב להיות מספר >= 0");
+
+  const displayOrder = Number(input.displayOrder);
+  if (!Number.isInteger(displayOrder) || displayOrder < 1) {
+    throw new Error("סדר תצוגה חייב להיות מספר שלם >= 1");
+  }
 }
 
 export const requirementsService = {
@@ -19,39 +37,50 @@ export const requirementsService = {
   },
 
   getAll(): Requirement[] {
-    return getAll();
+    return [...readAll()];
   },
 
   getById(id: string): Requirement | undefined {
-    return getAll().find((r) => r.id === id);
+    return readAll().find((r) => r.id === id);
   },
 
-  create(input: Omit<CreateInput, "courseCodes"> & { courseCodes?: string[] }) {
-    const item: Requirement = {
+  create(input: CreateInput): Requirement {
+    const normalized: CreateInput = {
       ...input,
-      id: makeId(),
+      type: normalizeType(String(input.type)),
       title: input.title.trim(),
+      minScore: Number(input.minScore),
+      displayOrder: Number(input.displayOrder),
       description: input.description?.trim() ? input.description.trim() : undefined,
       extraInfo: input.extraInfo?.trim() ? input.extraInfo.trim() : undefined,
-      courseCodes: input.courseCodes ?? [],
     };
 
-    const all = getAll();
+    assertValidInput(normalized);
+
+    const item: Requirement = {
+      ...normalized,
+      id: makeId(),
+    };
+
+    const all = readAll();
     saveAll([item, ...all]);
     return item;
   },
 
-  update(id: string, patch: UpdatePatch) {
-    const all = getAll();
+  update(id: string, patch: UpdatePatch): Requirement {
+    const all = readAll();
     const idx = all.findIndex((r) => r.id === id);
     if (idx === -1) throw new Error("דרישה לא נמצאה");
 
     const current = all[idx];
 
-    const updated: Requirement = {
+    const next: Requirement = {
       ...current,
       ...patch,
+      type: patch.type !== undefined ? normalizeType(String(patch.type)) : current.type,
       title: patch.title !== undefined ? patch.title.trim() : current.title,
+      minScore: patch.minScore !== undefined ? Number(patch.minScore) : current.minScore,
+      displayOrder: patch.displayOrder !== undefined ? Number(patch.displayOrder) : current.displayOrder,
       description:
         patch.description !== undefined
           ? patch.description.trim()
@@ -64,22 +93,32 @@ export const requirementsService = {
             ? patch.extraInfo.trim()
             : undefined
           : current.extraInfo,
-      courseCodes: patch.courseCodes !== undefined ? patch.courseCodes : current.courseCodes,
+      isMandatory: patch.isMandatory !== undefined ? patch.isMandatory : current.isMandatory,
     };
 
-    all[idx] = updated;
+    assertValidInput({
+      type: next.type,
+      minScore: next.minScore,
+      title: next.title,
+      description: next.description,
+      extraInfo: next.extraInfo,
+      displayOrder: next.displayOrder,
+      isMandatory: next.isMandatory,
+    });
+
+    all[idx] = next;
     saveAll(all);
-    return updated;
+    return next;
   },
 
   remove(id: string) {
-    saveAll(getAll().filter((r) => r.id !== id));
+    saveAll(readAll().filter((r) => r.id !== id));
   },
 
   searchAndFilter(query: string, typeFilter: RequirementType | "ALL"): Requirement[] {
     const q = query.trim().toLowerCase();
 
-    let rows = getAll();
+    let rows = readAll();
 
     if (typeFilter !== "ALL") {
       rows = rows.filter((r) => r.type === typeFilter);
@@ -87,15 +126,7 @@ export const requirementsService = {
 
     if (q) {
       rows = rows.filter((r) => {
-        const hay = [
-          r.type,
-          r.title,
-          r.description ?? "",
-          r.extraInfo ?? "",
-          (r.courseCodes ?? []).join(","),
-        ]
-          .join(" ")
-          .toLowerCase();
+        const hay = [r.type, r.title, r.description ?? "", r.extraInfo ?? ""].join(" ").toLowerCase();
         return hay.includes(q);
       });
     }

@@ -1,4 +1,3 @@
-// src/services/usersService.ts
 import { LS_KEYS } from "../storage/lsKeys";
 import { makeId, readLS, writeLS } from "../storage/storage";
 import type { User, UserRole } from "../models/user";
@@ -79,7 +78,6 @@ export const usersService = {
   },
 
   create(input: CreateUserInput): User {
-    // ולידציות בסיסיות (שלא יהיה אפשר לעקוף דרך Console)
     assertValidFullName(input.fullName);
     assertValidNationalId(String(input.nationalId));
     assertValidEmail(input.email);
