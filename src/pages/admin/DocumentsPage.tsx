@@ -2,6 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   IconButton,
   MenuItem,
   Paper,
@@ -19,12 +24,17 @@ import { useNavigate } from "react-router-dom";
 import type { ApplicationDocument, DocumentStatus } from "../../models/applicationDocument";
 import { documentsService } from "../../services/documentsService";
 import { usersService } from "../../services/usersService";
+import { useSnackbar } from "../../hooks/useSnackbar";
+import { AppSnackbar } from "../../components/AppSnackbar";
 
 export function DocumentsPage() {
   const navigate = useNavigate();
+  const snackbar = useSnackbar();
+
   const [rows, setRows] = useState<ApplicationDocument[]>([]);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<DocumentStatus | "ALL">("ALL");
+  const [deleteTarget, setDeleteTarget] = useState<ApplicationDocument | null>(null);
 
   function refresh() {
     setRows(documentsService.getAll());
@@ -38,9 +48,20 @@ export function DocumentsPage() {
     return documentsService.search(query, statusFilter);
   }, [query, statusFilter, rows]);
 
-  function onDelete(id: string) {
-    documentsService.remove(id);
+  function askDelete(d: ApplicationDocument) {
+    setDeleteTarget(d);
+  }
+
+  function cancelDelete() {
+    setDeleteTarget(null);
+  }
+
+  function confirmDelete() {
+    if (!deleteTarget) return;
+    documentsService.remove(deleteTarget.id);
+    setDeleteTarget(null);
     refresh();
+    snackbar.show("המסמך נמחק בהצלחה");
   }
 
   const statuses = documentsService.statuses();
@@ -90,6 +111,7 @@ export function DocumentsPage() {
               <TableCell align="right">פעולות</TableCell>
             </TableRow>
           </TableHead>
+
           <TableBody>
             {filtered.map((d) => {
               const cand = usersService.getById(d.candidateId);
@@ -101,16 +123,17 @@ export function DocumentsPage() {
                   <TableCell>{d.status}</TableCell>
                   <TableCell>{d.uploadedAt ?? "-"}</TableCell>
                   <TableCell align="right">
-                    <IconButton onClick={() => navigate(`/admin/documents/${d.id}/edit`)}>
+                    <IconButton aria-label="edit" onClick={() => navigate(`/admin/documents/${d.id}/edit`)}>
                       <EditIcon />
                     </IconButton>
-                    <IconButton onClick={() => onDelete(d.id)}>
+                    <IconButton aria-label="delete" onClick={() => askDelete(d)}>
                       <DeleteIcon />
                     </IconButton>
                   </TableCell>
                 </TableRow>
               );
             })}
+
             {filtered.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6} align="center">
@@ -121,6 +144,25 @@ export function DocumentsPage() {
           </TableBody>
         </Table>
       </Paper>
+
+      <Dialog open={Boolean(deleteTarget)} onClose={cancelDelete}>
+        <DialogTitle>מחיקת מסמך</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            האם למחוק את המסמך{deleteTarget ? ` "${deleteTarget.title}"` : ""} לצמיתות?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="outlined" onClick={cancelDelete}>
+            ביטול
+          </Button>
+          <Button variant="contained" color="error" onClick={confirmDelete}>
+            מחיקה
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <AppSnackbar open={snackbar.open} message={snackbar.message} onClose={snackbar.close} />
     </Box>
   );
 }

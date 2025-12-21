@@ -1,14 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Box,
-  Button,
-  MenuItem,
-  Stack,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { Box, Button, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
-import type { ApplicationDocument, DocumentStatus, DocumentType } from "../../models/applicationDocument";
+import type {
+  ApplicationDocument,
+  DocumentStatus,
+  DocumentType,
+} from "../../models/applicationDocument";
 import { documentsService } from "../../services/documentsService";
 import { usersService } from "../../services/usersService";
 import { useSnackbar } from "../../hooks/useSnackbar";
@@ -46,6 +43,7 @@ function validate(v: FormState) {
   if (v.notes.length > 300) e.notes = "עד 300 תווים";
 
   const needsDate = v.status === "הועלה" || v.status === "אושר" || v.status === "נדחה";
+
   if (needsDate) {
     if (!v.uploadedAt) e.uploadedAt = "חובה להזין תאריך העלאה";
     else if (v.uploadedAt > todayYmd()) e.uploadedAt = "תאריך לא יכול להיות בעתיד";
@@ -59,6 +57,7 @@ function validate(v: FormState) {
 export function DocumentFormPage() {
   const { id } = useParams();
   const isEdit = Boolean(id);
+
   const navigate = useNavigate();
   const snackbar = useSnackbar();
 
@@ -75,6 +74,9 @@ export function DocumentFormPage() {
     notes: "",
   });
 
+  const needsDate =
+    values.status === "הועלה" || values.status === "אושר" || values.status === "נדחה";
+
   useEffect(() => {
     if (!id) return;
     const existing = documentsService.getById(id);
@@ -89,6 +91,12 @@ export function DocumentFormPage() {
       notes: existing.notes ?? "",
     });
   }, [id]);
+
+  useEffect(() => {
+    if (values.status === "חסר" && values.uploadedAt) {
+      setValues((prev) => ({ ...prev, uploadedAt: "" }));
+    }
+  }, [values.status, values.uploadedAt]);
 
   const errors = useMemo(() => validate(values), [values]);
   const canSave = Object.keys(errors).length === 0;
@@ -111,15 +119,19 @@ export function DocumentFormPage() {
 
     if (payload.status === "חסר") payload.uploadedAt = undefined;
 
-    if (isEdit && id) {
-      documentsService.update(id, payload);
-      snackbar.show("המסמך עודכן בהצלחה");
-    } else {
-      documentsService.create(payload);
-      snackbar.show("המסמך נשמר בהצלחה");
-    }
+    try {
+      if (isEdit && id) {
+        documentsService.update(id, payload);
+        snackbar.show("המסמך עודכן בהצלחה");
+      } else {
+        documentsService.create(payload);
+        snackbar.show("המסמך נשמר בהצלחה");
+      }
 
-    navigate("/admin/documents");
+      navigate("/admin/documents");
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה בשמירה");
+    }
   }
 
   return (
@@ -196,6 +208,7 @@ export function DocumentFormPage() {
           error={Boolean(errors.uploadedAt)}
           helperText={errors.uploadedAt ?? " "}
           InputLabelProps={{ shrink: true }}
+          disabled={!needsDate}
         />
 
         <TextField
