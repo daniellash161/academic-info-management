@@ -1,3 +1,4 @@
+// src/pages/admin/AdminHomePage.tsx
 import { useEffect, useMemo, useState } from "react";
 import {
   Box,
@@ -36,27 +37,23 @@ export function AdminHomePage() {
   const [requirementsCount, setRequirementsCount] = useState(0);
 
   const [pendingRequests, setPendingRequests] = useState<PendingRequestRow[]>([]);
-  const [recentCandidates, setRecentCandidates] = useState<{ id: string; fullName: string; createdAt: string }[]>([]);
+  const [recentCandidates, setRecentCandidates] = useState<
+    { id: string; fullName: string; createdAt: string }[]
+  >([]);
 
   function refresh() {
-    // מועמדים
     const candidates = usersService.getCandidates();
     setCandidatesCount(candidates.length);
 
-    // קורסים
     const courses = coursesService.getAll();
     setCoursesCount(courses.length);
 
-    // דרישות קבלה
     const reqs = requirementsService.getAll();
     setRequirementsCount(reqs.length);
 
-    // בקשות הרשמה
     const allRequests = requestsService.getAll();
 
-    // "ממתינות": כדי להיות עמידים לשמות סטטוס שונים (מהתכנון/מהקוד),
-    // נחשב כממתינות כל מה ש"נשלחה" או "בהמתנה" (אם קיימים).
-    const pendingStatusSet = new Set(["נשלחה", "בהמתנה"]);
+    const pendingStatusSet = new Set(["נשלחה"]);
 
     const pending = allRequests
       .filter((r: any) => pendingStatusSet.has(r.status))
@@ -73,7 +70,6 @@ export function AdminHomePage() {
 
     setPendingRequests(pending);
 
-    // מועמדים אחרונים (5 אחרונים)
     const recent = [...candidates]
       .sort((a: any, b: any) => String(b.createdAt).localeCompare(String(a.createdAt)))
       .slice(0, 5)
@@ -83,7 +79,7 @@ export function AdminHomePage() {
   }
 
   useEffect(() => {
-    refresh(); // טעינה ראשונית (כמו בשאר מסכי הניהול)
+    refresh();
   }, []);
 
   const pendingCount = useMemo(() => pendingRequests.length, [pendingRequests]);
@@ -94,7 +90,6 @@ export function AdminHomePage() {
         מסך בית – מנהל מערכת
       </Typography>
 
-      {/* סיכומים מספריים */}
       <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ mb: 3 }}>
         <Card sx={{ flex: 1 }}>
           <CardContent>
@@ -137,7 +132,6 @@ export function AdminHomePage() {
         </Card>
       </Stack>
 
-      {/* כפתורי גישה מהירה */}
       <Paper sx={{ p: 2, mb: 3 }}>
         <Typography variant="h6" sx={{ mb: 1 }}>
           גישה מהירה
@@ -159,7 +153,6 @@ export function AdminHomePage() {
       </Paper>
 
       <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-        {/* בקשות ממתינות */}
         <Paper sx={{ p: 2, flex: 1 }}>
           <Typography variant="h6" sx={{ mb: 1 }}>
             בקשות ממתינות לטיפול
@@ -201,7 +194,6 @@ export function AdminHomePage() {
           )}
         </Paper>
 
-        {/* מועמדים אחרונים */}
         <Paper sx={{ p: 2, flex: 1 }}>
           <Typography variant="h6" sx={{ mb: 1 }}>
             מועמדים אחרונים שנוספו

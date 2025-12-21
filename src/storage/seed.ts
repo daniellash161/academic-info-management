@@ -1,3 +1,4 @@
+// src/storage/seed.ts
 import { LS_KEYS } from "./lsKeys";
 import { hasLS, makeId, writeLS } from "./storage";
 
@@ -8,9 +9,6 @@ import type { Requirement } from "../models/requirement";
 
 import { usersService } from "../services/usersService";
 
-/**
- * יוצר 10 מועמדים (Users role=CANDIDATE) אם אין עדיין users ב-localStorage
- */
 export function seedUsersIfEmpty() {
   if (hasLS(LS_KEYS.users)) return;
 
@@ -29,10 +27,6 @@ export function seedUsersIfEmpty() {
   writeLS(LS_KEYS.users, users);
 }
 
-/**
- * יוצר 10 בקשות הרשמה אם אין עדיין requests ב-localStorage
- * שימי לב: זה מסתמך על זה ש-seedUsersIfEmpty רץ קודם כדי שיהיו מועמדים.
- */
 export function seedRequestsIfEmpty() {
   if (hasLS(LS_KEYS.requests)) return;
 
@@ -40,17 +34,16 @@ export function seedRequestsIfEmpty() {
   const statuses: RegistrationRequest["status"][] = ["בטיוטה", "נשלחה", "מאושרת", "נדחתה"];
 
   const today = new Date();
-  const ymd = (d: Date) => d.toISOString().slice(0, 10); // YYYY-MM-DD
+  const ymd = (d: Date) => d.toISOString().slice(0, 10);
 
   const requests: RegistrationRequest[] = Array.from({ length: 10 }).map((_, i) => {
     const candidate = candidates[i % candidates.length];
 
-    // תאריך לא עתידי: היום פחות i ימים
     const d = new Date(today);
     d.setDate(today.getDate() - i);
 
     return {
-      requestNumber: i + 1, // seed ראשוני
+      requestNumber: i + 1,
       candidateId: candidate.id,
       status: statuses[i % statuses.length],
       createdAt: ymd(d),
@@ -61,9 +54,6 @@ export function seedRequestsIfEmpty() {
   writeLS(LS_KEYS.requests, requests);
 }
 
-/**
- * יוצר 10 קורסים אם אין עדיין courses ב-localStorage
- */
 export function seedCoursesIfEmpty() {
   if (hasLS(LS_KEYS.courses)) return;
 
