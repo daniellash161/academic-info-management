@@ -1,3 +1,4 @@
+// src/app/AdminLayout.tsx
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { AppBar, Box, Button, IconButton, Toolbar, Typography } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
@@ -19,6 +20,8 @@ type NavItem = {
   path: string;
   icon: ReactNode;
 };
+
+const AUTH_KEY = "csih_auth"; // ⚠️ חייב להתאים בדיוק למה שיש ב-Login
 
 export function AdminLayout() {
   const [navOpen, setNavOpen] = useState(false);
@@ -45,7 +48,7 @@ export function AdminLayout() {
   }
 
   function logout() {
-    localStorage.removeItem("csih_auth");
+    localStorage.removeItem(AUTH_KEY);
     navigate("/login", { replace: true });
   }
 
@@ -99,9 +102,11 @@ export function AdminLayout() {
               <Button
                 key={it.path}
                 onClick={() => navigate(it.path)}
-                startIcon={it.icon}
+                // ✅ RTL-friendly: icon on the left visually, without collisions
+                endIcon={it.icon}
                 variant={active ? "contained" : "text"}
                 color={active ? "primary" : "inherit"}
+                aria-current={active ? "page" : undefined}
                 sx={{
                   borderRadius: 999,
                   px: 2,
@@ -109,9 +114,9 @@ export function AdminLayout() {
                   fontWeight: 900,
                   bgcolor: active ? "primary.main" : "transparent",
                   color: active ? "#fff" : "text.primary",
-                  "& .MuiButton-startIcon": {
-                    marginInlineStart: 0,
-                    marginInlineEnd: "10px",
+                  "& .MuiButton-endIcon": {
+                    mr: 1,
+                    ml: 0,
                   },
                 }}
               >
