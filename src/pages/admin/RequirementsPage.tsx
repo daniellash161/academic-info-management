@@ -2,6 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   IconButton,
   MenuItem,
   Paper,
@@ -16,28 +21,59 @@ import {
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import { useNavigate } from "react-router-dom";
-import type { RequirementType } from "../../models/requirement";
+import type { Requirement, RequirementType } from "../../models/requirement";
 import { requirementsService } from "../../services/requirementsService";
+import { useSnackbar } from "../../hooks/useSnackbar";
+import { AppSnackbar } from "../../components/AppSnackbar";
 
 export function RequirementsPage() {
+  const [rows, setRows] = useState<Requirement[]>([]);
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<RequirementType | "ALL">("ALL");
-  const [refreshKey, setRefreshKey] = useState(0); // כדי לרענן אחרי מחיקה/עדכון
-  const navigate = useNavigate();
+  const [deleteTarget, setDeleteTarget] = useState<Requirement | null>(null);
 
-  useEffect(() => {
-    // נטען דרך service (הטבלה עצמה תשתמש ב-memo למטה)
-  }, [refreshKey]);
+  const navigate = useNavigate();
+  const snackbar = useSnackbar();
 
   const types = requirementsService.types();
 
-  const rows = useMemo(() => {
-    return requirementsService.searchAndFilter(query, typeFilter);
-  }, [query, typeFilter, refreshKey]);
+  function refresh() {
+    setRows(requirementsService.getAll());
+  }
 
-  function onDelete(id: string) {
-    requirementsService.remove(id);
-    setRefreshKey((x) => x + 1);
+  useEffect(() => {
+    refresh();
+  }, []);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+
+    return rows.filter((r) => {
+      if (typeFilter !== "ALL" && r.type !== typeFilter) return false;
+      if (!q) return true;
+
+      const title = r.title.toLowerCase();
+      const type = String(r.type).toLowerCase();
+      const desc = (r.description ?? "").toLowerCase();
+
+      return title.includes(q) || type.includes(q) || desc.includes(q);
+    });
+  }, [rows, query, typeFilter]);
+
+  function askDelete(r: Requirement) {
+    setDeleteTarget(r);
+  }
+
+  function cancelDelete() {
+    setDeleteTarget(null);
+  }
+
+  function confirmDelete() {
+    if (!deleteTarget) return;
+    requirementsService.remove(deleteTarget.id);
+    setDeleteTarget(null);
+    refresh();
+    snackbar.show("הדרישה נמחקה בהצלחה");
   }
 
   return (
@@ -87,7 +123,7 @@ export function RequirementsPage() {
           </TableHead>
 
           <TableBody>
-            {rows.map((r) => (
+            {filtered.map((r) => (
               <TableRow key={r.id} hover>
                 <TableCell>{r.type}</TableCell>
                 <TableCell>{r.title}</TableCell>
@@ -95,17 +131,17 @@ export function RequirementsPage() {
                 <TableCell>{r.isMandatory ? "כן" : "לא"}</TableCell>
                 <TableCell>{r.displayOrder}</TableCell>
                 <TableCell align="right">
-                  <IconButton onClick={() => navigate(`/admin/requirements/${r.id}/edit`)}>
+                  <IconButton aria-label="edit" onClick={() => navigate(`/admin/requirements/${r.id}/edit`)}>
                     <EditIcon />
                   </IconButton>
-                  <IconButton onClick={() => onDelete(r.id)}>
+                  <IconButton aria-label="delete" onClick={() => askDelete(r)}>
                     <DeleteIcon />
                   </IconButton>
                 </TableCell>
               </TableRow>
             ))}
 
-            {rows.length === 0 && (
+            {filtered.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6} align="center">
                   אין דרישות במערכת
@@ -115,6 +151,25 @@ export function RequirementsPage() {
           </TableBody>
         </Table>
       </Paper>
+
+      <Dialog open={Boolean(deleteTarget)} onClose={cancelDelete}>
+        <DialogTitle>מחיקת דרישת קבלה</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            האם למחוק את הדרישה{deleteTarget ? ` "${deleteTarget.title}"` : ""} לצמיתות?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="outlined" onClick={cancelDelete}>
+            ביטול
+          </Button>
+          <Button variant="contained" color="error" onClick={confirmDelete}>
+            מחיקה
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <AppSnackbar open={snackbar.open} message={snackbar.message} onClose={snackbar.close} />
     </Box>
   );
 }
