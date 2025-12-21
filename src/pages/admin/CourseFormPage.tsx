@@ -1,12 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Box,
-  Button,
-  MenuItem,
-  Stack,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { Box, Button, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
 import type { Course, Semester } from "../../models/course";
 import { coursesService } from "../../services/coursesService";
@@ -18,7 +11,7 @@ type FormState = {
   code: string;
   semester: Semester | "";
   credits: number | "";
-  prerequisites: string; // נקליד CSV של קודי קורס: "CS101,CS102"
+  prerequisites: string;
   syllabus: string;
   lecturer: string;
 };
@@ -33,23 +26,23 @@ function parsePrereq(csv: string) {
 function validate(values: FormState, isEdit: boolean) {
   const errors: Partial<Record<keyof FormState, string>> = {};
 
-  // שם קורס חובה עד 50
   if (!values.name.trim()) errors.name = "שדה חובה";
   else if (values.name.trim().length > 50) errors.name = "עד 50 תווים";
 
-  // קוד חובה, ייחודי (רק ביצירה)
   if (!values.code.trim()) errors.code = "שדה חובה";
-  else if (!/^[A-Za-z0-9_-]+$/.test(values.code.trim())) errors.code = "קוד יכול להכיל אותיות/ספרות/_- בלבד";
-  else if (!isEdit && coursesService.getByCode(values.code)) errors.code = "קוד קורס חייב להיות ייחודי";
+  else if (!/^[A-Za-z0-9_-]+$/.test(values.code.trim())) {
+    errors.code = "קוד יכול להכיל אותיות/ספרות/_- בלבד";
+  } else if (!isEdit && coursesService.getByCode(values.code)) {
+    errors.code = "קוד קורס חייב להיות ייחודי";
+  }
 
-  // סמסטר חובה
   if (!values.semester) errors.semester = "שדה חובה";
 
-  // נק״ז חובה בין 1-5
   if (values.credits === "") errors.credits = "שדה חובה";
-  else if (![1, 2, 3, 4, 5].includes(Number(values.credits))) errors.credits = "נק״ז חייב להיות בין 1 ל-5";
+  else if (![1, 2, 3, 4, 5].includes(Number(values.credits))) {
+    errors.credits = "נק״ז חייב להיות בין 1 ל-5";
+  }
 
-  // קורסי קדם: אם יש—חייבים להיות קיימים במערכת
   const prereq = parsePrereq(values.prerequisites);
   for (const p of prereq) {
     if (!coursesService.getByCode(p)) {
@@ -64,6 +57,7 @@ function validate(values: FormState, isEdit: boolean) {
 export function CourseFormPage() {
   const { code } = useParams();
   const isEdit = Boolean(code);
+
   const navigate = useNavigate();
   const snackbar = useSnackbar();
 
@@ -129,11 +123,9 @@ export function CourseFormPage() {
         snackbar.show("הקורס נשמר בהצלחה");
       }
 
-      // לפי התכנון: אחרי הוספה/עדכון חוזרים לרשימת הקורסים  [oai_citation:8‡תכנון פרויקט.pdf](sediment://file_0000000028ac71f4b005d298449f87bc)
       navigate("/admin/courses");
     } catch (e: any) {
-      // אם זרק שגיאה לוגית (קוד לא ייחודי / prereq לא קיים)
-      alert(e?.message ?? "שגיאה בשמירה");
+      snackbar.show(e?.message ?? "שגיאה בשמירה");
     }
   }
 
@@ -179,7 +171,7 @@ export function CourseFormPage() {
 
         <TextField
           select
-          label='נקודות זכות (1-5)'
+          label="נקודות זכות (1-5)"
           required
           value={values.credits}
           onChange={(e) => setField("credits", Number(e.target.value) as any)}
