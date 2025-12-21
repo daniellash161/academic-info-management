@@ -9,6 +9,7 @@ import { theme } from "./app/theme";
 
 document.documentElement.setAttribute("dir", "rtl");
 
+// Render the application
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ThemeProvider theme={theme}>
