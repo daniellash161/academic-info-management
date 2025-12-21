@@ -1,12 +1,6 @@
+// src/pages/admin/CandidateFormPage.tsx
 import { useEffect, useMemo, useState } from "react";
-import {
-  Box,
-  Button,
-  MenuItem,
-  Stack,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { Box, Button, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
 import type { InterestArea, UserRole } from "../../models/user";
 import { usersService } from "../../services/usersService";
@@ -15,7 +9,8 @@ import { AppSnackbar } from "../../components/AppSnackbar";
 
 const INTERESTS: InterestArea[] = ["מדעי המחשב"];
 
-const ROLES: UserRole[] = ["CANDIDATE", "ADMIN", "STUDENT", "GRADUATE"];
+// לפי התכנון: מסכי ניהול מועמדים -> תפקידים רלוונטיים בלבד
+const ROLES: UserRole[] = ["CANDIDATE", "ADMIN"];
 
 type FormState = {
   fullName: string;
@@ -31,29 +26,22 @@ type FormState = {
 function validate(values: FormState) {
   const errors: Partial<Record<keyof FormState, string>> = {};
 
-  // שם: רק אותיות ורווחים (עברית/אנגלית), בלי ספרות/תווים מיוחדים
   const nameOk = /^[A-Za-z\u0590-\u05FF ]+$/.test(values.fullName.trim());
   if (!values.fullName.trim()) errors.fullName = "שדה חובה";
   else if (!nameOk) errors.fullName = "שם יכול להכיל אותיות ורווחים בלבד";
 
-  // ת"ז בדיוק 9 ספרות
   if (!/^\d{9}$/.test(values.nationalId)) errors.nationalId = "ת״ז חייבת להיות 9 ספרות";
 
-  // מייל: טקסט לפני/אחרי @ (בסיסי)
   if (!/^[^\s@]+@[^\s@]+$/.test(values.email)) errors.email = "מייל לא תקין";
 
-  // טלפון: בדיוק 10 ספרות, מתחיל ב-0
   if (!/^0\d{9}$/.test(values.phone)) errors.phone = "טלפון חייב להיות 10 ספרות ולהתחיל ב-0";
 
-  // role מרשימה סגורה, לא ריק
   if (!values.role) errors.role = "חובה לבחור תפקיד";
 
-  // תחום עניין: אם קיים, חייב להיות מתוך הרשימה
   if (values.interest && !INTERESTS.includes(values.interest)) {
     errors.interest = "תחום עניין לא תקין";
   }
 
-  // סיסמה: חובה למנהל מערכת, מינימום 6
   if (values.role === "ADMIN") {
     if (!values.password) errors.password = "סיסמה חובה למנהל מערכת";
     else if (values.password.length < 6) errors.password = "מינימום 6 תווים";
@@ -68,7 +56,6 @@ export function CandidateFormPage() {
   const { id } = useParams();
   const isEdit = Boolean(id);
   const navigate = useNavigate();
-
   const snackbar = useSnackbar();
 
   const [values, setValues] = useState<FormState>({
@@ -93,7 +80,7 @@ export function CandidateFormPage() {
       email: existing.email,
       phone: existing.phone,
       role: existing.role,
-      password: existing.password ?? "",
+      password: "",
       interest: (existing.interest ?? "") as any,
       notes: existing.notes ?? "",
     });
@@ -107,34 +94,27 @@ export function CandidateFormPage() {
   }
 
   function onSave() {
-    if (!canSave) return; // אין אפשרות לשמור טופס שגוי (מחוון)
+    if (!canSave) return;
+
+    const payload = {
+      fullName: values.fullName.trim(),
+      nationalId: values.nationalId,
+      email: values.email.trim(),
+      phone: values.phone,
+      role: values.role as any,
+      password: values.password || undefined,
+      interest: (values.interest || undefined) as any,
+      notes: values.notes || undefined,
+    };
+
     if (isEdit && id) {
-      usersService.update(id, {
-        fullName: values.fullName.trim(),
-        nationalId: values.nationalId,
-        email: values.email.trim(),
-        phone: values.phone,
-        role: values.role as any,
-        password: values.password || undefined,
-        interest: (values.interest || undefined) as any,
-        notes: values.notes || undefined,
-      });
+      usersService.update(id, payload);
       snackbar.show("המועמד עודכן בהצלחה");
     } else {
-      usersService.create({
-        fullName: values.fullName.trim(),
-        nationalId: values.nationalId,
-        email: values.email.trim(),
-        phone: values.phone,
-        role: values.role as any,
-        password: values.password || undefined,
-        interest: (values.interest || undefined) as any,
-        notes: values.notes || undefined,
-      });
+      usersService.create(payload);
       snackbar.show("המועמד נשמר בהצלחה");
     }
 
-    // לפי התכנון: אחרי שמירה חוזרים למסך מועמדים כדי לוודא שהנתונים נשמרו
     navigate("/admin/candidates");
   }
 
@@ -183,7 +163,7 @@ export function CandidateFormPage() {
 
         <TextField
           select
-          label="Role"
+          label="תפקיד"
           required
           value={values.role}
           onChange={(e) => setField("role", e.target.value as any)}
@@ -198,12 +178,12 @@ export function CandidateFormPage() {
         </TextField>
 
         <TextField
-          label="סיסמה (למנהל מערכת)"
+          label="סיסמה (נדרשת רק למנהל)"
           type="password"
           value={values.password}
           onChange={(e) => setField("password", e.target.value)}
           error={Boolean(errors.password)}
-          helperText={errors.password ?? " "}
+          helperText={errors.password ?? (values.role === "ADMIN" ? "מינימום 6 תווים" : " ")}
         />
 
         <TextField
