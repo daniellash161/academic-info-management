@@ -1,4 +1,4 @@
-
+// src/components/AdminNav.tsx
 import {
   Drawer,
   List,
@@ -7,30 +7,23 @@ import {
   Divider,
   Box,
 } from "@mui/material";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 type Props = {
   open: boolean;
   onClose: () => void;
 };
 
-const AUTH_KEY = "csih_auth"; 
 export function AdminNav({ open, onClose }: Props) {
   const navigate = useNavigate();
-  const location = useLocation();
 
   function go(path: string) {
     navigate(path);
     onClose();
   }
 
-  function isActive(path: string) {
-    if (path === "/admin") return location.pathname === "/admin";
-    return location.pathname === path || location.pathname.startsWith(path + "/");
-  }
-
   function logout() {
-    localStorage.removeItem(AUTH_KEY);
+    localStorage.removeItem("csih_auth");
     go("/login");
   }
 
@@ -38,53 +31,35 @@ export function AdminNav({ open, onClose }: Props) {
     <Drawer open={open} onClose={onClose}>
       <Box sx={{ width: 280 }} role="presentation">
         <List>
-          <ListItemButton selected={isActive("/admin")} onClick={() => go("/admin")}>
+          <ListItemButton onClick={() => go("/admin")}>
             <ListItemText primary="בית" />
           </ListItemButton>
 
-          <ListItemButton
-            selected={isActive("/admin/candidates")}
-            onClick={() => go("/admin/candidates")}
-          >
+          <ListItemButton onClick={() => go("/admin/candidates")}>
             <ListItemText primary="מועמדים" />
           </ListItemButton>
 
-          <ListItemButton
-            selected={isActive("/admin/requests")}
-            onClick={() => go("/admin/requests")}
-          >
+          <ListItemButton onClick={() => go("/admin/requests")}>
             <ListItemText primary="בקשות הרשמה" />
           </ListItemButton>
 
-          <ListItemButton
-            selected={isActive("/admin/courses")}
-            onClick={() => go("/admin/courses")}
-          >
+          <ListItemButton onClick={() => go("/admin/courses")}>
             <ListItemText primary="קורסים" />
           </ListItemButton>
 
-          <ListItemButton
-            selected={isActive("/admin/requirements")}
-            onClick={() => go("/admin/requirements")}
-          >
+          <ListItemButton onClick={() => go("/admin/requirements")}>
             <ListItemText primary="דרישות קבלה" />
           </ListItemButton>
 
-          <ListItemButton
-            selected={isActive("/admin/announcements")}
-            onClick={() => go("/admin/announcements")}
-          >
-            <ListItemText primary="עדכונים" />
+          <ListItemButton onClick={() => go("/admin/faqs")}>
+            <ListItemText primary="שאלות נפוצות" />
           </ListItemButton>
 
-          <ListItemButton
-            selected={isActive("/admin/documents")}
-            onClick={() => go("/admin/documents")}
-          >
-            <ListItemText primary="מסמכים" />
+          <ListItemButton onClick={() => go("/admin/contacts")}>
+            <ListItemText primary="פניות" />
           </ListItemButton>
 
-          <ListItemButton selected={isActive("/admin/help")} onClick={() => go("/admin/help")}>
+          <ListItemButton onClick={() => go("/admin/help")}>
             <ListItemText primary="עזרה" />
           </ListItemButton>
         </List>

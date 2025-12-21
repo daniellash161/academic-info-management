@@ -1,7 +1,7 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { AdminLayout } from "./AdminLayout";
-import { RequireAdmin } from "./RequireAdmin";
 
+// Admin pages
 import { AdminHomePage } from "../pages/admin/AdminHomePage";
 
 import { CandidatesPage } from "../pages/admin/CandidatesPage";
@@ -16,25 +16,22 @@ import { CourseFormPage } from "../pages/admin/CourseFormPage";
 import { RequirementsPage } from "../pages/admin/RequirementsPage";
 import { RequirementFormPage } from "../pages/admin/RequirementFormPage";
 
-import { AnnouncementsPage } from "../pages/admin/AnnouncementsPage";
-import { AnnouncementFormPage } from "../pages/admin/AnnouncementFormPage";
+import { FaqsPage } from "../pages/admin/FaqsPage";
+import { FaqFormPage } from "../pages/admin/FaqFormPage";
 
-import { DocumentsPage } from "../pages/admin/DocumentsPage";
-import { DocumentFormPage } from "../pages/admin/DocumentFormPage";
+import { ContactMessagesPage } from "../pages/admin/ContactMessagesPage";
+import { ContactMessageFormPage } from "../pages/admin/ContactMessageFormPage";
 
 import { HelpPage } from "../pages/admin/HelpPage";
 
+// Auth
 import { LoginPage } from "../pages/auth/LoginPage";
 
 export const router = createBrowserRouter([
   { path: "/", element: <Navigate to="/admin" replace /> },
 
   {
-    element: (
-      <RequireAdmin>
-        <AdminLayout />
-      </RequireAdmin>
-    ),
+    element: <AdminLayout />,
     children: [
       { path: "/admin", element: <AdminHomePage /> },
 
@@ -54,17 +51,18 @@ export const router = createBrowserRouter([
       { path: "/admin/requirements/new", element: <RequirementFormPage /> },
       { path: "/admin/requirements/:id/edit", element: <RequirementFormPage /> },
 
-      { path: "/admin/announcements", element: <AnnouncementsPage /> },
-      { path: "/admin/announcements/new", element: <AnnouncementFormPage /> },
-      { path: "/admin/announcements/:id/edit", element: <AnnouncementFormPage /> },
+      { path: "/admin/faqs", element: <FaqsPage /> },
+      { path: "/admin/faqs/new", element: <FaqFormPage /> },
+      { path: "/admin/faqs/:id/edit", element: <FaqFormPage /> },
 
-      { path: "/admin/documents", element: <DocumentsPage /> },
-      { path: "/admin/documents/new", element: <DocumentFormPage /> },
-      { path: "/admin/documents/:id/edit", element: <DocumentFormPage /> },
+      { path: "/admin/contacts", element: <ContactMessagesPage /> },
+      { path: "/admin/contacts/:id/edit", element: <ContactMessageFormPage /> },
 
       { path: "/admin/help", element: <HelpPage /> },
     ],
   },
+
+  { path: "/help", element: <HelpPage /> },
 
   { path: "/login", element: <LoginPage /> },
 

@@ -6,8 +6,9 @@ import type { User } from "../models/user";
 import type { RegistrationRequest } from "../models/registrationRequest";
 import type { Course } from "../models/course";
 import type { Requirement } from "../models/requirement";
-import type { Announcement } from "../models/announcement";
-import type { ApplicationDocument } from "../models/applicationDocument";
+import type { Faq } from "../models/faq";
+import type { ContactMessage } from "../models/contactMessage";
+import type { ContactStatus } from "../models/contactMessage";
 
 export function seedUsersIfEmpty() {
   if (hasLS(LS_KEYS.users)) return;
@@ -87,7 +88,7 @@ export function seedRequirementsIfEmpty() {
       extraInfo: "במקרים חריגים תישקל ועדה.",
       displayOrder: 1,
       isMandatory: true,
-      courseCodes: ["CS101"],
+      courseCodes: [],
     },
     {
       id: makeId(),
@@ -109,7 +110,7 @@ export function seedRequirementsIfEmpty() {
       extraInfo: "ניתן להשלים קורסי אנגלית בהתאם לצורך.",
       displayOrder: 3,
       isMandatory: false,
-      courseCodes: ["CS102"],
+      courseCodes: [],
     },
     ...Array.from({ length: 7 }).map((_, i) => ({
       id: makeId(),
@@ -120,64 +121,69 @@ export function seedRequirementsIfEmpty() {
       extraInfo: "",
       displayOrder: 4 + i,
       isMandatory: i % 2 === 0,
-      courseCodes: i % 2 === 0 ? ["CS101"] : [],
+      courseCodes: [],
     })),
   ];
 
   writeLS(LS_KEYS.requirements, reqs);
 }
 
-export function seedAnnouncementsIfEmpty() {
-  if (hasLS(LS_KEYS.announcements)) return;
+export function seedFaqsIfEmpty() {
+  if (hasLS(LS_KEYS.faqs)) return;
 
-  const today = new Date();
-  const ymd = (d: Date) => d.toISOString().slice(0, 10);
-
-  const items: Announcement[] = Array.from({ length: 10 }).map((_, i) => {
-    const d = new Date(today);
-    d.setDate(today.getDate() - i);
-
-    return {
+  const faqs: Faq[] = [
+    {
       id: makeId(),
-      title: `עדכון מערכת #${i + 1}`,
-      content: `זהו עדכון לדוגמה מספר ${i + 1}.`,
-      publishedAt: ymd(d),
-      isActive: i % 5 !== 0,
-    };
-  });
+      question: "איך מגישים בקשת הרשמה?",
+      answer: "נכנסים למסך בקשות הרשמה וממלאים את הטופס. לאחר שמירה ניתן לעדכן סטטוס לפי התהליך.",
+      displayOrder: 1,
+      isPublished: true,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: makeId(),
+      question: "מהם סטטוסי הבקשה האפשריים?",
+      answer: "בטיוטה / נשלחה / מאושרת / נדחתה.",
+      displayOrder: 2,
+      isPublished: true,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: makeId(),
+      question: "איך מוסיפים דרישות קבלה?",
+      answer: "נכנסים למסך דרישות קבלה ולוחצים על 'הוספת דרישה חדשה'.",
+      displayOrder: 3,
+      isPublished: true,
+      createdAt: new Date().toISOString(),
+    },
+    ...Array.from({ length: 7 }).map((_, i) => ({
+      id: makeId(),
+      question: `שאלה נפוצה לדוגמה ${i + 1}`,
+      answer: "תשובה לדוגמה. ניתן לערוך ולפרסם/להסתיר.",
+      displayOrder: 4 + i,
+      isPublished: i % 2 === 0,
+      createdAt: new Date().toISOString(),
+    })),
+  ];
 
-  writeLS(LS_KEYS.announcements, items);
+  writeLS(LS_KEYS.faqs, faqs);
 }
 
-export function seedDocumentsIfEmpty() {
-  if (hasLS(LS_KEYS.documents)) return;
+export function seedContactsIfEmpty() {
+  if (hasLS(LS_KEYS.contacts)) return;
 
-  seedUsersIfEmpty();
-  const candidates = readLS<User[]>(LS_KEYS.users, []);
+  const statuses: ContactStatus[] = ["חדש", "בטיפול", "טופל"];
+  const items: ContactMessage[] = Array.from({ length: 10 }).map((_, i) => ({
+    id: makeId(),
+    fullName: `פונה ${i + 1}`,
+    email: `contact${i + 1}@mail.com`,
+    phone: `05${String(20000000 + i).slice(0, 8)}`,
+    subject: `נושא פנייה ${i + 1}`,
+    message: `זו הודעת פנייה לדוגמה מספר ${i + 1}.`,
+    status: statuses[i % statuses.length],
+    adminNotes: i % 3 === 0 ? "טופל חלקית / נדרש מעקב" : "",
+    createdAt: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString(),
+  }));
 
-  const today = new Date();
-  const ymd = (d: Date) => d.toISOString().slice(0, 10);
-
-  const docTypes: ApplicationDocument["docType"][] = ["תעודת זהות", "גליון ציונים", "בגרות", "פסיכומטרי", "אחר"];
-  const statuses: ApplicationDocument["status"][] = ["חסר", "הועלה", "אושר", "נדחה"];
-
-  const items: ApplicationDocument[] = Array.from({ length: 10 }).map((_, i) => {
-    const candidate = candidates[i % candidates.length];
-    const status = statuses[i % statuses.length];
-
-    const d = new Date(today);
-    d.setDate(today.getDate() - i);
-
-    return {
-      id: makeId(),
-      candidateId: candidate.id,
-      docType: docTypes[i % docTypes.length],
-      title: `מסמך ${i + 1}`,
-      status,
-      uploadedAt: status === "חסר" ? undefined : ymd(d),
-      notes: i % 3 === 0 ? "הערה לדוגמה" : "",
-    };
-  });
-
-  writeLS(LS_KEYS.documents, items);
+  writeLS(LS_KEYS.contacts, items);
 }

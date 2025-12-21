@@ -8,8 +8,8 @@ import PeopleIcon from "@mui/icons-material/People";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import RuleIcon from "@mui/icons-material/Rule";
-import CampaignIcon from "@mui/icons-material/Campaign";
-import DescriptionIcon from "@mui/icons-material/Description";
+import QuizIcon from "@mui/icons-material/Quiz";
+import ContactSupportIcon from "@mui/icons-material/ContactSupport";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
@@ -21,8 +21,6 @@ type NavItem = {
   icon: ReactNode;
 };
 
-const AUTH_KEY = "csih_auth"; // ⚠️ חייב להתאים בדיוק למה שיש ב-Login
-
 export function AdminLayout() {
   const [navOpen, setNavOpen] = useState(false);
   const navigate = useNavigate();
@@ -32,11 +30,11 @@ export function AdminLayout() {
     () => [
       { label: "בית", path: "/admin", icon: <DashboardIcon fontSize="small" /> },
       { label: "מועמדים", path: "/admin/candidates", icon: <PeopleIcon fontSize="small" /> },
-      { label: "קורסים", path: "/admin/courses", icon: <MenuBookIcon fontSize="small" /> },
       { label: "בקשות הרשמה", path: "/admin/requests", icon: <AssignmentIcon fontSize="small" /> },
+      { label: "קורסים", path: "/admin/courses", icon: <MenuBookIcon fontSize="small" /> },
       { label: "דרישות קבלה", path: "/admin/requirements", icon: <RuleIcon fontSize="small" /> },
-      { label: "עדכונים", path: "/admin/announcements", icon: <CampaignIcon fontSize="small" /> },
-      { label: "מסמכים", path: "/admin/documents", icon: <DescriptionIcon fontSize="small" /> },
+      { label: "שאלות נפוצות", path: "/admin/faqs", icon: <QuizIcon fontSize="small" /> },
+      { label: "פניות", path: "/admin/contacts", icon: <ContactSupportIcon fontSize="small" /> },
       { label: "עזרה", path: "/admin/help", icon: <HelpOutlineIcon fontSize="small" /> },
     ],
     []
@@ -48,7 +46,7 @@ export function AdminLayout() {
   }
 
   function logout() {
-    localStorage.removeItem(AUTH_KEY);
+    localStorage.removeItem("csih_auth");
     navigate("/login", { replace: true });
   }
 
@@ -102,11 +100,9 @@ export function AdminLayout() {
               <Button
                 key={it.path}
                 onClick={() => navigate(it.path)}
-                // ✅ RTL-friendly: icon on the left visually, without collisions
-                endIcon={it.icon}
+                startIcon={it.icon}
                 variant={active ? "contained" : "text"}
                 color={active ? "primary" : "inherit"}
-                aria-current={active ? "page" : undefined}
                 sx={{
                   borderRadius: 999,
                   px: 2,
@@ -114,9 +110,9 @@ export function AdminLayout() {
                   fontWeight: 900,
                   bgcolor: active ? "primary.main" : "transparent",
                   color: active ? "#fff" : "text.primary",
-                  "& .MuiButton-endIcon": {
-                    mr: 1,
-                    ml: 0,
+                  "& .MuiButton-startIcon": {
+                    marginInlineStart: 0,
+                    marginInlineEnd: "10px",
                   },
                 }}
               >

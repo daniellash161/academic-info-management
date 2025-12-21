@@ -1,294 +1,233 @@
+import { useEffect, useMemo, useState } from "react";
 import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
   Box,
   Button,
   Divider,
+  MenuItem,
   Paper,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import type { Faq } from "../../models/faq";
+import type { ContactStatus } from "../../models/contactMessage";
+import { faqsService } from "../../services/faqsService";
+import { contactMessagesService } from "../../services/contactMessagesService";
+import { useSnackbar } from "../../hooks/useSnackbar";
+import { AppSnackbar } from "../../components/AppSnackbar";
 
-type ContactForm = {
+function getRoleFromAuth(): "ADMIN" | "OTHER" {
+  const raw = localStorage.getItem("csih_auth");
+  if (!raw) return "OTHER";
+  if (raw === "ADMIN") return "ADMIN";
+
+  try {
+    const obj = JSON.parse(raw);
+    const role = String(obj?.role ?? "").toUpperCase();
+    return role === "ADMIN" ? "ADMIN" : "OTHER";
+  } catch {
+    return "OTHER";
+  }
+}
+
+type ContactFormState = {
   fullName: string;
   email: string;
+  phone: string;
+  subject: string;
   message: string;
 };
 
+function validateContact(v: ContactFormState) {
+  const e: Partial<Record<keyof ContactFormState, string>> = {};
+
+  const nameOk = /^[A-Za-z\u0590-\u05FF ]+$/.test(v.fullName.trim());
+  if (!v.fullName.trim()) e.fullName = "שדה חובה";
+  else if (!nameOk) e.fullName = "שם יכול להכיל אותיות ורווחים בלבד";
+
+  if (!/^[^\s@]+@[^\s@]+$/.test(v.email.trim())) e.email = "מייל לא תקין";
+  if (!/^0\d{9}$/.test(String(v.phone).trim())) e.phone = "טלפון חייב להיות 10 ספרות ולהתחיל ב-0";
+
+  if (!v.subject.trim()) e.subject = "שדה חובה";
+  else if (v.subject.trim().length > 80) e.subject = "עד 80 תווים";
+
+  if (!v.message.trim()) e.message = "שדה חובה";
+  else if (v.message.trim().length > 1000) e.message = "עד 1000 תווים";
+
+  return e;
+}
+
 export function HelpPage() {
   const navigate = useNavigate();
+  const snackbar = useSnackbar();
 
-  const [form, setForm] = useState<ContactForm>({
+  const role = getRoleFromAuth();
+
+  const [faqs, setFaqs] = useState<Faq[]>([]);
+  const [faqQuery, setFaqQuery] = useState("");
+
+  const [contactValues, setContactValues] = useState<ContactFormState>({
     fullName: "",
     email: "",
+    phone: "",
+    subject: "",
     message: "",
   });
 
-  const errors = useMemo(() => {
-    const e: Partial<Record<keyof ContactForm, string>> = {};
-    if (!form.fullName.trim()) e.fullName = "שדה חובה";
-    if (!form.email.trim()) e.email = "שדה חובה";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) e.email = "אימייל לא תקין";
-    if (!form.message.trim()) e.message = "שדה חובה";
-    return e;
-  }, [form]);
-
-  const canSend = Object.keys(errors).length === 0;
-
-  function setField<K extends keyof ContactForm>(key: K, value: ContactForm[K]) {
-    setForm((prev) => ({ ...prev, [key]: value }));
+  function loadFaqs() {
+    setFaqs(role === "ADMIN" ? faqsService.getAll() : faqsService.getPublished());
   }
 
-  function onSend() {
+  useEffect(() => {
+    loadFaqs();
+  }, [role]);
+
+  const filteredFaqs = useMemo(() => {
+    const q = faqQuery.trim().toLowerCase();
+    if (!q) return faqs;
+    return faqs.filter((f) => {
+      const hay = [f.question, f.answer].join(" ").toLowerCase();
+      return hay.includes(q);
+    });
+  }, [faqs, faqQuery]);
+
+  const contactErrors = useMemo(() => validateContact(contactValues), [contactValues]);
+  const canSend = Object.keys(contactErrors).length === 0;
+
+  function setContactField<K extends keyof ContactFormState>(key: K, value: ContactFormState[K]) {
+    setContactValues((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function sendContact() {
     if (!canSend) return;
-    // טופס פניה מהיר - ללא שמירה (סטטי/דמה לפי פרויקט)
-    alert("הפנייה נשלחה בהצלחה (דמו)");
-    setForm({ fullName: "", email: "", message: "" });
+
+    contactMessagesService.create({
+      fullName: contactValues.fullName.trim(),
+      email: contactValues.email.trim(),
+      phone: String(contactValues.phone).trim(),
+      subject: contactValues.subject.trim(),
+      message: contactValues.message.trim(),
+      status: "חדש" as ContactStatus,
+    });
+
+    snackbar.show("הפנייה נשלחה בהצלחה");
+    setContactValues({ fullName: "", email: "", phone: "", subject: "", message: "" });
   }
 
   return (
     <Box>
       <Typography variant="h5" sx={{ mb: 2 }}>
-        עזרה ותמיכה – מנהל מערכת
+        עזרה
       </Typography>
 
+      {role === "ADMIN" && (
+        <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+          <Button variant="contained" onClick={() => navigate("/admin/faqs")}>
+            ניהול שאלות נפוצות
+          </Button>
+          <Button variant="contained" onClick={() => navigate("/admin/contacts")}>
+            ניהול פניות
+          </Button>
+        </Stack>
+      )}
+
+      <Paper sx={{ p: 2, mb: 2 }}>
+        <Typography variant="h6" sx={{ mb: 1 }}>
+          שאלות נפוצות
+        </Typography>
+
+        <Box sx={{ mb: 2, maxWidth: 520 }}>
+          <TextField
+            fullWidth
+            label="חיפוש בשאלות נפוצות"
+            value={faqQuery}
+            onChange={(e) => setFaqQuery(e.target.value)}
+          />
+        </Box>
+
+        {filteredFaqs.length === 0 ? (
+          <Typography>אין שאלות להצגה.</Typography>
+        ) : (
+          <Stack spacing={2}>
+            {filteredFaqs.map((f) => (
+              <Box key={f.id}>
+                <Typography sx={{ fontWeight: 800 }}>{f.question}</Typography>
+                <Typography sx={{ whiteSpace: "pre-wrap" }}>{f.answer}</Typography>
+                <Divider sx={{ mt: 2 }} />
+              </Box>
+            ))}
+          </Stack>
+        )}
+      </Paper>
+
       <Paper sx={{ p: 2 }}>
-        <Stack spacing={2}>
-          {/* הסבר כללי */}
-          <Box>
-            <Typography variant="h6">מטרת המסך</Typography>
-            <Typography>
-              מסך זה נועד לספק למנהל המערכת מידע תומך והדרכה לשימוש נכון במערכת:
-              ניהול מועמדים, בקשות הרשמה, קורסים ודרישות קבלה, כולל דגשים להזנת נתונים תקינים,
-              שאלות נפוצות וטיפים לפתרון תקלות.
-            </Typography>
-          </Box>
+        <Typography variant="h6" sx={{ mb: 1 }}>
+          צור קשר
+        </Typography>
 
-          <Divider />
+        <Stack spacing={2} sx={{ maxWidth: 720 }}>
+          <TextField
+            label="שם מלא"
+            required
+            value={contactValues.fullName}
+            onChange={(e) => setContactField("fullName", e.target.value)}
+            error={Boolean(contactErrors.fullName)}
+            helperText={contactErrors.fullName ?? " "}
+          />
 
-          {/* הסבר לפי חלקי מערכת */}
-          <Box>
-            <Typography variant="h6" sx={{ mb: 1 }}>
-              הסברים לפי חלקי המערכת
-            </Typography>
+          <TextField
+            label="מייל"
+            required
+            value={contactValues.email}
+            onChange={(e) => setContactField("email", e.target.value)}
+            error={Boolean(contactErrors.email)}
+            helperText={contactErrors.email ?? " "}
+          />
 
-            <Stack spacing={1}>
-              <Paper variant="outlined" sx={{ p: 2 }}>
-                <Typography fontWeight={700}>ניהול מועמדים</Typography>
-                <Typography>
-                  צפייה, הוספה ועריכה של מועמדים. מומלץ לוודא שכל שדות החובה מלאים ושהמידע תואם את
-                  כללי התקינות (אימייל תקין, מספר ת״ז באורך תקין וכו׳).
-                </Typography>
-              </Paper>
+          <TextField
+            label="טלפון"
+            required
+            value={contactValues.phone}
+            onChange={(e) => setContactField("phone", e.target.value)}
+            error={Boolean(contactErrors.phone)}
+            helperText={contactErrors.phone ?? " "}
+          />
 
-              <Paper variant="outlined" sx={{ p: 2 }}>
-                <Typography fontWeight={700}>בקשות הרשמה</Typography>
-                <Typography>
-                  יצירת בקשת הרשמה חדשה ושיוך למועמד קיים. סטטוסים נתמכים: בטיוטה, נשלחה, מאושרת,
-                  נדחתה. תאריך יצירה לא יכול להיות עתידי.
-                </Typography>
-              </Paper>
+          <TextField
+            select
+            label="נושא"
+            required
+            value={contactValues.subject}
+            onChange={(e) => setContactField("subject", e.target.value)}
+            error={Boolean(contactErrors.subject)}
+            helperText={contactErrors.subject ?? " "}
+          >
+            <MenuItem value="">— בחרי נושא —</MenuItem>
+            <MenuItem value="שאלה כללית">שאלה כללית</MenuItem>
+            <MenuItem value="בעיה טכנית">בעיה טכנית</MenuItem>
+            <MenuItem value="בקשה לעדכון נתונים">בקשה לעדכון נתונים</MenuItem>
+            <MenuItem value="אחר">אחר</MenuItem>
+          </TextField>
 
-              <Paper variant="outlined" sx={{ p: 2 }}>
-                <Typography fontWeight={700}>קורסים</Typography>
-                <Typography>
-                  ניהול קורסים כולל חיפוש לפי שם/קוד/מרצה. קוד קורס חייב להיות ייחודי ונק״ז חייב
-                  להיות בין 1 ל-5. קורסי קדם (אם הוזנו) חייבים להיות קיימים במערכת.
-                </Typography>
-              </Paper>
+          <TextField
+            label="הודעה"
+            required
+            multiline
+            minRows={4}
+            value={contactValues.message}
+            onChange={(e) => setContactField("message", e.target.value)}
+            error={Boolean(contactErrors.message)}
+            helperText={contactErrors.message ?? " "}
+          />
 
-              <Paper variant="outlined" sx={{ p: 2 }}>
-                <Typography fontWeight={700}>דרישות קבלה</Typography>
-                <Typography>
-                  ניהול דרישות קבלה כולל סינון לפי סוג וחיפוש. ניתן להגדיר דרישת חובה וסדר תצוגה
-                  להצגה מסודרת.
-                </Typography>
-              </Paper>
-            </Stack>
-          </Box>
-
-          <Divider />
-
-          {/* דגשים להזנת נתונים תקינים */}
-          <Box>
-            <Typography variant="h6" sx={{ mb: 1 }}>
-              דגשים להזנת נתונים תקינים
-            </Typography>
-            <Typography>
-              • שדות חובה מסומנים בכוכבית (*).
-              <br />
-              • אימייל חייב להיות בפורמט תקין (למשל name@example.com).
-              <br />
-              • ת״ז מומלץ להזין כמספר באורך תקין (ללא רווחים/תווים מיוחדים).
-              <br />
-              • בטפסים לא ניתן לשמור כאשר קיימות שגיאות – השדות השגויים מסומנים באדום ומופיעה
-              הודעת שגיאה מתחת לשדה.
-            </Typography>
-          </Box>
-
-          <Divider />
-
-          {/* FAQ */}
-          <Box>
-            <Typography variant="h6" sx={{ mb: 1 }}>
-              שאלות נפוצות (FAQ)
-            </Typography>
-
-            <Accordion>
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography>איך חוזרים למסך הבית מכל מקום?</Typography>
-              </AccordionSummary>
-              <AccordionDetails>
-                <Typography>
-                  ניתן ללחוץ על בית בתפריט/Drawer, או על שם האפליקציה ב-Header (אם הוגדר כך).
-                </Typography>
-              </AccordionDetails>
-            </Accordion>
-
-            <Accordion>
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography>למה אני לא מצליחה לשמור טופס?</Typography>
-              </AccordionSummary>
-              <AccordionDetails>
-                <Typography>
-                  כשיש שגיאות תקינות קלט, השדה יסומן באדום ותופיע הודעת שגיאה מתחת לשדה. תקני את
-                  השדות המסומנים ואז כפתור השמירה יתאפשר.
-                </Typography>
-              </AccordionDetails>
-            </Accordion>
-
-            <Accordion>
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography>למה אין נתונים בטבלאות?</Typography>
-              </AccordionSummary>
-              <AccordionDetails>
-                <Typography>
-                  הנתונים נטענים מ-LocalStorage. אם מחקת את ה-LocalStorage, רענון הדף יפעיל טעינת
-                  Seed (כאשר ה-storage ריק).
-                </Typography>
-              </AccordionDetails>
-            </Accordion>
-
-            <Accordion>
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography>איך להגיע מהר למסך הרלוונטי?</Typography>
-              </AccordionSummary>
-              <AccordionDetails>
-                <Typography>
-                  השתמשי בתפריט הניווט (Drawer). אפשר גם להיכנס למסך הבית וללחוץ על כרטיסים/כפתורי
-                  גישה מהירה.
-                </Typography>
-              </AccordionDetails>
-            </Accordion>
-          </Box>
-
-          <Divider />
-
-          {/* קישורים רלוונטיים */}
-          <Box>
-            <Typography variant="h6" sx={{ mb: 1 }}>
-              קישורים רלוונטיים (ניווט מהיר)
-            </Typography>
-
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-              <Button variant="contained" onClick={() => navigate("/admin/candidates")}>
-                ניהול מועמדים
-              </Button>
-              <Button variant="contained" onClick={() => navigate("/admin/requests")}>
-                ניהול בקשות
-              </Button>
-              <Button variant="contained" onClick={() => navigate("/admin/courses")}>
-                ניהול קורסים
-              </Button>
-              <Button variant="contained" onClick={() => navigate("/admin/requirements")}>
-                דרישות קבלה
-              </Button>
-            </Stack>
-          </Box>
-
-          <Divider />
-
-          {/* טיפים לתקלות */}
-          <Box>
-            <Typography variant="h6" sx={{ mb: 1 }}>
-              טיפים לפתרון תקלות
-            </Typography>
-            <Typography>
-              • אם הנתונים לא מתעדכנים אחרי שמירה/מחיקה — רענני את הדף.
-              <br />
-              • אם משהו “נעלם” — בדקי שהסינון/החיפוש לא פעילים.
-              <br />
-              • אם יש שגיאה — פתחי Console ובדקי הודעות (חשוב במיוחד לפני הגשה).
-            </Typography>
-          </Box>
-
-          <Divider />
-
-          {/* פרטי קשר + טופס פנייה מהיר */}
-          <Box>
-            <Typography variant="h6" sx={{ mb: 1 }}>
-              יצירת קשר
-            </Typography>
-            <Typography sx={{ mb: 2 }}>
-              לתמיכה טכנית: support@csih.local
-              <br />
-              לפניות מנהליות: admin@csih.local
-            </Typography>
-
-            <Typography fontWeight={700} sx={{ mb: 1 }}>
-              טופס פנייה מהיר
-            </Typography>
-
-            <Stack spacing={2} sx={{ maxWidth: 520 }}>
-              <TextField
-                label="שם מלא"
-                required
-                value={form.fullName}
-                onChange={(e) => setField("fullName", e.target.value)}
-                error={Boolean(errors.fullName)}
-                helperText={errors.fullName ?? " "}
-              />
-
-              <TextField
-                label="אימייל"
-                required
-                value={form.email}
-                onChange={(e) => setField("email", e.target.value)}
-                error={Boolean(errors.email)}
-                helperText={errors.email ?? " "}
-              />
-
-              <TextField
-                label="תוכן הפנייה"
-                required
-                multiline
-                minRows={3}
-                value={form.message}
-                onChange={(e) => setField("message", e.target.value)}
-                error={Boolean(errors.message)}
-                helperText={errors.message ?? " "}
-              />
-
-              <Stack direction="row" spacing={2}>
-                <Button variant="contained" onClick={onSend} disabled={!canSend}>
-                  שליחת פנייה
-                </Button>
-                <Button
-                  variant="outlined"
-                  onClick={() => setForm({ fullName: "", email: "", message: "" })}
-                >
-                  ניקוי
-                </Button>
-              </Stack>
-            </Stack>
-          </Box>
+          <Button variant="contained" onClick={sendContact} disabled={!canSend}>
+            שליחה
+          </Button>
         </Stack>
       </Paper>
+
+      <AppSnackbar open={snackbar.open} message={snackbar.message} onClose={snackbar.close} />
     </Box>
   );
 }
