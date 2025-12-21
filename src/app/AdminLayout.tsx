@@ -33,16 +33,16 @@ export function AdminLayout() {
       { label: "בקשות הרשמה", path: "/admin/requests" },
       { label: "קורסים", path: "/admin/courses" },
       { label: "דרישות קבלה", path: "/admin/requirements" },
-
       { label: "עדכונים", path: "/admin/announcements" },
       { label: "מסמכים", path: "/admin/documents" },
-
       { label: "עזרה", path: "/admin/help" },
     ],
     []
   );
 
   function isActive(path: string) {
+    if (path === "/admin") return location.pathname === "/admin";
+
     return location.pathname === path || location.pathname.startsWith(path + "/");
   }
 
@@ -59,7 +59,14 @@ export function AdminLayout() {
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap component="div">
+
+          <Typography
+            variant="h6"
+            noWrap
+            component="div"
+            sx={{ cursor: "pointer" }}
+            onClick={() => navigate("/admin")}
+          >
             Admin Panel
           </Typography>
         </Toolbar>
@@ -68,14 +75,14 @@ export function AdminLayout() {
       <Drawer
         open={open}
         onClose={() => setOpen(false)}
-        sx={{
-          "& .MuiDrawer-paper": { width: drawerWidth },
-        }}
+        sx={{ "& .MuiDrawer-paper": { width: drawerWidth } }}
       >
         <Box sx={{ p: 2 }}>
           <Typography variant="h6">תפריט</Typography>
         </Box>
+
         <Divider />
+
         <List>
           {items.map((item) => (
             <ListItemButton
