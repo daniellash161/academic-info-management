@@ -1,3 +1,4 @@
+// src/services/contactMessagesService.ts
 import { LS_KEYS } from "../storage/lsKeys";
 import { makeId, readLS, writeLS } from "../storage/storage";
 import type { ContactMessage, ContactMessageStatus } from "../models/contactMessage";
@@ -33,9 +34,7 @@ export const contactMessagesService = {
     const q = query.trim().toLowerCase();
     let rows = readAll();
 
-    if (statusFilter !== "ALL") {
-      rows = rows.filter((x) => x.status === statusFilter);
-    }
+    if (statusFilter !== "ALL") rows = rows.filter((x) => x.status === statusFilter);
 
     if (q) {
       rows = rows.filter((x) => {
@@ -50,7 +49,6 @@ export const contactMessagesService = {
         ]
           .join(" ")
           .toLowerCase();
-
         return hay.includes(q);
       });
     }
@@ -58,9 +56,7 @@ export const contactMessagesService = {
     return rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   },
 
-  create(
-    input: Omit<ContactMessage, "id" | "createdAt" | "status"> & { status?: ContactMessageStatus }
-  ): ContactMessage {
+  create(input: Omit<ContactMessage, "id" | "createdAt" | "status">): ContactMessage {
     const all = readAll();
 
     const item: ContactMessage = {
@@ -73,8 +69,8 @@ export const contactMessagesService = {
       subject: input.subject.trim(),
       message: input.message.trim(),
 
-      status: normalizeStatus(String(input.status ?? "חדש")),
-      adminNote: input.adminNote?.trim() ? input.adminNote.trim() : undefined,
+      status: "חדש",
+      adminNote: undefined,
     };
 
     writeAll([item, ...all]);

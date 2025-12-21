@@ -16,14 +16,14 @@ import {
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import { useNavigate } from "react-router-dom";
-import type { ContactMessage, ContactMessageStatus } from "../../models/contactMessage";
+import type { ContactMessage } from "../../models/contactMessage";
 import { contactMessagesService } from "../../services/contactMessagesService";
 
 export function ContactMessagesPage() {
   const navigate = useNavigate();
   const [rows, setRows] = useState<ContactMessage[]>([]);
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<ContactMessageStatus | "ALL">("ALL");
+  const [statusFilter, setStatusFilter] = useState<ContactMessage["status"] | "ALL">("ALL");
 
   function refresh() {
     setRows(contactMessagesService.getAll());
@@ -97,7 +97,7 @@ export function ContactMessagesPage() {
                 <TableCell>{m.subject}</TableCell>
                 <TableCell>{m.status}</TableCell>
                 <TableCell align="right">
-                  <IconButton onClick={() => navigate(`/admin/contactMessages/${m.id}/edit`)}>
+                  <IconButton onClick={() => navigate(`/admin/contacts/${m.id}/edit`)}>
                     <EditIcon />
                   </IconButton>
                   <IconButton onClick={() => onDelete(m.id)}>

@@ -51,11 +51,12 @@ export function ContactMessageFormPage() {
 
     contactMessagesService.update(id, {
       status: values.status as ContactMessageStatus,
-      adminNote: values.adminNote.trim() ? values.adminNote.trim() : undefined,
+      adminNote: values.adminNote,
     });
 
     snackbar.show("הפנייה עודכנה בהצלחה");
-    navigate("/admin/contactMessages");
+
+    navigate("/admin/contacts");
   }
 
   const statuses = contactMessagesService.statuses();
@@ -97,7 +98,7 @@ export function ContactMessageFormPage() {
           <Button variant="contained" onClick={onSave} disabled={!canSave}>
             שמירה
           </Button>
-          <Button variant="outlined" onClick={() => navigate("/admin/contactMessages")}>
+          <Button variant="outlined" onClick={() => navigate("/admin/contacts")}>
             ביטול
           </Button>
         </Stack>
