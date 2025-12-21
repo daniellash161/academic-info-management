@@ -1,5 +1,5 @@
 import { LS_KEYS } from "./lsKeys";
-import { hasLS, makeId, readLS, writeLS } from "./storage";
+import { makeId, readLS, writeLS } from "./storage";
 
 import type { User } from "../models/user";
 import type { RegistrationRequest } from "../models/registrationRequest";
@@ -7,9 +7,11 @@ import type { Course } from "../models/course";
 import type { Requirement } from "../models/requirement";
 import type { ContactMessage } from "../models/contactMessage";
 import type { RegistrationDeadline } from "../models/registrationDeadline";
+import type { Faq } from "../models/faq";
 
 export function seedUsersIfEmpty() {
-  if (hasLS(LS_KEYS.users)) return;
+  const existing = readLS<User[]>(LS_KEYS.users, []);
+  if (existing.length > 0) return;
 
   const users: User[] = Array.from({ length: 10 }).map((_, i) => ({
     id: makeId(),
@@ -27,7 +29,8 @@ export function seedUsersIfEmpty() {
 }
 
 export function seedRequestsIfEmpty() {
-  if (hasLS(LS_KEYS.requests)) return;
+  const existing = readLS<RegistrationRequest[]>(LS_KEYS.requests, []);
+  if (existing.length > 0) return;
 
   seedUsersIfEmpty();
   const candidates = readLS<User[]>(LS_KEYS.users, []);
@@ -54,7 +57,8 @@ export function seedRequestsIfEmpty() {
 }
 
 export function seedCoursesIfEmpty() {
-  if (hasLS(LS_KEYS.courses)) return;
+  const existing = readLS<Course[]>(LS_KEYS.courses, []);
+  if (existing.length > 0) return;
 
   const courses: Course[] = [
     { code: "CS101", name: "מבוא למדעי המחשב", semester: "א", credits: 5, lecturer: 'ד"ר כהן' },
@@ -73,7 +77,8 @@ export function seedCoursesIfEmpty() {
 }
 
 export function seedRequirementsIfEmpty() {
-  if (hasLS(LS_KEYS.requirements)) return;
+  const existing = readLS<Requirement[]>(LS_KEYS.requirements, []);
+  if (existing.length > 0) return;
 
   const reqs: Requirement[] = [
     {
@@ -125,12 +130,28 @@ export function seedRequirementsIfEmpty() {
   writeLS(LS_KEYS.requirements, reqs);
 }
 
+export function seedFaqsIfEmpty() {
+  const existing = readLS<Faq[]>(LS_KEYS.faqs, []);
+  if (existing.length > 0) return;
+
+  const items: Faq[] = Array.from({ length: 10 }).map((_, i) => ({
+    id: makeId(),
+    question: `שאלה נפוצה ${i + 1}`,
+    answer: `תשובה לדוגמה ${i + 1}.`,
+    isPublished: i % 4 !== 0,
+    displayOrder: i + 1,
+    createdAt: new Date().toISOString(),
+  }));
+
+  writeLS(LS_KEYS.faqs, items);
+}
+
 export function seedContactMessagesIfEmpty() {
-  if (hasLS(LS_KEYS.contactMessages)) return;
+  const existing = readLS<ContactMessage[]>(LS_KEYS.contactMessages, []);
+  if (existing.length > 0) return;
 
   const today = new Date();
   const ymd = (d: Date) => d.toISOString().slice(0, 10);
-
   const statuses: ContactMessage["status"][] = ["חדש", "בטיפול", "נסגר"];
 
   const items: ContactMessage[] = Array.from({ length: 10 }).map((_, i) => {
@@ -154,24 +175,25 @@ export function seedContactMessagesIfEmpty() {
 }
 
 export function seedRegistrationDeadlinesIfEmpty() {
-  if (hasLS(LS_KEYS.registrationDeadlines)) return;
+  const existing = readLS<RegistrationDeadline[]>(LS_KEYS.registrationDeadlines, []);
+  if (existing.length > 0) return;
 
   const today = new Date();
   const ymd = (d: Date) => d.toISOString().slice(0, 10);
 
   const items: RegistrationDeadline[] = Array.from({ length: 10 }).map((_, i) => {
     const start = new Date(today);
-    start.setDate(today.getDate() - (i * 7 + 3));
+    start.setDate(today.getDate() - i * 14);
 
     const end = new Date(start);
-    end.setDate(start.getDate() + 14);
+    end.setDate(start.getDate() + 10);
 
     return {
       id: makeId(),
       title: `מועד הרשמה #${i + 1}`,
       startDate: ymd(start),
       endDate: ymd(end),
-      isActive: i === 0,
+      isActive: i % 4 !== 0,
       notes: i % 3 === 0 ? "הערה לדוגמה" : "",
       createdAt: new Date().toISOString(),
     };
@@ -185,6 +207,7 @@ export function runSeed() {
   seedRequestsIfEmpty();
   seedCoursesIfEmpty();
   seedRequirementsIfEmpty();
+  seedFaqsIfEmpty();
   seedContactMessagesIfEmpty();
   seedRegistrationDeadlinesIfEmpty();
 }

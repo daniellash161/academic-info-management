@@ -32,43 +32,45 @@ export const router = createBrowserRouter([
   { path: "/", element: <Navigate to="/admin" replace /> },
 
   {
+    path: "/admin",
     element: <AdminLayout />,
     children: [
-      { path: "/admin", element: <AdminHomePage /> },
+      { index: true, element: <AdminHomePage /> },
 
-      { path: "/admin/candidates", element: <CandidatesPage /> },
-      { path: "/admin/candidates/new", element: <CandidateFormPage /> },
-      { path: "/admin/candidates/:id/edit", element: <CandidateFormPage /> },
+      { path: "candidates", element: <CandidatesPage /> },
+      { path: "candidates/new", element: <CandidateFormPage /> },
+      { path: "candidates/:id/edit", element: <CandidateFormPage /> },
 
-      { path: "/admin/requests", element: <RequestsPage /> },
-      { path: "/admin/requests/new", element: <RequestFormPage /> },
-      { path: "/admin/requests/:requestNumber/edit", element: <RequestFormPage /> },
+      { path: "requests", element: <RequestsPage /> },
+      { path: "requests/new", element: <RequestFormPage /> },
+      { path: "requests/:requestNumber/edit", element: <RequestFormPage /> },
 
-      { path: "/admin/courses", element: <CoursesPage /> },
-      { path: "/admin/courses/new", element: <CourseFormPage /> },
-      { path: "/admin/courses/:code/edit", element: <CourseFormPage /> },
+      { path: "courses", element: <CoursesPage /> },
+      { path: "courses/new", element: <CourseFormPage /> },
+      { path: "courses/:code/edit", element: <CourseFormPage /> },
 
-      { path: "/admin/requirements", element: <RequirementsPage /> },
-      { path: "/admin/requirements/new", element: <RequirementFormPage /> },
-      { path: "/admin/requirements/:id/edit", element: <RequirementFormPage /> },
+      { path: "requirements", element: <RequirementsPage /> },
+      { path: "requirements/new", element: <RequirementFormPage /> },
+      { path: "requirements/:id/edit", element: <RequirementFormPage /> },
 
-      { path: "/admin/faqs", element: <FaqsPage /> },
-      { path: "/admin/faqs/new", element: <FaqFormPage /> },
-      { path: "/admin/faqs/:id/edit", element: <FaqFormPage /> },
+      { path: "faqs", element: <FaqsPage /> },
+      { path: "faqs/new", element: <FaqFormPage /> },
+      { path: "faqs/:id/edit", element: <FaqFormPage /> },
 
-      { path: "/admin/contacts", element: <ContactMessagesPage /> },
-      { path: "/admin/contacts/:id/edit", element: <ContactMessageFormPage /> },
+      { path: "contacts", element: <ContactMessagesPage /> },
+      { path: "contacts/:id/edit", element: <ContactMessageFormPage /> },
 
-      { path: "/admin/registration-deadlines", element: <RegistrationDeadlinesPage /> },
-      { path: "/admin/registration-deadlines/new", element: <RegistrationDeadlineFormPage /> },
-      { path: "/admin/registration-deadlines/:id/edit", element: <RegistrationDeadlineFormPage /> },
+      { path: "deadlines", element: <RegistrationDeadlinesPage /> },
+      { path: "deadlines/new", element: <RegistrationDeadlineFormPage /> },
+      { path: "deadlines/:id/edit", element: <RegistrationDeadlineFormPage /> },
 
-      { path: "/admin/help", element: <HelpPage /> },
+      { path: "help", element: <HelpPage /> },
+
+      { path: "*", element: <div style={{ padding: 24 }}>404</div> },
     ],
   },
 
   { path: "/help", element: <HelpPage /> },
-
   { path: "/login", element: <LoginPage /> },
 
   { path: "*", element: <div style={{ padding: 24 }}>404</div> },

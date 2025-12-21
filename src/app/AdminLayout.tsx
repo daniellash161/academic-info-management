@@ -1,4 +1,3 @@
-// src/app/AdminLayout.tsx
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { AppBar, Box, Button, IconButton, Toolbar, Typography } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
@@ -76,7 +75,7 @@ export function AdminLayout() {
             variant="h6"
             onClick={() => navigate("/admin")}
           >
-            מערכת ניהול
+            הקריה האקדמית אונו- מערכת ניהול
           </Typography>
 
           <Box sx={{ flex: 1 }} />

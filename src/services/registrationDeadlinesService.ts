@@ -2,6 +2,11 @@ import { LS_KEYS } from "../storage/lsKeys";
 import { makeId, readLS, writeLS } from "../storage/storage";
 import type { RegistrationDeadline } from "../models/registrationDeadline";
 
+export type RegistrationDeadlineStatus = "פתוח" | "עתידי" | "נסגר" | "לא פעיל";
+
+type CreateInput = Omit<RegistrationDeadline, "id" | "createdAt">;
+type UpdatePatch = Partial<Omit<RegistrationDeadline, "id" | "createdAt">>;
+
 function readAll(): RegistrationDeadline[] {
   return readLS<RegistrationDeadline[]>(LS_KEYS.registrationDeadlines, []);
 }
@@ -10,7 +15,23 @@ function writeAll(items: RegistrationDeadline[]) {
   writeLS(LS_KEYS.registrationDeadlines, items);
 }
 
+function todayYmd() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export const registrationDeadlinesService = {
+  statuses(): RegistrationDeadlineStatus[] {
+    return ["פתוח", "עתידי", "נסגר", "לא פעיל"];
+  },
+
+  statusOf(d: RegistrationDeadline): RegistrationDeadlineStatus {
+    if (!d.isActive) return "לא פעיל";
+    const t = todayYmd();
+    if (t < d.startDate) return "עתידי";
+    if (t > d.endDate) return "נסגר";
+    return "פתוח";
+  },
+
   getAll(): RegistrationDeadline[] {
     return [...readAll()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   },
@@ -19,15 +40,19 @@ export const registrationDeadlinesService = {
     return readAll().find((x) => x.id === id);
   },
 
-  search(query: string, activeOnly: boolean): RegistrationDeadline[] {
+  search(query: string, statusFilter: RegistrationDeadlineStatus | "ALL" = "ALL"): RegistrationDeadline[] {
     const q = query.trim().toLowerCase();
     let rows = readAll();
 
-    if (activeOnly) rows = rows.filter((x) => x.isActive);
+    if (statusFilter !== "ALL") {
+      rows = rows.filter((d) => this.statusOf(d) === statusFilter);
+    }
 
     if (q) {
-      rows = rows.filter((x) => {
-        const hay = [x.title, x.notes ?? "", x.startDate, x.endDate].join(" ").toLowerCase();
+      rows = rows.filter((d) => {
+        const hay = [d.title, d.startDate, d.endDate, d.notes ?? "", this.statusOf(d)]
+          .join(" ")
+          .toLowerCase();
         return hay.includes(q);
       });
     }
@@ -35,7 +60,7 @@ export const registrationDeadlinesService = {
     return rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   },
 
-  create(input: Omit<RegistrationDeadline, "id" | "createdAt">): RegistrationDeadline {
+  create(input: CreateInput): RegistrationDeadline {
     const all = readAll();
 
     const item: RegistrationDeadline = {
@@ -44,7 +69,7 @@ export const registrationDeadlinesService = {
       title: input.title.trim(),
       startDate: input.startDate,
       endDate: input.endDate,
-      isActive: input.isActive,
+      isActive: Boolean(input.isActive),
       notes: input.notes?.trim() ? input.notes.trim() : undefined,
     };
 
@@ -52,7 +77,7 @@ export const registrationDeadlinesService = {
     return item;
   },
 
-  update(id: string, patch: Partial<Omit<RegistrationDeadline, "id" | "createdAt">>): RegistrationDeadline {
+  update(id: string, patch: UpdatePatch): RegistrationDeadline {
     const all = readAll();
     const idx = all.findIndex((x) => x.id === id);
     if (idx === -1) throw new Error("מועד הרשמה לא נמצא");
@@ -63,15 +88,15 @@ export const registrationDeadlinesService = {
       ...current,
       ...patch,
       title: patch.title !== undefined ? patch.title.trim() : current.title,
+      startDate: patch.startDate !== undefined ? patch.startDate : current.startDate,
+      endDate: patch.endDate !== undefined ? patch.endDate : current.endDate,
+      isActive: patch.isActive !== undefined ? Boolean(patch.isActive) : current.isActive,
       notes:
         patch.notes !== undefined
           ? patch.notes.trim()
             ? patch.notes.trim()
             : undefined
           : current.notes,
-      startDate: patch.startDate !== undefined ? patch.startDate : current.startDate,
-      endDate: patch.endDate !== undefined ? patch.endDate : current.endDate,
-      isActive: patch.isActive !== undefined ? patch.isActive : current.isActive,
     };
 
     all[idx] = updated;

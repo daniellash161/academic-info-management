@@ -1,3 +1,5 @@
+
+// src/pages/admin/AdminHomePage.tsx
 import { useEffect, useMemo, useState } from "react";
 import {
   Box,
@@ -26,8 +28,6 @@ import { usersService } from "../../services/usersService";
 import { requestsService } from "../../services/requestsService";
 import { coursesService } from "../../services/coursesService";
 import { requirementsService } from "../../services/requirementsService";
-import { contactMessagesService } from "../../services/contactMessagesService";
-import type { ContactMessage } from "../../models/contactMessage";
 
 type StatCardProps = {
   title: string;
@@ -39,14 +39,7 @@ type StatCardProps = {
 
 function StatCard({ title, value, color, icon, onClick }: StatCardProps) {
   return (
-    <Card
-      sx={{
-        flex: "1 1 320px", // ✅ חשוב: נותן מקום + מאפשר wrap + gap
-        position: "relative",
-        overflow: "hidden",
-        minWidth: 280,
-      }}
-    >
+    <Card sx={{ flex: 1, position: "relative", overflow: "hidden" }}>
       <Box sx={{ height: 4, bgcolor: color }} />
       <CardContent sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <Box>
@@ -89,8 +82,8 @@ export function AdminHomePage() {
     { requestNumber: number; candidateName: string; status: string; createdAt: string }[]
   >([]);
 
-  const [recentContacts, setRecentContacts] = useState<
-    { id: string; createdAt: string; fullName: string; subject: string; status: string }[]
+  const [recentCandidates, setRecentCandidates] = useState<
+    { id: string; fullName: string; createdAt: string }[]
   >([]);
 
   function refresh() {
@@ -116,21 +109,16 @@ export function AdminHomePage() {
 
     setPendingRequests(pending);
 
-    const contacts = contactMessagesService.getAll();
-    const recent = [...contacts]
-      .sort((a: ContactMessage, b: ContactMessage) =>
-        String(b.createdAt).localeCompare(String(a.createdAt))
-      )
+    const recent = [...candidates]
+      .sort((a: any, b: any) => String(b.createdAt).localeCompare(String(a.createdAt)))
       .slice(0, 5)
-      .map((m: ContactMessage) => ({
-        id: m.id,
-        createdAt: String(m.createdAt).slice(0, 10),
-        fullName: m.fullName,
-        subject: m.subject,
-        status: m.status,
+      .map((c: any) => ({
+        id: c.id,
+        fullName: c.fullName,
+        createdAt: String(c.createdAt).slice(0, 10),
       }));
 
-    setRecentContacts(recent);
+    setRecentCandidates(recent);
   }
 
   useEffect(() => {
@@ -184,23 +172,14 @@ export function AdminHomePage() {
         צפייה מהירה בסטטוס המערכת וקישורים לפעולות מרכזיות
       </Typography>
 
-      <Stack
-        direction="row"
-        spacing={2}
-        useFlexGap
-        sx={{
-          mb: 3,
-          flexWrap: "wrap",
-          gap: 2,
-        }}
-      >
+      <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ mb: 3 }}>
         {stats.map((s) => (
           <StatCard key={s.title} {...s} />
         ))}
       </Stack>
 
-      <Stack direction={{ xs: "column", md: "row" }} spacing={3} useFlexGap sx={{ mb: 3, alignItems: "stretch" }}>
-        <Paper sx={{ p: 2, flex: 1, minWidth: { xs: "100%", md: 520 } }}>
+      <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ mb: 3 }}>
+        <Paper sx={{ p: 2, flex: 1 }}>
           <Typography sx={{ fontWeight: 900, mb: 1 }}>בקשות הרשמה לטיפול</Typography>
           <Divider sx={{ mb: 2 }} />
 
@@ -240,37 +219,33 @@ export function AdminHomePage() {
           )}
         </Paper>
 
-        <Paper sx={{ p: 2, flex: 1, minWidth: { xs: "100%", md: 520 } }}>
-          <Typography sx={{ fontWeight: 900, mb: 1 }}>פניות אחרונות (צור קשר)</Typography>
+        <Paper sx={{ p: 2, flex: 1 }}>
+          <Typography sx={{ fontWeight: 900, mb: 1 }}>מועמדים אחרונים</Typography>
           <Divider sx={{ mb: 2 }} />
 
-          {recentContacts.length === 0 ? (
-            <Typography sx={{ opacity: 0.75 }}>אין פניות במערכת.</Typography>
+          {recentCandidates.length === 0 ? (
+            <Typography sx={{ opacity: 0.75 }}>אין מועמדים במערכת.</Typography>
           ) : (
             <Table size="small">
               <TableHead>
                 <TableRow>
                   <TableCell>שם</TableCell>
-                  <TableCell>נושא</TableCell>
-                  <TableCell>סטטוס</TableCell>
                   <TableCell>תאריך</TableCell>
                   <TableCell align="left">פעולה</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {recentContacts.map((m) => (
-                  <TableRow key={m.id} hover>
-                    <TableCell>{m.fullName}</TableCell>
-                    <TableCell>{m.subject}</TableCell>
-                    <TableCell>{m.status}</TableCell>
-                    <TableCell>{m.createdAt}</TableCell>
+                {recentCandidates.map((c) => (
+                  <TableRow key={c.id} hover>
+                    <TableCell>{c.fullName}</TableCell>
+                    <TableCell>{c.createdAt}</TableCell>
                     <TableCell align="left">
                       <Button
                         size="small"
                         sx={{ fontWeight: 900 }}
-                        onClick={() => navigate(`/admin/contacts/${m.id}/edit`)}
+                        onClick={() => navigate(`/admin/candidates/${c.id}/edit`)}
                       >
-                        מעבר לפנייה
+                        מעבר למועמד
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -278,18 +253,16 @@ export function AdminHomePage() {
               </TableBody>
             </Table>
           )}
-
-          <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1 }}>
-            <Button size="small" onClick={() => navigate("/admin/contacts")} sx={{ fontWeight: 900 }}>
-              לכל הפניות
-            </Button>
-          </Box>
         </Paper>
       </Stack>
 
       <Typography sx={{ fontWeight: 900, mb: 1 }}>פעולות מהירות</Typography>
 
       <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", justifyContent: "flex-end" }}>
+        <Button variant="contained" sx={{ bgcolor: "#0EA5E9" }} onClick={() => navigate("/admin/deadlines/new")}>
+          הוספת מועד הרשמה
+        </Button>
+
         <Button variant="contained" sx={{ bgcolor: "#22C55E" }} onClick={() => navigate("/admin/requirements/new")}>
           הוספת דרישה
         </Button>
