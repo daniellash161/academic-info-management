@@ -2,6 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   IconButton,
   Paper,
   Table,
@@ -17,27 +22,51 @@ import EditIcon from "@mui/icons-material/Edit";
 import { useNavigate } from "react-router-dom";
 import type { Course } from "../../models/course";
 import { coursesService } from "../../services/coursesService";
+import { useSnackbar } from "../../hooks/useSnackbar";
+import { AppSnackbar } from "../../components/AppSnackbar";
 
 export function CoursesPage() {
   const [rows, setRows] = useState<Course[]>([]);
   const [query, setQuery] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<Course | null>(null);
+
   const navigate = useNavigate();
+  const snackbar = useSnackbar();
 
   function refresh() {
     setRows(coursesService.getAll());
   }
 
   useEffect(() => {
-    refresh(); // טעינה ראשונית מה-localStorage (כמו המחוון)
+    refresh();
   }, []);
 
   const filtered = useMemo(() => {
-    return coursesService.search(query);
-  }, [query, rows]); // rows כדי לרענן אחרי מחיקה/עדכון
+    const q = query.trim().toLowerCase();
+    if (!q) return rows;
 
-  function onDelete(code: string) {
-    coursesService.remove(code);
+    return rows.filter((c) => {
+      const name = c.name.toLowerCase();
+      const code = c.code.toLowerCase();
+      const lecturer = (c.lecturer ?? "").toLowerCase();
+      return name.includes(q) || code.includes(q) || lecturer.includes(q);
+    });
+  }, [rows, query]);
+
+  function askDelete(course: Course) {
+    setDeleteTarget(course);
+  }
+
+  function cancelDelete() {
+    setDeleteTarget(null);
+  }
+
+  function confirmDelete() {
+    if (!deleteTarget) return;
+    coursesService.remove(deleteTarget.code);
+    setDeleteTarget(null);
     refresh();
+    snackbar.show("הקורס נמחק בהצלחה");
   }
 
   return (
@@ -80,10 +109,13 @@ export function CoursesPage() {
                 <TableCell>{c.credits}</TableCell>
                 <TableCell>{c.semester}</TableCell>
                 <TableCell align="right">
-                  <IconButton onClick={() => navigate(`/admin/courses/${encodeURIComponent(c.code)}/edit`)}>
+                  <IconButton
+                    aria-label="edit"
+                    onClick={() => navigate(`/admin/courses/${encodeURIComponent(c.code)}/edit`)}
+                  >
                     <EditIcon />
                   </IconButton>
-                  <IconButton onClick={() => onDelete(c.code)}>
+                  <IconButton aria-label="delete" onClick={() => askDelete(c)}>
                     <DeleteIcon />
                   </IconButton>
                 </TableCell>
@@ -100,6 +132,25 @@ export function CoursesPage() {
           </TableBody>
         </Table>
       </Paper>
+
+      <Dialog open={Boolean(deleteTarget)} onClose={cancelDelete}>
+        <DialogTitle>מחיקת קורס</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            האם למחוק את הקורס{deleteTarget ? ` "${deleteTarget.name}" (${deleteTarget.code})` : ""} לצמיתות?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="outlined" onClick={cancelDelete}>
+            ביטול
+          </Button>
+          <Button variant="contained" color="error" onClick={confirmDelete}>
+            מחיקה
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <AppSnackbar open={snackbar.open} message={snackbar.message} onClose={snackbar.close} />
     </Box>
   );
 }
