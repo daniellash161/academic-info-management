@@ -1,5 +1,5 @@
 import { LS_KEYS } from "./lsKeys";
-import { hasLS, makeId, writeLS } from "./storage";
+import { hasLS, makeId, readLS, writeLS } from "./storage";
 
 import type { User } from "../models/user";
 import type { RegistrationRequest } from "../models/registrationRequest";
@@ -7,8 +7,6 @@ import type { Course } from "../models/course";
 import type { Requirement } from "../models/requirement";
 import type { Announcement } from "../models/announcement";
 import type { ApplicationDocument } from "../models/applicationDocument";
-
-import { usersService } from "../services/usersService";
 
 export function seedUsersIfEmpty() {
   if (hasLS(LS_KEYS.users)) return;
@@ -31,9 +29,11 @@ export function seedUsersIfEmpty() {
 export function seedRequestsIfEmpty() {
   if (hasLS(LS_KEYS.requests)) return;
 
-  const candidates = usersService.getCandidates();
-  const statuses: RegistrationRequest["status"][] = ["בטיוטה", "נשלחה", "מאושרת", "נדחתה"];
+  // ודאות שיש מועמדים
+  seedUsersIfEmpty();
+  const candidates = readLS<User[]>(LS_KEYS.users, []);
 
+  const statuses: RegistrationRequest["status"][] = ["בטיוטה", "נשלחה", "מאושרת", "נדחתה"];
   const today = new Date();
   const ymd = (d: Date) => d.toISOString().slice(0, 10);
 
@@ -138,7 +138,7 @@ export function seedAnnouncementsIfEmpty() {
       title: `עדכון מערכת #${i + 1}`,
       content: `זהו עדכון לדוגמה מספר ${i + 1}.`,
       publishedAt: ymd(d),
-      isActive: i % 5 !== 0, // חלק לא פעילים
+      isActive: i % 5 !== 0,
     };
   });
 
@@ -148,7 +148,9 @@ export function seedAnnouncementsIfEmpty() {
 export function seedDocumentsIfEmpty() {
   if (hasLS(LS_KEYS.documents)) return;
 
-  const candidates = usersService.getCandidates();
+  seedUsersIfEmpty();
+  const candidates = readLS<User[]>(LS_KEYS.users, []);
+
   const today = new Date();
   const ymd = (d: Date) => d.toISOString().slice(0, 10);
 
@@ -158,6 +160,7 @@ export function seedDocumentsIfEmpty() {
   const items: ApplicationDocument[] = Array.from({ length: 10 }).map((_, i) => {
     const candidate = candidates[i % candidates.length];
     const status = statuses[i % statuses.length];
+
     const d = new Date(today);
     d.setDate(today.getDate() - i);
 
