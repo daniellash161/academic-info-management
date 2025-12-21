@@ -27,7 +27,6 @@ export function ContactMessagesPage() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<ContactMessage["status"] | "ALL">("ALL");
 
-  // ✅ חדש: תצוגה (ברירת מחדל: פניות פתוחות)
   const [view, setView] = useState<ViewFilter>("ACTIVE");
 
   function refresh() {
@@ -61,7 +60,6 @@ export function ContactMessagesPage() {
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
         <Typography variant="h5">ניהול פניות צור קשר</Typography>
 
-        {/* עדיף /admin/help אם זה מסך מנהל */}
         <Button variant="contained" onClick={() => navigate("/admin/help")}>
           מעבר למסך עזרה/צור קשר
         </Button>

@@ -1,4 +1,3 @@
-// src/pages/admin/FaqFormPage.tsx
 import { useEffect, useMemo, useState } from "react";
 import {
   Box,
