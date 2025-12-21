@@ -1,6 +1,7 @@
+// src/pages/admin/RequestFormPage.tsx
 import { useEffect, useMemo, useState } from "react";
-import { Box, Button, MenuItem, Stack, TextField, Typography, Paper } from "@mui/material";
-import { useNavigate, useParams } from "react-router-dom";
+import { Box, Button, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import type { RegistrationRequest, RequestStatus } from "../../models/registrationRequest";
 import { requestsService } from "../../services/requestsService";
 import { usersService } from "../../services/usersService";
@@ -40,6 +41,10 @@ function validate(values: FormState) {
 export function RequestFormPage() {
   const { requestNumber } = useParams();
   const isEdit = Boolean(requestNumber);
+
+  const [searchParams] = useSearchParams();
+  const prefCandidateId = searchParams.get("candidateId") ?? "";
+
   const navigate = useNavigate();
   const snackbar = useSnackbar();
 
@@ -47,11 +52,19 @@ export function RequestFormPage() {
   const statuses = requestsService.statuses();
 
   const [values, setValues] = useState<FormState>({
-    candidateId: "",
+    candidateId: prefCandidateId,
     status: "בטיוטה",
     createdAt: todayYmd(),
     notes: "",
   });
+
+  useEffect(() => {
+    // אם מגיעים אחרי יצירת מועמד (candidateId ב-query) ורק אם לא בעריכה
+    if (!isEdit && prefCandidateId) {
+      setValues((prev) => ({ ...prev, candidateId: prefCandidateId }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefCandidateId, isEdit]);
 
   useEffect(() => {
     if (!requestNumber) return;
@@ -67,15 +80,18 @@ export function RequestFormPage() {
     });
   }, [requestNumber]);
 
-  const selectedCandidate = useMemo(() => {
-    return values.candidateId ? usersService.getById(values.candidateId) : undefined;
-  }, [values.candidateId]);
-
   const errors = useMemo(() => validate(values), [values]);
   const canSave = Object.keys(errors).length === 0;
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setValues((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function goCreateCandidate() {
+    const returnTo = isEdit
+      ? `/admin/requests/${requestNumber}/edit`
+      : "/admin/requests/new";
+    navigate(`/admin/candidates/new?returnTo=${encodeURIComponent(returnTo)}`);
   }
 
   function onSave() {
@@ -105,32 +121,30 @@ export function RequestFormPage() {
         {isEdit ? `עריכת בקשה #${requestNumber}` : "הוספת בקשת הרשמה"}
       </Typography>
 
-      <Stack spacing={2} sx={{ maxWidth: 560 }}>
-        <TextField
-          select
-          label="מועמד"
-          required
-          value={values.candidateId}
-          onChange={(e) => setField("candidateId", e.target.value)}
-          error={Boolean(errors.candidateId)}
-          helperText={errors.candidateId ?? " "}
-        >
-          <MenuItem value="">— בחרי מועמד —</MenuItem>
-          {candidates.map((c) => (
-            <MenuItem key={c.id} value={c.id}>
-              {c.fullName} ({c.nationalId})
-            </MenuItem>
-          ))}
-        </TextField>
+      <Stack spacing={2} sx={{ maxWidth: 520 }}>
+        <Stack direction="row" spacing={2} alignItems="flex-start">
+          <TextField
+            select
+            fullWidth
+            label="מועמד"
+            required
+            value={values.candidateId}
+            onChange={(e) => setField("candidateId", e.target.value)}
+            error={Boolean(errors.candidateId)}
+            helperText={errors.candidateId ?? " "}
+          >
+            <MenuItem value="">— בחרי מועמד —</MenuItem>
+            {candidates.map((c) => (
+              <MenuItem key={c.id} value={c.id}>
+                {c.fullName} ({c.nationalId})
+              </MenuItem>
+            ))}
+          </TextField>
 
-        {selectedCandidate && (
-          <Paper variant="outlined" sx={{ p: 2 }}>
-            <Typography sx={{ fontWeight: 800, mb: 1 }}>פרטי מועמד (לצפייה בלבד)</Typography>
-            <Typography>שם: {selectedCandidate.fullName}</Typography>
-            <Typography>מייל: {selectedCandidate.email}</Typography>
-            <Typography>טלפון: {selectedCandidate.phone}</Typography>
-          </Paper>
-        )}
+          <Button variant="outlined" onClick={goCreateCandidate} sx={{ whiteSpace: "nowrap", mt: "2px" }}>
+            יצירת מועמד חדש
+          </Button>
+        </Stack>
 
         <TextField
           select

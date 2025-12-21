@@ -1,7 +1,7 @@
-
+// src/pages/admin/CandidateFormPage.tsx
 import { useEffect, useMemo, useState } from "react";
 import { Box, Button, MenuItem, Stack, TextField, Typography } from "@mui/material";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import type { InterestArea, UserRole } from "../../models/user";
 import { usersService } from "../../services/usersService";
 import { useSnackbar } from "../../hooks/useSnackbar";
@@ -21,24 +21,22 @@ type FormState = {
   notes: string;
 };
 
-function validate(values: FormState, excludeId?: string) {
+function validate(values: FormState) {
   const errors: Partial<Record<keyof FormState, string>> = {};
 
   const nameOk = /^[A-Za-z\u0590-\u05FF ]+$/.test(values.fullName.trim());
   if (!values.fullName.trim()) errors.fullName = "שדה חובה";
   else if (!nameOk) errors.fullName = "שם יכול להכיל אותיות ורווחים בלבד";
 
-  if (!/^\d{9}$/.test(values.nationalId)) errors.nationalId = 'ת"ז חייבת להיות 9 ספרות';
-  else if (usersService.isNationalIdTaken(values.nationalId, excludeId)) errors.nationalId = 'ת"ז כבר קיימת במערכת';
-
+  if (!/^\d{9}$/.test(values.nationalId)) errors.nationalId = "ת״ז חייבת להיות 9 ספרות";
   if (!/^[^\s@]+@[^\s@]+$/.test(values.email)) errors.email = "מייל לא תקין";
-  else if (usersService.isEmailTaken(values.email, excludeId)) errors.email = "מייל כבר קיים במערכת";
-
   if (!/^0\d{9}$/.test(values.phone)) errors.phone = "טלפון חייב להיות 10 ספרות ולהתחיל ב-0";
 
   if (!values.role) errors.role = "חובה לבחור תפקיד";
 
-  if (values.interest && !INTERESTS.includes(values.interest)) errors.interest = "תחום עניין לא תקין";
+  if (values.interest && !INTERESTS.includes(values.interest)) {
+    errors.interest = "תחום עניין לא תקין";
+  }
 
   if (values.role === "ADMIN") {
     if (!values.password) errors.password = "סיסמה חובה למנהל מערכת";
@@ -53,6 +51,10 @@ function validate(values: FormState, excludeId?: string) {
 export function CandidateFormPage() {
   const { id } = useParams();
   const isEdit = Boolean(id);
+
+  const [searchParams] = useSearchParams();
+  const returnTo = searchParams.get("returnTo") ?? "";
+
   const navigate = useNavigate();
   const snackbar = useSnackbar();
 
@@ -75,7 +77,7 @@ export function CandidateFormPage() {
     setValues({
       fullName: existing.fullName,
       nationalId: existing.nationalId,
-      email: existing.email ?? "",
+      email: existing.email,
       phone: existing.phone,
       role: existing.role,
       password: existing.password ?? "",
@@ -84,11 +86,23 @@ export function CandidateFormPage() {
     });
   }, [id]);
 
-  const errors = useMemo(() => validate(values, id), [values, id]);
+  const errors = useMemo(() => validate(values), [values]);
   const canSave = Object.keys(errors).length === 0;
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setValues((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function navigateAfterSave(createdId?: string) {
+    // אם הגעתי מהוספת בקשה—נחזיר לבקשה עם candidateId ב-query
+    if (!isEdit && returnTo) {
+      const sep = returnTo.includes("?") ? "&" : "?";
+      navigate(`${returnTo}${sep}candidateId=${encodeURIComponent(createdId ?? "")}`, { replace: true });
+      return;
+    }
+
+    // ברירת מחדל
+    navigate("/admin/candidates");
   }
 
   function onSave() {
@@ -107,8 +121,9 @@ export function CandidateFormPage() {
           notes: values.notes || undefined,
         });
         snackbar.show("המועמד עודכן בהצלחה");
+        navigate("/admin/candidates");
       } else {
-        usersService.create({
+        const created = usersService.create({
           fullName: values.fullName.trim(),
           nationalId: values.nationalId,
           email: values.email.trim(),
@@ -117,11 +132,10 @@ export function CandidateFormPage() {
           password: values.password || undefined,
           interest: (values.interest || undefined) as any,
           notes: values.notes || undefined,
-        } as any);
+        });
         snackbar.show("המועמד נשמר בהצלחה");
+        navigateAfterSave(created.id);
       }
-
-      navigate("/admin/candidates");
     } catch (e: any) {
       alert(e?.message ?? "שגיאה בשמירה");
     }
@@ -223,7 +237,10 @@ export function CandidateFormPage() {
           <Button variant="contained" onClick={onSave} disabled={!canSave}>
             שמירה
           </Button>
-          <Button variant="outlined" onClick={() => navigate("/admin/candidates")}>
+          <Button
+            variant="outlined"
+            onClick={() => navigate(returnTo ? returnTo : "/admin/candidates")}
+          >
             ביטול
           </Button>
         </Stack>
