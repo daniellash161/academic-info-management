@@ -1,6 +1,8 @@
 export type UserRole = "CANDIDATE" | "ADMIN" | "STUDENT" | "GRADUATE";
 
-export type InterestArea = "מדעי המחשב";
+export type InterestArea =
+  | "תואר ראשון במדעי המחשב"
+  | "תואר שני במדעי המחשב";
 
 export type User = {
   id: string;

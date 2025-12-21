@@ -18,7 +18,7 @@ import {
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import type { User } from "../../models/user";
 import { usersService } from "../../services/usersService";
 import { useSnackbar } from "../../hooks/useSnackbar";
@@ -29,6 +29,7 @@ export function CandidatesPage() {
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
 
   const navigate = useNavigate();
+  const location = useLocation();
   const snackbar = useSnackbar();
 
   function refresh() {
@@ -38,6 +39,16 @@ export function CandidatesPage() {
   useEffect(() => {
     refresh();
   }, []);
+
+  useEffect(() => {
+    const toast = (location.state as any)?.toast as string | undefined;
+    if (!toast) return;
+
+    snackbar.show(toast);
+
+    // ניקוי state כדי שלא יופיע שוב ברענון/ניווט חוזר
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.state, location.pathname, navigate]); // snackbar יציב מה-hook
 
   function askDelete(u: User) {
     setDeleteTarget(u);
@@ -86,7 +97,10 @@ export function CandidatesPage() {
                 <TableCell>{u.phone}</TableCell>
                 <TableCell>{u.interest ?? "-"}</TableCell>
                 <TableCell align="right">
-                  <IconButton aria-label="edit" onClick={() => navigate(`/admin/candidates/${u.id}/edit`)}>
+                  <IconButton
+                    aria-label="edit"
+                    onClick={() => navigate(`/admin/candidates/${u.id}/edit`)}
+                  >
                     <EditIcon />
                   </IconButton>
                   <IconButton aria-label="delete" onClick={() => askDelete(u)}>

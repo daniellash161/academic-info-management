@@ -1,22 +1,28 @@
-// src/pages/admin/CandidateFormPage.tsx
 import { useEffect, useMemo, useState } from "react";
 import { Box, Button, MenuItem, Stack, TextField, Typography } from "@mui/material";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import type { InterestArea, UserRole } from "../../models/user";
 import { usersService } from "../../services/usersService";
-import { useSnackbar } from "../../hooks/useSnackbar";
-import { AppSnackbar } from "../../components/AppSnackbar";
 
-const INTERESTS: InterestArea[] = ["מדעי המחשב"];
-const ROLES: UserRole[] = ["CANDIDATE", "ADMIN", "STUDENT", "GRADUATE"];
+const INTERESTS: InterestArea[] = [
+  "תואר ראשון במדעי המחשב",
+  "תואר שני במדעי המחשב",
+];
+
+const ROLES: Exclude<UserRole, "ADMIN">[] = ["CANDIDATE", "STUDENT", "GRADUATE"];
+
+const ROLE_LABEL: Record<Exclude<UserRole, "ADMIN">, string> = {
+  CANDIDATE: "מתעניין",
+  STUDENT: "סטודנט",
+  GRADUATE: "בוגר",
+};
 
 type FormState = {
   fullName: string;
   nationalId: string;
   email: string;
   phone: string;
-  role: UserRole | "";
-  password: string;
+  role: Exclude<UserRole, "ADMIN"> | "";
   interest: InterestArea | "";
   notes: string;
 };
@@ -32,17 +38,10 @@ function validate(values: FormState) {
   if (!/^[^\s@]+@[^\s@]+$/.test(values.email)) errors.email = "מייל לא תקין";
   if (!/^0\d{9}$/.test(values.phone)) errors.phone = "טלפון חייב להיות 10 ספרות ולהתחיל ב-0";
 
-  if (!values.role) errors.role = "חובה לבחור תפקיד";
+  if (!values.role) errors.role = "חובה לבחור סטטוס";
 
   if (values.interest && !INTERESTS.includes(values.interest)) {
     errors.interest = "תחום עניין לא תקין";
-  }
-
-  if (values.role === "ADMIN") {
-    if (!values.password) errors.password = "סיסמה חובה למנהל מערכת";
-    else if (values.password.length < 6) errors.password = "מינימום 6 תווים";
-  } else if (values.password && values.password.length < 6) {
-    errors.password = "מינימום 6 תווים";
   }
 
   return errors;
@@ -51,12 +50,7 @@ function validate(values: FormState) {
 export function CandidateFormPage() {
   const { id } = useParams();
   const isEdit = Boolean(id);
-
-  const [searchParams] = useSearchParams();
-  const returnTo = searchParams.get("returnTo") ?? "";
-
   const navigate = useNavigate();
-  const snackbar = useSnackbar();
 
   const [values, setValues] = useState<FormState>({
     fullName: "",
@@ -64,7 +58,6 @@ export function CandidateFormPage() {
     email: "",
     phone: "",
     role: "CANDIDATE",
-    password: "",
     interest: "",
     notes: "",
   });
@@ -74,13 +67,15 @@ export function CandidateFormPage() {
     const existing = usersService.getById(id);
     if (!existing) return;
 
+    const safeRole: Exclude<UserRole, "ADMIN"> =
+      existing.role === "ADMIN" ? "CANDIDATE" : (existing.role as any);
+
     setValues({
       fullName: existing.fullName,
       nationalId: existing.nationalId,
       email: existing.email,
       phone: existing.phone,
-      role: existing.role,
-      password: existing.password ?? "",
+      role: safeRole,
       interest: (existing.interest ?? "") as any,
       notes: existing.notes ?? "",
     });
@@ -93,51 +88,33 @@ export function CandidateFormPage() {
     setValues((prev) => ({ ...prev, [key]: value }));
   }
 
-  function navigateAfterSave(createdId?: string) {
-    // אם הגעתי מהוספת בקשה—נחזיר לבקשה עם candidateId ב-query
-    if (!isEdit && returnTo) {
-      const sep = returnTo.includes("?") ? "&" : "?";
-      navigate(`${returnTo}${sep}candidateId=${encodeURIComponent(createdId ?? "")}`, { replace: true });
-      return;
-    }
-
-    // ברירת מחדל
-    navigate("/admin/candidates");
-  }
-
   function onSave() {
     if (!canSave) return;
 
-    try {
-      if (isEdit && id) {
-        usersService.update(id, {
-          fullName: values.fullName.trim(),
-          nationalId: values.nationalId,
-          email: values.email.trim(),
-          phone: values.phone,
-          role: values.role as any,
-          password: values.password || undefined,
-          interest: (values.interest || undefined) as any,
-          notes: values.notes || undefined,
-        });
-        snackbar.show("המועמד עודכן בהצלחה");
-        navigate("/admin/candidates");
-      } else {
-        const created = usersService.create({
-          fullName: values.fullName.trim(),
-          nationalId: values.nationalId,
-          email: values.email.trim(),
-          phone: values.phone,
-          role: values.role as any,
-          password: values.password || undefined,
-          interest: (values.interest || undefined) as any,
-          notes: values.notes || undefined,
-        });
-        snackbar.show("המועמד נשמר בהצלחה");
-        navigateAfterSave(created.id);
-      }
-    } catch (e: any) {
-      alert(e?.message ?? "שגיאה בשמירה");
+    if (isEdit && id) {
+      usersService.update(id, {
+        fullName: values.fullName.trim(),
+        nationalId: values.nationalId,
+        email: values.email.trim(),
+        phone: values.phone,
+        role: values.role as any,
+        interest: (values.interest || undefined) as any,
+        notes: values.notes || undefined,
+      });
+
+      navigate("/admin/candidates", { state: { toast: "המועמד עודכן בהצלחה" } });
+    } else {
+      usersService.create({
+        fullName: values.fullName.trim(),
+        nationalId: values.nationalId,
+        email: values.email.trim(),
+        phone: values.phone,
+        role: values.role as any,
+        interest: (values.interest || undefined) as any,
+        notes: values.notes || undefined,
+      });
+
+      navigate("/admin/candidates", { state: { toast: "המועמד נשמר בהצלחה" } });
     }
   }
 
@@ -186,7 +163,7 @@ export function CandidateFormPage() {
 
         <TextField
           select
-          label="Role"
+          label="סטטוס"
           required
           value={values.role}
           onChange={(e) => setField("role", e.target.value as any)}
@@ -195,23 +172,14 @@ export function CandidateFormPage() {
         >
           {ROLES.map((r) => (
             <MenuItem key={r} value={r}>
-              {r}
+              {ROLE_LABEL[r]}
             </MenuItem>
           ))}
         </TextField>
 
         <TextField
-          label="סיסמה (למנהל מערכת)"
-          type="password"
-          value={values.password}
-          onChange={(e) => setField("password", e.target.value)}
-          error={Boolean(errors.password)}
-          helperText={errors.password ?? " "}
-        />
-
-        <TextField
           select
-          label="תחום עניין (רשות)"
+          label="מסלול התעניינות (רשות)"
           value={values.interest}
           onChange={(e) => setField("interest", e.target.value as any)}
           error={Boolean(errors.interest)}
@@ -237,16 +205,11 @@ export function CandidateFormPage() {
           <Button variant="contained" onClick={onSave} disabled={!canSave}>
             שמירה
           </Button>
-          <Button
-            variant="outlined"
-            onClick={() => navigate(returnTo ? returnTo : "/admin/candidates")}
-          >
+          <Button variant="outlined" onClick={() => navigate("/admin/candidates")}>
             ביטול
           </Button>
         </Stack>
       </Stack>
-
-      <AppSnackbar open={snackbar.open} message={snackbar.message} onClose={snackbar.close} />
     </Box>
   );
 }
