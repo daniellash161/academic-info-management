@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -25,6 +25,8 @@ export function RequirementsPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const navigate = useNavigate();
 
+  useEffect(() => {}, [refreshKey]);
+
   const types = requirementsService.types();
 
   const rows = useMemo(() => {
@@ -45,7 +47,7 @@ export function RequirementsPage() {
         </Button>
       </Box>
 
-      <Box sx={{ display: "flex", gap: 2, mb: 2, maxWidth: 820 }}>
+      <Box sx={{ display: "flex", gap: 2, mb: 2, maxWidth: 900 }}>
         <TextField
           select
           label="סינון לפי סוג"
@@ -63,7 +65,7 @@ export function RequirementsPage() {
 
         <TextField
           fullWidth
-          label="חיפוש לפי שם / סוג / תיאור / קורס"
+          label="חיפוש לפי שם / סוג / תיאור / קורסים"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -75,10 +77,10 @@ export function RequirementsPage() {
             <TableRow>
               <TableCell>סוג</TableCell>
               <TableCell>כותרת</TableCell>
-              <TableCell>קורסים קשורים</TableCell>
               <TableCell>מינימום ציון</TableCell>
               <TableCell>חובה</TableCell>
-              <TableCell>סדר</TableCell>
+              <TableCell>סדר תצוגה</TableCell>
+              <TableCell>קורסים קשורים</TableCell>
               <TableCell align="right">פעולות</TableCell>
             </TableRow>
           </TableHead>
@@ -88,10 +90,10 @@ export function RequirementsPage() {
               <TableRow key={r.id} hover>
                 <TableCell>{r.type}</TableCell>
                 <TableCell>{r.title}</TableCell>
-                <TableCell>{r.courseCodes.length ? r.courseCodes.join(", ") : "-"}</TableCell>
                 <TableCell>{r.minScore}</TableCell>
                 <TableCell>{r.isMandatory ? "כן" : "לא"}</TableCell>
                 <TableCell>{r.displayOrder}</TableCell>
+                <TableCell>{(r.courseCodes ?? []).length ? (r.courseCodes ?? []).join(", ") : "—"}</TableCell>
                 <TableCell align="right">
                   <IconButton onClick={() => navigate(`/admin/requirements/${r.id}/edit`)}>
                     <EditIcon />

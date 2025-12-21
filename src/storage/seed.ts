@@ -30,7 +30,6 @@ export function seedUsersIfEmpty() {
 export function seedRequestsIfEmpty() {
   if (hasLS(LS_KEYS.requests)) return;
 
-  // ודאות שיש מועמדים
   seedUsersIfEmpty();
   const candidates = readLS<User[]>(LS_KEYS.users, []);
 
@@ -61,71 +60,15 @@ export function seedCoursesIfEmpty() {
 
   const courses: Course[] = [
     { code: "CS101", name: "מבוא למדעי המחשב", semester: "א", credits: 5, lecturer: 'ד"ר כהן' },
-    {
-      code: "CS102",
-      name: "תכנות מתקדם",
-      semester: "ב",
-      credits: 5,
-      lecturer: 'ד"ר לוי',
-      prerequisites: ["CS101"],
-    },
-    {
-      code: "CS201",
-      name: "מבני נתונים",
-      semester: "א",
-      credits: 4,
-      lecturer: 'ד"ר שטיין',
-      prerequisites: ["CS102"],
-    },
-    {
-      code: "CS202",
-      name: "אלגוריתמים",
-      semester: "ב",
-      credits: 4,
-      lecturer: 'ד"ר שטיין',
-      prerequisites: ["CS201"],
-    },
+    { code: "CS102", name: "תכנות מתקדם", semester: "ב", credits: 5, lecturer: 'ד"ר לוי', prerequisites: ["CS101"] },
+    { code: "CS201", name: "מבני נתונים", semester: "א", credits: 4, lecturer: 'ד"ר שטיין', prerequisites: ["CS102"] },
+    { code: "CS202", name: "אלגוריתמים", semester: "ב", credits: 4, lecturer: 'ד"ר שטיין', prerequisites: ["CS201"] },
     { code: "CS210", name: "בסיסי נתונים", semester: "א", credits: 3, lecturer: 'ד"ר ברק' },
-    {
-      code: "CS220",
-      name: "מערכות הפעלה",
-      semester: "ב",
-      credits: 4,
-      lecturer: 'ד"ר נוי',
-      prerequisites: ["CS201"],
-    },
-    {
-      code: "CS230",
-      name: "רשתות מחשבים",
-      semester: "א",
-      credits: 3,
-      lecturer: 'ד"ר נקר',
-      prerequisites: ["CS201"],
-    },
-    {
-      code: "CS240",
-      name: "הנדסת תוכנה",
-      semester: "ב",
-      credits: 3,
-      lecturer: 'ד"ר מאיה',
-      prerequisites: ["CS102"],
-    },
-    {
-      code: "CS250",
-      name: "בינה מלאכותית",
-      semester: "א",
-      credits: 3,
-      lecturer: 'ד"ר יעל',
-      prerequisites: ["CS202"],
-    },
-    {
-      code: "CS260",
-      name: "אבטחת מידע",
-      semester: "קיץ",
-      credits: 2,
-      lecturer: 'ד"ר אמיר',
-      prerequisites: ["CS230"],
-    },
+    { code: "CS220", name: "מערכות הפעלה", semester: "ב", credits: 4, lecturer: 'ד"ר נוי', prerequisites: ["CS201"] },
+    { code: "CS230", name: "רשתות מחשבים", semester: "א", credits: 3, lecturer: 'ד"ר נקר', prerequisites: ["CS201"] },
+    { code: "CS240", name: "הנדסת תוכנה", semester: "ב", credits: 3, lecturer: 'ד"ר מאיה', prerequisites: ["CS102"] },
+    { code: "CS250", name: "בינה מלאכותית", semester: "א", credits: 3, lecturer: 'ד"ר יעל', prerequisites: ["CS202"] },
+    { code: "CS260", name: "אבטחת מידע", semester: "קיץ", credits: 2, lecturer: 'ד"ר אמיר', prerequisites: ["CS230"] },
   ];
 
   writeLS(LS_KEYS.courses, courses);
@@ -133,6 +76,10 @@ export function seedCoursesIfEmpty() {
 
 export function seedRequirementsIfEmpty() {
   if (hasLS(LS_KEYS.requirements)) return;
+
+  seedCoursesIfEmpty();
+  const courses = readLS<Course[]>(LS_KEYS.courses, []);
+  const courseCodes = courses.map((c) => c.code);
 
   const reqs: Requirement[] = [
     {
@@ -144,6 +91,7 @@ export function seedRequirementsIfEmpty() {
       extraInfo: "במקרים חריגים תישקל ועדה.",
       displayOrder: 1,
       isMandatory: true,
+      courseCodes: [],
     },
     {
       id: makeId(),
@@ -154,6 +102,7 @@ export function seedRequirementsIfEmpty() {
       extraInfo: "",
       displayOrder: 2,
       isMandatory: true,
+      courseCodes: [],
     },
     {
       id: makeId(),
@@ -164,16 +113,18 @@ export function seedRequirementsIfEmpty() {
       extraInfo: "ניתן להשלים קורסי אנגלית בהתאם לצורך.",
       displayOrder: 3,
       isMandatory: false,
+      courseCodes: [],
     },
-    ...Array.from({ length: 7 }).map((_, i): Requirement => ({
+    ...Array.from({ length: 7 }).map((_, i) => ({
       id: makeId(),
-      type: (i % 3 === 0 ? "פסיכומטרי" : i % 3 === 1 ? "בגרות" : "אנגלית") as Requirement["type"],
+      type: (i % 3 === 0 ? "פסיכומטרי" : i % 3 === 1 ? "בגרות" : "אנגלית") as any,
       minScore: 60 + i * 5,
       title: `דרישה לדוגמה ${i + 1}`,
       description: "טקסט דוגמה קצר.",
       extraInfo: "",
       displayOrder: 4 + i,
       isMandatory: i % 2 === 0,
+      courseCodes: i % 2 === 0 ? [courseCodes[i % courseCodes.length]] : [],
     })),
   ];
 
@@ -211,13 +162,7 @@ export function seedDocumentsIfEmpty() {
   const today = new Date();
   const ymd = (d: Date) => d.toISOString().slice(0, 10);
 
-  const docTypes: ApplicationDocument["docType"][] = [
-    "תעודת זהות",
-    "גליון ציונים",
-    "בגרות",
-    "פסיכומטרי",
-    "אחר",
-  ];
+  const docTypes: ApplicationDocument["docType"][] = ["תעודת זהות", "גליון ציונים", "בגרות", "פסיכומטרי", "אחר"];
   const statuses: ApplicationDocument["status"][] = ["חסר", "הועלה", "אושר", "נדחה"];
 
   const items: ApplicationDocument[] = Array.from({ length: 10 }).map((_, i) => {
