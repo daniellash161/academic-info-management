@@ -6,9 +6,7 @@ import type { User } from "../models/user";
 import type { RegistrationRequest } from "../models/registrationRequest";
 import type { Course } from "../models/course";
 import type { Requirement } from "../models/requirement";
-import type { Faq } from "../models/faq";
 import type { ContactMessage } from "../models/contactMessage";
-import type { ContactStatus } from "../models/contactMessage";
 
 export function seedUsersIfEmpty() {
   if (hasLS(LS_KEYS.users)) return;
@@ -20,7 +18,7 @@ export function seedUsersIfEmpty() {
     email: `candidate${i + 1}@mail.com`,
     phone: `05${String(10000000 + i).slice(0, 8)}`,
     role: "CANDIDATE",
-    interest: "מדעי המחשב",
+    interest: undefined,
     notes: "",
     createdAt: new Date().toISOString(),
   }));
@@ -40,7 +38,6 @@ export function seedRequestsIfEmpty() {
 
   const requests: RegistrationRequest[] = Array.from({ length: 10 }).map((_, i) => {
     const candidate = candidates[i % candidates.length];
-
     const d = new Date(today);
     d.setDate(today.getDate() - i);
 
@@ -121,69 +118,45 @@ export function seedRequirementsIfEmpty() {
       extraInfo: "",
       displayOrder: 4 + i,
       isMandatory: i % 2 === 0,
-      courseCodes: [],
+      courseCodes: i % 2 === 0 ? ["CS101", "CS201"] : [],
     })),
   ];
 
   writeLS(LS_KEYS.requirements, reqs);
 }
 
-export function seedFaqsIfEmpty() {
-  if (hasLS(LS_KEYS.faqs)) return;
+export function seedContactMessagesIfEmpty() {
+  if (hasLS(LS_KEYS.contactMessages)) return;
 
-  const faqs: Faq[] = [
-    {
-      id: makeId(),
-      question: "איך מגישים בקשת הרשמה?",
-      answer: "נכנסים למסך בקשות הרשמה וממלאים את הטופס. לאחר שמירה ניתן לעדכן סטטוס לפי התהליך.",
-      displayOrder: 1,
-      isPublished: true,
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: makeId(),
-      question: "מהם סטטוסי הבקשה האפשריים?",
-      answer: "בטיוטה / נשלחה / מאושרת / נדחתה.",
-      displayOrder: 2,
-      isPublished: true,
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: makeId(),
-      question: "איך מוסיפים דרישות קבלה?",
-      answer: "נכנסים למסך דרישות קבלה ולוחצים על 'הוספת דרישה חדשה'.",
-      displayOrder: 3,
-      isPublished: true,
-      createdAt: new Date().toISOString(),
-    },
-    ...Array.from({ length: 7 }).map((_, i) => ({
-      id: makeId(),
-      question: `שאלה נפוצה לדוגמה ${i + 1}`,
-      answer: "תשובה לדוגמה. ניתן לערוך ולפרסם/להסתיר.",
-      displayOrder: 4 + i,
-      isPublished: i % 2 === 0,
-      createdAt: new Date().toISOString(),
-    })),
-  ];
+  const today = new Date();
+  const ymd = (d: Date) => d.toISOString().slice(0, 10);
 
-  writeLS(LS_KEYS.faqs, faqs);
+  const statuses: ContactMessage["status"][] = ["חדש", "בטיפול", "נסגר"];
+
+  const items: ContactMessage[] = Array.from({ length: 10 }).map((_, i) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+
+    return {
+      id: makeId(),
+      createdAt: `${ymd(d)}T12:00:00.000Z`,
+      fullName: `פונה ${i + 1}`,
+      email: `contact${i + 1}@mail.com`,
+      phone: `052000000${i}`,
+      subject: `נושא פנייה ${i + 1}`,
+      message: `זו הודעה לדוגמה מספר ${i + 1}.`,
+      status: statuses[i % statuses.length],
+      adminNote: i % 3 === 0 ? "הערת מנהל לדוגמה" : "",
+    };
+  });
+
+  writeLS(LS_KEYS.contactMessages, items);
 }
 
-export function seedContactsIfEmpty() {
-  if (hasLS(LS_KEYS.contacts)) return;
-
-  const statuses: ContactStatus[] = ["חדש", "בטיפול", "טופל"];
-  const items: ContactMessage[] = Array.from({ length: 10 }).map((_, i) => ({
-    id: makeId(),
-    fullName: `פונה ${i + 1}`,
-    email: `contact${i + 1}@mail.com`,
-    phone: `05${String(20000000 + i).slice(0, 8)}`,
-    subject: `נושא פנייה ${i + 1}`,
-    message: `זו הודעת פנייה לדוגמה מספר ${i + 1}.`,
-    status: statuses[i % statuses.length],
-    adminNotes: i % 3 === 0 ? "טופל חלקית / נדרש מעקב" : "",
-    createdAt: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString(),
-  }));
-
-  writeLS(LS_KEYS.contacts, items);
+export function runSeed() {
+  seedUsersIfEmpty();
+  seedRequestsIfEmpty();
+  seedCoursesIfEmpty();
+  seedRequirementsIfEmpty();
+  seedContactMessagesIfEmpty();
 }
