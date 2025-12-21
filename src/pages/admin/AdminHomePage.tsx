@@ -1,5 +1,3 @@
-
-// src/pages/admin/AdminHomePage.tsx
 import { useEffect, useMemo, useState } from "react";
 import {
   Box,
@@ -8,7 +6,6 @@ import {
   CardContent,
   Divider,
   Paper,
-  Stack,
   Table,
   TableBody,
   TableCell,
@@ -39,7 +36,7 @@ type StatCardProps = {
 
 function StatCard({ title, value, color, icon, onClick }: StatCardProps) {
   return (
-    <Card sx={{ flex: 1, position: "relative", overflow: "hidden" }}>
+    <Card sx={{ flex: "1 1 260px", minWidth: 260, position: "relative", overflow: "hidden" }}>
       <Box sx={{ height: 4, bgcolor: color }} />
       <CardContent sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <Box>
@@ -172,14 +169,14 @@ export function AdminHomePage() {
         צפייה מהירה בסטטוס המערכת וקישורים לפעולות מרכזיות
       </Typography>
 
-      <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ mb: 3 }}>
+      <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", mb: 3 }}>
         {stats.map((s) => (
           <StatCard key={s.title} {...s} />
         ))}
-      </Stack>
+      </Box>
 
-      <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ mb: 3 }}>
-        <Paper sx={{ p: 2, flex: 1 }}>
+      <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", mb: 3 }}>
+        <Paper sx={{ p: 2, flex: "1 1 520px", minWidth: 520 }}>
           <Typography sx={{ fontWeight: 900, mb: 1 }}>בקשות הרשמה לטיפול</Typography>
           <Divider sx={{ mb: 2 }} />
 
@@ -219,7 +216,7 @@ export function AdminHomePage() {
           )}
         </Paper>
 
-        <Paper sx={{ p: 2, flex: 1 }}>
+        <Paper sx={{ p: 2, flex: "1 1 520px", minWidth: 520 }}>
           <Typography sx={{ fontWeight: 900, mb: 1 }}>מועמדים אחרונים</Typography>
           <Divider sx={{ mb: 2 }} />
 
@@ -254,20 +251,19 @@ export function AdminHomePage() {
             </Table>
           )}
         </Paper>
-      </Stack>
+      </Box>
 
       <Typography sx={{ fontWeight: 900, mb: 1 }}>פעולות מהירות</Typography>
 
       <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", justifyContent: "flex-end" }}>
-        <Button variant="contained" sx={{ bgcolor: "#0EA5E9" }} onClick={() => navigate("/admin/deadlines/new")}>
-          הוספת מועד הרשמה
-        </Button>
-
         <Button variant="contained" sx={{ bgcolor: "#22C55E" }} onClick={() => navigate("/admin/requirements/new")}>
           הוספת דרישה
         </Button>
         <Button variant="contained" sx={{ bgcolor: "#6C63FF" }} onClick={() => navigate("/admin/courses/new")}>
           הוספת קורס
+        </Button>
+        <Button variant="contained" sx={{ bgcolor: "#8B5CF6" }} onClick={() => navigate("/admin/deadlines/new")}>
+          הוספת מועד הרשמה
         </Button>
         <Button variant="contained" sx={{ bgcolor: "#F97316" }} onClick={() => navigate("/admin/requests/new")}>
           הוספת בקשה
