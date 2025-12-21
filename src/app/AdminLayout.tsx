@@ -2,6 +2,7 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   AppBar,
   Box,
+  Button,
   Divider,
   Drawer,
   IconButton,
@@ -42,20 +43,23 @@ export function AdminLayout() {
 
   function isActive(path: string) {
     if (path === "/admin") return location.pathname === "/admin";
-
     return location.pathname === path || location.pathname.startsWith(path + "/");
+  }
+
+  function onLogout() {
+    localStorage.removeItem("csih_auth");
+    navigate("/login", { replace: true });
   }
 
   return (
     <Box sx={{ display: "flex" }}>
       <AppBar position="fixed">
-        <Toolbar>
+        <Toolbar sx={{ display: "flex", gap: 2 }}>
           <IconButton
             edge="start"
             color="inherit"
             aria-label="open drawer"
             onClick={() => setOpen(true)}
-            sx={{ mr: 2 }}
           >
             <MenuIcon />
           </IconButton>
@@ -64,11 +68,15 @@ export function AdminLayout() {
             variant="h6"
             noWrap
             component="div"
-            sx={{ cursor: "pointer" }}
+            sx={{ cursor: "pointer", flexGrow: 1 }}
             onClick={() => navigate("/admin")}
           >
             Admin Panel
           </Typography>
+
+          <Button color="inherit" onClick={onLogout}>
+            התנתקות
+          </Button>
         </Toolbar>
       </AppBar>
 

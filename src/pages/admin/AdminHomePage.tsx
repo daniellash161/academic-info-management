@@ -87,7 +87,7 @@ export function AdminHomePage() {
   return (
     <Box>
       <Typography variant="h5" sx={{ mb: 2 }}>
-        מסך בית – מנהל מערכת
+        מסך בית - מנהל מערכת
       </Typography>
 
       <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ mb: 3 }}>

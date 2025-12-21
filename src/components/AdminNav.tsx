@@ -18,7 +18,12 @@ export function AdminNav({ open, onClose }: Props) {
 
   function go(path: string) {
     navigate(path);
-    onClose(); // סוגרים את התפריט אחרי ניווט
+    onClose(); 
+  }
+
+  function logout() {
+    localStorage.removeItem("csih_auth"); 
+    go("/login");
   }
 
   return (
@@ -45,6 +50,16 @@ export function AdminNav({ open, onClose }: Props) {
             <ListItemText primary="דרישות קבלה" />
           </ListItemButton>
 
+         
+          <ListItemButton onClick={() => go("/admin/announcements")}>
+            <ListItemText primary="עדכונים" />
+          </ListItemButton>
+
+          
+          <ListItemButton onClick={() => go("/admin/documents")}>
+            <ListItemText primary="מסמכים" />
+          </ListItemButton>
+
           <ListItemButton onClick={() => go("/admin/help")}>
             <ListItemText primary="עזרה" />
           </ListItemButton>
@@ -53,7 +68,7 @@ export function AdminNav({ open, onClose }: Props) {
         <Divider />
 
         <List>
-          <ListItemButton onClick={() => go("/login")}>
+          <ListItemButton onClick={logout}>
             <ListItemText primary="התנתקות" />
           </ListItemButton>
         </List>
