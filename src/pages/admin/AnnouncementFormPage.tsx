@@ -1,13 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Box,
-  Button,
-  FormControlLabel,
-  Stack,
-  Switch,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { Box, Button, FormControlLabel, Stack, Switch, TextField, Typography } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
 import type { Announcement } from "../../models/announcement";
 import { announcementsService } from "../../services/announcementsService";
@@ -17,7 +9,7 @@ import { AppSnackbar } from "../../components/AppSnackbar";
 type FormState = {
   title: string;
   content: string;
-  publishedAt: string; // YYYY-MM-DD
+  publishedAt: string;
   isActive: boolean;
 };
 
@@ -27,6 +19,7 @@ function todayYmd() {
 
 function validate(v: FormState) {
   const e: Partial<Record<keyof FormState, string>> = {};
+
   if (!v.title.trim()) e.title = "שדה חובה";
   else if (v.title.trim().length > 60) e.title = "עד 60 תווים";
 
@@ -42,6 +35,7 @@ function validate(v: FormState) {
 export function AnnouncementFormPage() {
   const { id } = useParams();
   const isEdit = Boolean(id);
+
   const navigate = useNavigate();
   const snackbar = useSnackbar();
 
@@ -82,15 +76,19 @@ export function AnnouncementFormPage() {
       isActive: values.isActive,
     };
 
-    if (isEdit && id) {
-      announcementsService.update(id, payload);
-      snackbar.show("העדכון עודכן בהצלחה");
-    } else {
-      announcementsService.create(payload);
-      snackbar.show("העדכון נשמר בהצלחה");
-    }
+    try {
+      if (isEdit && id) {
+        announcementsService.update(id, payload);
+        snackbar.show("העדכון עודכן בהצלחה");
+      } else {
+        announcementsService.create(payload);
+        snackbar.show("העדכון נשמר בהצלחה");
+      }
 
-    navigate("/admin/announcements");
+      navigate("/admin/announcements");
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה בשמירה");
+    }
   }
 
   return (
@@ -117,7 +115,7 @@ export function AnnouncementFormPage() {
           value={values.content}
           onChange={(e) => setField("content", e.target.value)}
           error={Boolean(errors.content)}
-          helperText={errors.content ?? `${values.content.trim().length}/500`}
+          helperText={errors.content ?? `${values.content.length}/500`}
         />
 
         <TextField
@@ -132,7 +130,12 @@ export function AnnouncementFormPage() {
         />
 
         <FormControlLabel
-          control={<Switch checked={values.isActive} onChange={(e) => setField("isActive", e.target.checked)} />}
+          control={
+            <Switch
+              checked={values.isActive}
+              onChange={(e) => setField("isActive", e.target.checked)}
+            />
+          }
           label="עדכון פעיל"
         />
 
