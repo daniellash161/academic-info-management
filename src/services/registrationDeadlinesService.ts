@@ -2,10 +2,6 @@ import { LS_KEYS } from "../storage/lsKeys";
 import { makeId, readLS, writeLS } from "../storage/storage";
 import type { RegistrationDeadline } from "../models/registrationDeadline";
 
-function todayYmd() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 function readAll(): RegistrationDeadline[] {
   return readLS<RegistrationDeadline[]>(LS_KEYS.registrationDeadlines, []);
 }
@@ -14,23 +10,29 @@ function writeAll(items: RegistrationDeadline[]) {
   writeLS(LS_KEYS.registrationDeadlines, items);
 }
 
-export type DeadlineStatus = "פתוח" | "עתידי" | "הסתיים" | "לא פעיל";
-
 export const registrationDeadlinesService = {
   getAll(): RegistrationDeadline[] {
-    return [...readAll()].sort((a, b) => b.startDate.localeCompare(a.startDate));
+    return [...readAll()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   },
 
   getById(id: string): RegistrationDeadline | undefined {
     return readAll().find((x) => x.id === id);
   },
 
-  statusOf(item: RegistrationDeadline): DeadlineStatus {
-    if (!item.isActive) return "לא פעיל";
-    const t = todayYmd();
-    if (item.startDate <= t && t <= item.endDate) return "פתוח";
-    if (t < item.startDate) return "עתידי";
-    return "הסתיים";
+  search(query: string, activeOnly: boolean): RegistrationDeadline[] {
+    const q = query.trim().toLowerCase();
+    let rows = readAll();
+
+    if (activeOnly) rows = rows.filter((x) => x.isActive);
+
+    if (q) {
+      rows = rows.filter((x) => {
+        const hay = [x.title, x.notes ?? "", x.startDate, x.endDate].join(" ").toLowerCase();
+        return hay.includes(q);
+      });
+    }
+
+    return rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   },
 
   create(input: Omit<RegistrationDeadline, "id" | "createdAt">): RegistrationDeadline {
@@ -42,7 +44,7 @@ export const registrationDeadlinesService = {
       title: input.title.trim(),
       startDate: input.startDate,
       endDate: input.endDate,
-      isActive: Boolean(input.isActive),
+      isActive: input.isActive,
       notes: input.notes?.trim() ? input.notes.trim() : undefined,
     };
 
@@ -67,9 +69,9 @@ export const registrationDeadlinesService = {
             ? patch.notes.trim()
             : undefined
           : current.notes,
-      isActive: patch.isActive !== undefined ? Boolean(patch.isActive) : current.isActive,
       startDate: patch.startDate !== undefined ? patch.startDate : current.startDate,
       endDate: patch.endDate !== undefined ? patch.endDate : current.endDate,
+      isActive: patch.isActive !== undefined ? patch.isActive : current.isActive,
     };
 
     all[idx] = updated;
@@ -79,21 +81,5 @@ export const registrationDeadlinesService = {
 
   remove(id: string) {
     writeAll(readAll().filter((x) => x.id !== id));
-  },
-
-  search(query: string): RegistrationDeadline[] {
-    const q = query.trim().toLowerCase();
-    const rows = readAll();
-
-    if (!q) return rows.sort((a, b) => b.startDate.localeCompare(a.startDate));
-
-    return rows
-      .filter((x) => {
-        const hay = [x.title, x.startDate, x.endDate, x.notes ?? "", this.statusOf(x)]
-          .join(" ")
-          .toLowerCase();
-        return hay.includes(q);
-      })
-      .sort((a, b) => b.startDate.localeCompare(a.startDate));
   },
 };

@@ -59,15 +59,17 @@ export const router = createBrowserRouter([
       { path: "/admin/contacts", element: <ContactMessagesPage /> },
       { path: "/admin/contacts/:id/edit", element: <ContactMessageFormPage /> },
 
-      { path: "/admin/deadlines", element: <RegistrationDeadlinesPage /> },
-      { path: "/admin/deadlines/new", element: <RegistrationDeadlineFormPage /> },
-      { path: "/admin/deadlines/:id/edit", element: <RegistrationDeadlineFormPage /> },
+      { path: "/admin/registration-deadlines", element: <RegistrationDeadlinesPage /> },
+      { path: "/admin/registration-deadlines/new", element: <RegistrationDeadlineFormPage /> },
+      { path: "/admin/registration-deadlines/:id/edit", element: <RegistrationDeadlineFormPage /> },
 
       { path: "/admin/help", element: <HelpPage /> },
     ],
   },
 
   { path: "/help", element: <HelpPage /> },
+
   { path: "/login", element: <LoginPage /> },
+
   { path: "*", element: <div style={{ padding: 24 }}>404</div> },
 ]);

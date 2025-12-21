@@ -1,4 +1,3 @@
-// src/storage/seed.ts
 import { LS_KEYS } from "./lsKeys";
 import { hasLS, makeId, readLS, writeLS } from "./storage";
 
@@ -7,6 +6,7 @@ import type { RegistrationRequest } from "../models/registrationRequest";
 import type { Course } from "../models/course";
 import type { Requirement } from "../models/requirement";
 import type { ContactMessage } from "../models/contactMessage";
+import type { RegistrationDeadline } from "../models/registrationDeadline";
 
 export function seedUsersIfEmpty() {
   if (hasLS(LS_KEYS.users)) return;
@@ -153,10 +153,38 @@ export function seedContactMessagesIfEmpty() {
   writeLS(LS_KEYS.contactMessages, items);
 }
 
+export function seedRegistrationDeadlinesIfEmpty() {
+  if (hasLS(LS_KEYS.registrationDeadlines)) return;
+
+  const today = new Date();
+  const ymd = (d: Date) => d.toISOString().slice(0, 10);
+
+  const items: RegistrationDeadline[] = Array.from({ length: 10 }).map((_, i) => {
+    const start = new Date(today);
+    start.setDate(today.getDate() - (i * 7 + 3));
+
+    const end = new Date(start);
+    end.setDate(start.getDate() + 14);
+
+    return {
+      id: makeId(),
+      title: `מועד הרשמה #${i + 1}`,
+      startDate: ymd(start),
+      endDate: ymd(end),
+      isActive: i === 0,
+      notes: i % 3 === 0 ? "הערה לדוגמה" : "",
+      createdAt: new Date().toISOString(),
+    };
+  });
+
+  writeLS(LS_KEYS.registrationDeadlines, items);
+}
+
 export function runSeed() {
   seedUsersIfEmpty();
   seedRequestsIfEmpty();
   seedCoursesIfEmpty();
   seedRequirementsIfEmpty();
   seedContactMessagesIfEmpty();
+  seedRegistrationDeadlinesIfEmpty();
 }
