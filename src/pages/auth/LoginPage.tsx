@@ -55,7 +55,6 @@ export function LoginPage() {
 
     if (Object.keys(nextErrors).length > 0) return;
 
-    // Demo admin credentials (can be replaced with seeded admin later)
     const adminEmail = "admin@csih.com";
     const adminPassword = "admin123";
 

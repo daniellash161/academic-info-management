@@ -1,4 +1,3 @@
-// src/services/contactMessagesService.ts
 import { LS_KEYS } from "../storage/lsKeys";
 import { makeId, readLS, writeLS } from "../storage/storage";
 import type { ContactMessage, ContactMessageStatus } from "../models/contactMessage";

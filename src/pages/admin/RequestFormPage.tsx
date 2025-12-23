@@ -1,4 +1,3 @@
-// src/pages/admin/RequestFormPage.tsx
 import { useEffect, useMemo, useState } from "react";
 import { Box, Button, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -59,11 +58,9 @@ export function RequestFormPage() {
   });
 
   useEffect(() => {
-    // אם מגיעים אחרי יצירת מועמד (candidateId ב-query) ורק אם לא בעריכה
     if (!isEdit && prefCandidateId) {
       setValues((prev) => ({ ...prev, candidateId: prefCandidateId }));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefCandidateId, isEdit]);
 
   useEffect(() => {

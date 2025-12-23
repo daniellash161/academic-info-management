@@ -1,4 +1,3 @@
-// src/services/faqsService.ts
 import { LS_KEYS } from "../storage/lsKeys";
 import { makeId, readLS, writeLS } from "../storage/storage";
 import type { Faq } from "../models/faq";
