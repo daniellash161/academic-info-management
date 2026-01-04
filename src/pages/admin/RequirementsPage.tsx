@@ -2,6 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   IconButton,
   MenuItem,
   Paper,
@@ -18,16 +23,25 @@ import EditIcon from "@mui/icons-material/Edit";
 import { useNavigate } from "react-router-dom";
 import type { Requirement, RequirementType } from "../../models/requirement";
 import { requirementsService } from "../../services/requirementsService";
+import { useSnackbar } from "../../hooks/useSnackbar";
+import { AppSnackbar } from "../../components/AppSnackbar";
 
 export function RequirementsPage() {
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<RequirementType | "ALL">("ALL");
   const [all, setAll] = useState<Requirement[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<Requirement | null>(null);
+
   const navigate = useNavigate();
+  const snackbar = useSnackbar();
 
   async function refresh() {
-    const items = await requirementsService.getAll();
-    setAll(items);
+    try {
+      const items = await requirementsService.getAll();
+      setAll(items);
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה בטעינת דרישות");
+    }
   }
 
   useEffect(() => {
@@ -60,9 +74,25 @@ export function RequirementsPage() {
     return [...r].sort((a, b) => a.displayOrder - b.displayOrder);
   }, [all, query, typeFilter]);
 
-  async function onDelete(id: string) {
-    await requirementsService.remove(id);
-    await refresh();
+  function askDelete(r: Requirement) {
+    setDeleteTarget(r);
+  }
+
+  function cancelDelete() {
+    setDeleteTarget(null);
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+
+    try {
+      await requirementsService.remove(deleteTarget.id);
+      setDeleteTarget(null);
+      await refresh();
+      snackbar.show("הדרישה נמחקה בהצלחה");
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה במחיקה");
+    }
   }
 
   return (
@@ -120,12 +150,14 @@ export function RequirementsPage() {
                 <TableCell>{r.minScore}</TableCell>
                 <TableCell>{r.isMandatory ? "כן" : "לא"}</TableCell>
                 <TableCell>{r.displayOrder}</TableCell>
-                <TableCell>{(r.courseCodes ?? []).length ? (r.courseCodes ?? []).join(", ") : "—"}</TableCell>
+                <TableCell>
+                  {(r.courseCodes ?? []).length ? (r.courseCodes ?? []).join(", ") : "—"}
+                </TableCell>
                 <TableCell align="right">
                   <IconButton onClick={() => navigate(`/admin/requirements/${r.id}/edit`)}>
                     <EditIcon />
                   </IconButton>
-                  <IconButton onClick={() => void onDelete(r.id)}>
+                  <IconButton onClick={() => askDelete(r)}>
                     <DeleteIcon />
                   </IconButton>
                 </TableCell>
@@ -142,6 +174,25 @@ export function RequirementsPage() {
           </TableBody>
         </Table>
       </Paper>
+
+      <Dialog open={Boolean(deleteTarget)} onClose={cancelDelete}>
+        <DialogTitle>מחיקת דרישה</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            האם למחוק את הדרישה{deleteTarget ? ` "${deleteTarget.title}"` : ""} לצמיתות?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="outlined" onClick={cancelDelete}>
+            ביטול
+          </Button>
+          <Button variant="contained" color="error" onClick={() => void confirmDelete()}>
+            מחיקה
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <AppSnackbar open={snackbar.open} message={snackbar.message} onClose={snackbar.close} />
     </Box>
   );
 }

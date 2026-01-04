@@ -38,9 +38,7 @@ function normalizeFromDb(id: string, data: any): Requirement {
     extraInfo: typeof data?.extraInfo === "string" ? data.extraInfo : undefined,
     displayOrder: Number(data?.displayOrder ?? 1),
     isMandatory: Boolean(data?.isMandatory ?? false),
-    courseCodes: Array.isArray(data?.courseCodes)
-      ? data.courseCodes.map((c: any) => String(c))
-      : [],
+    courseCodes: Array.isArray(data?.courseCodes) ? data.courseCodes.map((c: any) => String(c)) : [],
   };
 }
 
@@ -121,7 +119,8 @@ export const requirementsService = {
             ? patch.extraInfo.trim()
             : undefined
           : current.extraInfo,
-      displayOrder: patch.displayOrder !== undefined ? Number(patch.displayOrder) : current.displayOrder,
+      displayOrder:
+        patch.displayOrder !== undefined ? Number(patch.displayOrder) : current.displayOrder,
       isMandatory: patch.isMandatory !== undefined ? Boolean(patch.isMandatory) : current.isMandatory,
       courseCodes: patch.courseCodes !== undefined ? patch.courseCodes : current.courseCodes,
     };
