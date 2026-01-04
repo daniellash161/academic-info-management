@@ -5,6 +5,7 @@ import {
   Card,
   CardContent,
   Divider,
+  LinearProgress,
   Paper,
   Table,
   TableBody,
@@ -25,6 +26,7 @@ import { usersService } from "../../services/usersService";
 import { requestsService } from "../../services/requestsService";
 import { coursesService } from "../../services/coursesService";
 import { requirementsService } from "../../services/requirementsService";
+import type { RegistrationRequest } from "../../models/registrationRequest";
 
 type StatCardProps = {
   title: string;
@@ -68,63 +70,85 @@ function StatCard({ title, value, color, icon, onClick }: StatCardProps) {
   );
 }
 
+type PendingRow = {
+  requestNumber: number;
+  candidateName: string;
+  status: string;
+  createdAt: string;
+};
+
+type RecentCandidateRow = {
+  id: string;
+  fullName: string;
+  createdAt: string;
+};
+
 export function AdminHomePage() {
   const navigate = useNavigate();
+
+  const [loading, setLoading] = useState(true);
 
   const [candidatesCount, setCandidatesCount] = useState(0);
   const [coursesCount, setCoursesCount] = useState(0);
   const [requirementsCount, setRequirementsCount] = useState(0);
 
-  const [pendingRequests, setPendingRequests] = useState<
-    { requestNumber: number; candidateName: string; status: string; createdAt: string }[]
-  >([]);
+  const [requests, setRequests] = useState<RegistrationRequest[]>([]);
 
-  const [recentCandidates, setRecentCandidates] = useState<
-    { id: string; fullName: string; createdAt: string }[]
-  >([]);
+  const [pendingRequests, setPendingRequests] = useState<PendingRow[]>([]);
+  const [recentCandidates, setRecentCandidates] = useState<RecentCandidateRow[]>([]);
 
-  function refresh() {
-    const candidates = usersService.getCandidates();
-    setCandidatesCount(candidates.length);
-    setCoursesCount(coursesService.getAll().length);
-    setRequirementsCount(requirementsService.getAll().length);
+  async function refresh() {
+    setLoading(true);
+    try {
+      const candidates = usersService.getCandidates();
+      setCandidatesCount(candidates.length);
 
-    const pending = requestsService
-      .getAll()
-      .filter((r: any) => r.status === "נשלחה")
-      .sort((a: any, b: any) => String(b.createdAt).localeCompare(String(a.createdAt)))
-      .slice(0, 5)
-      .map((r: any) => {
-        const cand = usersService.getById(r.candidateId);
-        return {
-          requestNumber: r.requestNumber,
-          candidateName: cand?.fullName ?? "(מועמד לא נמצא)",
-          status: r.status,
-          createdAt: r.createdAt,
-        };
-      });
+      const courses = await coursesService.getAll();
+      setCoursesCount(courses.length);
 
-    setPendingRequests(pending);
+      setRequirementsCount(requirementsService.getAll().length);
 
-    const recent = [...candidates]
-      .sort((a: any, b: any) => String(b.createdAt).localeCompare(String(a.createdAt)))
-      .slice(0, 5)
-      .map((c: any) => ({
-        id: c.id,
-        fullName: c.fullName,
-        createdAt: String(c.createdAt).slice(0, 10),
-      }));
+      const allRequests = await requestsService.getAll();
+      setRequests(allRequests);
 
-    setRecentCandidates(recent);
+      const pendingTop = [...allRequests]
+        .filter((r) => r.status === "נשלחה")
+        .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+        .slice(0, 5)
+        .map((r) => {
+          const cand = usersService.getById(r.candidateId);
+          return {
+            requestNumber: r.requestNumber,
+            candidateName: cand?.fullName ?? "(מועמד לא נמצא)",
+            status: r.status,
+            createdAt: r.createdAt,
+          };
+        });
+
+      setPendingRequests(pendingTop);
+
+      const recent = [...candidates]
+        .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+        .slice(0, 5)
+        .map((c) => ({
+          id: c.id,
+          fullName: c.fullName,
+          createdAt: String(c.createdAt).slice(0, 10),
+        }));
+
+      setRecentCandidates(recent);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
-    refresh();
+    void refresh();
   }, []);
 
   const pendingCount = useMemo(() => {
-    return requestsService.getAll().filter((r: any) => r.status === "נשלחה").length;
-  }, []);
+    return requests.filter((r) => r.status === "נשלחה").length;
+  }, [requests]);
 
   const stats = useMemo(
     () => [
@@ -162,6 +186,8 @@ export function AdminHomePage() {
 
   return (
     <Box>
+      {loading && <LinearProgress />}
+
       <Typography variant="h4" sx={{ fontWeight: 900, mb: 0.5 }}>
         לוח בקרה – מערכת הניהול
       </Typography>
