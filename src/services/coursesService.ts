@@ -1,74 +1,95 @@
-import { LS_KEYS } from "../storage/lsKeys";
-import { readLS, writeLS } from "../storage/storage";
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+} from "firebase/firestore";
 import type { Course } from "../models/course";
+import { firestore } from "../firebase/firebase";
 
-function getAllCourses(): Course[] {
-  return readLS<Course[]>(LS_KEYS.courses, []);
+const COL = "courses";
+
+function clean<T extends Record<string, unknown>>(obj: T): Partial<T> {
+  const out: Partial<T> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v === undefined) continue;
+    (out as any)[k] = v;
+  }
+  return out;
 }
 
-function saveAllCourses(courses: Course[]) {
-  writeLS(LS_KEYS.courses, courses);
+function normalizeCourseFromDb(id: string, data: any): Course {
+  return {
+    code: id,
+    name: String(data?.name ?? ""),
+    semester: data?.semester,
+    credits: Number(data?.credits ?? 0),
+    prerequisites: Array.isArray(data?.prerequisites) ? data.prerequisites : [],
+    syllabus: typeof data?.syllabus === "string" ? data.syllabus : undefined,
+    lecturer: typeof data?.lecturer === "string" ? data.lecturer : undefined,
+  };
 }
 
 export const coursesService = {
-  getAll(): Course[] {
-    return getAllCourses();
+  async getAll(): Promise<Course[]> {
+    const snap = await getDocs(collection(firestore, COL));
+    return snap.docs.map((d) => normalizeCourseFromDb(d.id, d.data()));
   },
 
-  getByCode(code: string): Course | undefined {
-    const c = decodeURIComponent(code).trim();
-    return getAllCourses().find((x) => x.code === c);
+  async getByCode(code: string): Promise<Course | null> {
+    const id = decodeURIComponent(code).trim();
+    const ref = doc(firestore, COL, id);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+    return normalizeCourseFromDb(snap.id, snap.data());
   },
 
-  isCourseCodeTaken(code: string, excludeCode?: string): boolean {
-    const c = decodeURIComponent(code).trim();
-    return getAllCourses().some((x) => x.code === c && x.code !== excludeCode);
-  },
-
-  create(course: Course) {
-    const c = course.code.trim();
-    if (this.isCourseCodeTaken(c)) {
+  async create(course: Course): Promise<void> {
+    const id = decodeURIComponent(course.code).trim();
+    const ref = doc(firestore, COL, id);
+    const existing = await getDoc(ref);
+    if (existing.exists()) {
       throw new Error("קוד קורס חייב להיות ייחודי");
     }
 
-    const all = getAllCourses();
-    saveAllCourses([{ ...course, code: c, name: course.name.trim() }, ...all]);
-  },
-
-  update(code: string, patch: Partial<Omit<Course, "code">>) {
-    const key = decodeURIComponent(code).trim();
-    const all = getAllCourses();
-    const idx = all.findIndex((x) => x.code === key);
-    if (idx === -1) throw new Error("קורס לא נמצא");
-
-    all[idx] = {
-      ...all[idx],
-      ...patch,
-      name: patch.name !== undefined ? patch.name.trim() : all[idx].name,
-      lecturer: patch.lecturer !== undefined ? (patch.lecturer?.trim() || undefined) : all[idx].lecturer,
-      syllabus: patch.syllabus !== undefined ? (patch.syllabus?.trim() || undefined) : all[idx].syllabus,
-      prerequisites: patch.prerequisites ?? all[idx].prerequisites,
-    };
-
-    saveAllCourses(all);
-  },
-
-  remove(code: string) {
-    const c = decodeURIComponent(code).trim();
-    const all = getAllCourses();
-    saveAllCourses(all.filter((x) => x.code !== c));
-  },
-
-  search(query: string): Course[] {
-    const q = query.trim().toLowerCase();
-    const all = getAllCourses();
-    if (!q) return all;
-
-    return all.filter((c) => {
-      const name = (c.name ?? "").toLowerCase();
-      const code = (c.code ?? "").toLowerCase();
-      const lecturer = (c.lecturer ?? "").toLowerCase();
-      return name.includes(q) || code.includes(q) || lecturer.includes(q);
+    const data = clean({
+      name: course.name.trim(),
+      semester: course.semester,
+      credits: Number(course.credits),
+      prerequisites: course.prerequisites ?? [],
+      syllabus: course.syllabus?.trim() || undefined,
+      lecturer: course.lecturer?.trim() || undefined,
     });
+
+    await setDoc(ref, data);
+  },
+
+  async update(code: string, patch: Partial<Omit<Course, "code">>): Promise<void> {
+    const id = decodeURIComponent(code).trim();
+    const ref = doc(firestore, COL, id);
+
+    const existing = await getDoc(ref);
+    if (!existing.exists()) {
+      throw new Error("קורס לא נמצא");
+    }
+
+    const data = clean({
+      name: patch.name !== undefined ? patch.name.trim() : undefined,
+      semester: patch.semester,
+      credits: patch.credits !== undefined ? Number(patch.credits) : undefined,
+      prerequisites: patch.prerequisites,
+      syllabus: patch.syllabus !== undefined ? patch.syllabus?.trim() || undefined : undefined,
+      lecturer: patch.lecturer !== undefined ? patch.lecturer?.trim() || undefined : undefined,
+    });
+
+    await updateDoc(ref, data as any);
+  },
+
+  async remove(code: string): Promise<void> {
+    const id = decodeURIComponent(code).trim();
+    await deleteDoc(doc(firestore, COL, id));
   },
 };

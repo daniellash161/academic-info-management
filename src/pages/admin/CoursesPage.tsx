@@ -8,6 +8,7 @@ import {
   DialogContentText,
   DialogTitle,
   IconButton,
+  LinearProgress,
   Paper,
   Table,
   TableBody,
@@ -29,16 +30,25 @@ export function CoursesPage() {
   const [rows, setRows] = useState<Course[]>([]);
   const [query, setQuery] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Course | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const navigate = useNavigate();
   const snackbar = useSnackbar();
 
-  function refresh() {
-    setRows(coursesService.getAll());
+  async function refresh() {
+    setLoading(true);
+    try {
+      const data = await coursesService.getAll();
+      setRows(data);
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה בטעינת נתונים");
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
-    refresh();
+    void refresh();
   }, []);
 
   const filtered = useMemo(() => {
@@ -61,16 +71,22 @@ export function CoursesPage() {
     setDeleteTarget(null);
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!deleteTarget) return;
-    coursesService.remove(deleteTarget.code);
-    setDeleteTarget(null);
-    refresh();
-    snackbar.show("הקורס נמחק בהצלחה");
+    try {
+      await coursesService.remove(deleteTarget.code);
+      setDeleteTarget(null);
+      await refresh();
+      snackbar.show("הקורס נמחק בהצלחה");
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה במחיקה");
+    }
   }
 
   return (
     <Box>
+      {loading && <LinearProgress />}
+
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
         <Typography variant="h5">ניהול קורסים</Typography>
         <Button variant="contained" onClick={() => navigate("/admin/courses/new")}>
@@ -122,7 +138,7 @@ export function CoursesPage() {
               </TableRow>
             ))}
 
-            {filtered.length === 0 && (
+            {filtered.length === 0 && !loading && (
               <TableRow>
                 <TableCell colSpan={6} align="center">
                   אין קורסים להצגה
