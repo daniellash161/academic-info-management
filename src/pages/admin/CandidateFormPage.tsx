@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import { Box, Button, MenuItem, Stack, TextField, Typography } from "@mui/material";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import {
+  Alert,
+  Box,
+  Button,
+  LinearProgress,
+  MenuItem,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
+import { useNavigate, useParams } from "react-router-dom";
 import type { InterestArea, UserRole } from "../../models/user";
 import { usersService } from "../../services/usersService";
 import { useSnackbar } from "../../hooks/useSnackbar";
@@ -43,16 +52,9 @@ function validate(values: FormState) {
     errors.interest = "תחום עניין לא תקין";
   }
 
-  return errors;
-}
+  if (values.notes.length > 300) errors.notes = "עד 300 תווים";
 
-function appendCandidateId(returnTo: string, candidateId: string) {
-  if (!returnTo) return `/admin/requests/new?candidateId=${encodeURIComponent(candidateId)}`;
-  const [path, qs = ""] = returnTo.split("?");
-  const sp = new URLSearchParams(qs);
-  sp.set("candidateId", candidateId);
-  const nextQs = sp.toString();
-  return nextQs ? `${path}?${nextQs}` : path;
+  return errors;
 }
 
 export function CandidateFormPage() {
@@ -60,9 +62,9 @@ export function CandidateFormPage() {
   const isEdit = Boolean(id);
   const navigate = useNavigate();
   const snackbar = useSnackbar();
-  const [searchParams] = useSearchParams();
 
-  const returnTo = searchParams.get("returnTo") ?? "/admin/candidates";
+  const [loading, setLoading] = useState<boolean>(isEdit);
+  const [notFound, setNotFound] = useState(false);
 
   const [values, setValues] = useState<FormState>({
     fullName: "",
@@ -76,21 +78,36 @@ export function CandidateFormPage() {
 
   useEffect(() => {
     if (!id) return;
-    const existing = usersService.getById(id);
-    if (!existing) return;
 
-    const safeRole: Exclude<UserRole, "ADMIN"> =
-      existing.role === "ADMIN" ? "CANDIDATE" : (existing.role as any);
+    (async () => {
+      setLoading(true);
+      setNotFound(false);
 
-    setValues({
-      fullName: existing.fullName,
-      nationalId: existing.nationalId,
-      email: existing.email,
-      phone: existing.phone,
-      role: safeRole,
-      interest: (existing.interest ?? "") as any,
-      notes: existing.notes ?? "",
-    });
+      try {
+        const existing = await usersService.getById(id);
+        if (!existing) {
+          setNotFound(true);
+          return;
+        }
+
+        const safeRole: Exclude<UserRole, "ADMIN"> =
+          existing.role === "ADMIN" ? "CANDIDATE" : (existing.role as any);
+
+        setValues({
+          fullName: existing.fullName,
+          nationalId: existing.nationalId,
+          email: existing.email,
+          phone: existing.phone,
+          role: safeRole,
+          interest: (existing.interest ?? "") as any,
+          notes: existing.notes ?? "",
+        });
+      } catch (e: any) {
+        snackbar.show(e?.message ?? "שגיאה בטעינת מועמד");
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, [id]);
 
   const errors = useMemo(() => validate(values), [values]);
@@ -100,44 +117,50 @@ export function CandidateFormPage() {
     setValues((prev) => ({ ...prev, [key]: value }));
   }
 
-  function onCancel() {
-    navigate(returnTo);
-  }
-
-  function onSave() {
+  async function onSave() {
     if (!canSave) return;
 
     try {
       if (isEdit && id) {
-        const updated = usersService.update(id, {
+        await usersService.update(id, {
           fullName: values.fullName.trim(),
           nationalId: values.nationalId,
           email: values.email.trim(),
           phone: values.phone,
           role: values.role as any,
           interest: (values.interest || undefined) as any,
-          notes: values.notes || undefined,
+          notes: values.notes.trim() ? values.notes.trim() : undefined,
         });
 
-        const target = appendCandidateId(returnTo, updated.id);
-        navigate(target, { state: { toast: "המועמד עודכן בהצלחה" } });
+        navigate("/admin/candidates", { state: { toast: "המועמד עודכן בהצלחה" } });
       } else {
-        const created = usersService.create({
+        await usersService.create({
           fullName: values.fullName.trim(),
           nationalId: values.nationalId,
           email: values.email.trim(),
           phone: values.phone,
           role: values.role as any,
           interest: (values.interest || undefined) as any,
-          notes: values.notes || undefined,
+          notes: values.notes.trim() ? values.notes.trim() : undefined,
         });
 
-        const target = appendCandidateId(returnTo, created.id);
-        navigate(target, { state: { toast: "המועמד נשמר בהצלחה" } });
+        navigate("/admin/candidates", { state: { toast: "המועמד נשמר בהצלחה" } });
       }
     } catch (e: any) {
       snackbar.show(e?.message ?? "שגיאה בשמירה");
     }
+  }
+
+  if (loading) {
+    return (
+      <Box>
+        <LinearProgress />
+      </Box>
+    );
+  }
+
+  if (notFound) {
+    return <Alert severity="error">Candidate not found</Alert>;
   }
 
   return (
@@ -216,18 +239,20 @@ export function CandidateFormPage() {
         </TextField>
 
         <TextField
-          label="הערות נוספות (רשות)"
+          label="הערות נוספות (רשות, עד 300 תווים)"
           value={values.notes}
           onChange={(e) => setField("notes", e.target.value)}
           multiline
           minRows={3}
+          error={Boolean(errors.notes)}
+          helperText={errors.notes ?? `${values.notes.length}/300`}
         />
 
         <Stack direction="row" spacing={2}>
-          <Button variant="contained" onClick={onSave} disabled={!canSave}>
+          <Button variant="contained" onClick={() => void onSave()} disabled={!canSave}>
             שמירה
           </Button>
-          <Button variant="outlined" onClick={onCancel}>
+          <Button variant="outlined" onClick={() => navigate("/admin/candidates")}>
             ביטול
           </Button>
         </Stack>

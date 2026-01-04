@@ -27,9 +27,11 @@ import { requestsService } from "../../services/requestsService";
 import { usersService } from "../../services/usersService";
 import { useSnackbar } from "../../hooks/useSnackbar";
 import { AppSnackbar } from "../../components/AppSnackbar";
+import type { User } from "../../models/user";
 
 export function RequestsPage() {
   const [rows, setRows] = useState<RegistrationRequest[]>([]);
+  const [candidatesById, setCandidatesById] = useState<Record<string, User>>({});
   const [statusFilter, setStatusFilter] = useState<RequestStatus | "ALL">("ALL");
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -40,7 +42,15 @@ export function RequestsPage() {
   async function refresh() {
     setLoading(true);
     try {
-      const data = await requestsService.getAll();
+      const [data, candidates] = await Promise.all([
+        requestsService.getAll(),
+        usersService.getCandidates(),
+      ]);
+
+      const map: Record<string, User> = {};
+      for (const c of candidates) map[c.id] = c;
+
+      setCandidatesById(map);
       setRows(data);
     } catch (e: any) {
       snackbar.show(e?.message ?? "שגיאה בטעינת נתונים");
@@ -123,7 +133,7 @@ export function RequestsPage() {
 
           <TableBody>
             {filtered.map((r) => {
-              const candidate = usersService.getById(r.candidateId);
+              const candidate = candidatesById[r.candidateId];
               return (
                 <TableRow key={r.requestNumber} hover>
                   <TableCell>{r.requestNumber}</TableCell>
@@ -132,13 +142,10 @@ export function RequestsPage() {
                   <TableCell>{r.createdAt}</TableCell>
                   <TableCell>{r.notes ? r.notes.slice(0, 40) : "-"}</TableCell>
                   <TableCell align="right">
-                    <IconButton
-                      aria-label="edit"
-                      onClick={() => navigate(`/admin/requests/${r.requestNumber}/edit`)}
-                    >
+                    <IconButton onClick={() => navigate(`/admin/requests/${r.requestNumber}/edit`)}>
                       <EditIcon />
                     </IconButton>
-                    <IconButton aria-label="delete" onClick={() => onAskDelete(r.requestNumber)}>
+                    <IconButton onClick={() => onAskDelete(r.requestNumber)}>
                       <DeleteIcon />
                     </IconButton>
                   </TableCell>
@@ -166,7 +173,7 @@ export function RequestsPage() {
           <Button variant="outlined" onClick={onCancelDelete}>
             ביטול
           </Button>
-          <Button variant="contained" color="error" onClick={onConfirmDelete}>
+          <Button variant="contained" color="error" onClick={() => void onConfirmDelete()}>
             מחיקה
           </Button>
         </DialogActions>

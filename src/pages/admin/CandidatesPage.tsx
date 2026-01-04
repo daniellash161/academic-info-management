@@ -8,6 +8,7 @@ import {
   DialogContentText,
   DialogTitle,
   IconButton,
+  LinearProgress,
   Paper,
   Table,
   TableBody,
@@ -27,17 +28,26 @@ import { AppSnackbar } from "../../components/AppSnackbar";
 export function CandidatesPage() {
   const [rows, setRows] = useState<User[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const navigate = useNavigate();
   const location = useLocation();
   const snackbar = useSnackbar();
 
-  function refresh() {
-    setRows(usersService.getCandidates());
+  async function refresh() {
+    setLoading(true);
+    try {
+      const data = await usersService.getCandidates();
+      setRows(data);
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה בטעינת נתונים");
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
-    refresh();
+    void refresh();
   }, []);
 
   useEffect(() => {
@@ -56,16 +66,22 @@ export function CandidatesPage() {
     setDeleteTarget(null);
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!deleteTarget) return;
-    usersService.remove(deleteTarget.id);
-    setDeleteTarget(null);
-    refresh();
-    snackbar.show("המועמד נמחק בהצלחה");
+    try {
+      await usersService.remove(deleteTarget.id);
+      setDeleteTarget(null);
+      await refresh();
+      snackbar.show("המועמד נמחק בהצלחה");
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה במחיקה");
+    }
   }
 
   return (
     <Box>
+      {loading && <LinearProgress />}
+
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
         <Typography variant="h5">ניהול מועמדים</Typography>
         <Button variant="contained" onClick={() => navigate("/admin/candidates/new")}>
@@ -105,7 +121,7 @@ export function CandidatesPage() {
               </TableRow>
             ))}
 
-            {rows.length === 0 && (
+            {rows.length === 0 && !loading && (
               <TableRow>
                 <TableCell colSpan={6} align="center">
                   אין מועמדים להצגה
@@ -127,7 +143,7 @@ export function CandidatesPage() {
           <Button variant="outlined" onClick={cancelDelete}>
             ביטול
           </Button>
-          <Button variant="contained" color="error" onClick={confirmDelete}>
+          <Button variant="contained" color="error" onClick={() => void confirmDelete()}>
             מחיקה
           </Button>
         </DialogActions>
