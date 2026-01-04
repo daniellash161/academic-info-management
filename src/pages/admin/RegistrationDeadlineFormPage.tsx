@@ -1,14 +1,5 @@
-// src/pages/admin/RegistrationDeadlineFormPage.tsx
 import { useEffect, useMemo, useState } from "react";
-import {
-  Box,
-  Button,
-  FormControlLabel,
-  Stack,
-  Switch,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { Box, Button, FormControlLabel, Stack, Switch, TextField, Typography } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
 import type { RegistrationDeadline } from "../../models/registrationDeadline";
 import { registrationDeadlinesService } from "../../services/registrationDeadlinesService";
@@ -68,16 +59,23 @@ export function RegistrationDeadlineFormPage() {
 
   useEffect(() => {
     if (!id) return;
-    const existing = registrationDeadlinesService.getById(id);
-    if (!existing) return;
 
-    setValues({
-      title: existing.title,
-      startDate: existing.startDate,
-      endDate: existing.endDate,
-      isActive: existing.isActive,
-      notes: existing.notes ?? "",
-    });
+    (async () => {
+      try {
+        const existing = await registrationDeadlinesService.getById(id);
+        if (!existing) return;
+
+        setValues({
+          title: existing.title,
+          startDate: existing.startDate,
+          endDate: existing.endDate,
+          isActive: existing.isActive,
+          notes: existing.notes ?? "",
+        });
+      } catch (e: any) {
+        snackbar.show(e?.message ?? "שגיאה בטעינת מועד הרשמה");
+      }
+    })();
   }, [id]);
 
   const errors = useMemo(() => validate(values), [values]);
@@ -87,7 +85,7 @@ export function RegistrationDeadlineFormPage() {
     setValues((prev) => ({ ...prev, [key]: value }));
   }
 
-  function onSave() {
+  async function onSave() {
     if (!canSave) return;
 
     const payload: Omit<RegistrationDeadline, "id" | "createdAt"> = {
@@ -98,15 +96,19 @@ export function RegistrationDeadlineFormPage() {
       notes: values.notes.trim() ? values.notes.trim() : undefined,
     };
 
-    if (isEdit && id) {
-      registrationDeadlinesService.update(id, payload);
-      snackbar.show("מועד ההרשמה עודכן בהצלחה");
-    } else {
-      registrationDeadlinesService.create(payload);
-      snackbar.show("מועד ההרשמה נשמר בהצלחה");
-    }
+    try {
+      if (isEdit && id) {
+        await registrationDeadlinesService.update(id, payload);
+        snackbar.show("מועד ההרשמה עודכן בהצלחה");
+      } else {
+        await registrationDeadlinesService.create(payload);
+        snackbar.show("מועד ההרשמה נשמר בהצלחה");
+      }
 
-    navigate("/admin/deadlines");
+      navigate("/admin/deadlines");
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה בשמירה");
+    }
   }
 
   return (
@@ -149,10 +151,7 @@ export function RegistrationDeadlineFormPage() {
 
         <FormControlLabel
           control={
-            <Switch
-              checked={values.isActive}
-              onChange={(e) => setField("isActive", e.target.checked)}
-            />
+            <Switch checked={values.isActive} onChange={(e) => setField("isActive", e.target.checked)} />
           }
           label="מועד פעיל"
         />
@@ -168,7 +167,7 @@ export function RegistrationDeadlineFormPage() {
         />
 
         <Stack direction="row" spacing={2}>
-          <Button variant="contained" onClick={onSave} disabled={!canSave}>
+          <Button variant="contained" onClick={() => void onSave()} disabled={!canSave}>
             שמירה
           </Button>
           <Button variant="outlined" onClick={() => navigate("/admin/deadlines")}>

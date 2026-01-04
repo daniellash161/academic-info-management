@@ -1,4 +1,3 @@
-// src/pages/admin/RegistrationDeadlinesPage.tsx
 import { useEffect, useMemo, useState } from "react";
 import {
   Box,
@@ -13,33 +12,72 @@ import {
   TextField,
   Typography,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import { useNavigate } from "react-router-dom";
 import type { RegistrationDeadline } from "../../models/registrationDeadline";
 import { registrationDeadlinesService } from "../../services/registrationDeadlinesService";
+import { useSnackbar } from "../../hooks/useSnackbar";
+import { AppSnackbar } from "../../components/AppSnackbar";
 
 export function RegistrationDeadlinesPage() {
   const navigate = useNavigate();
+  const snackbar = useSnackbar();
+
   const [rows, setRows] = useState<RegistrationDeadline[]>([]);
   const [query, setQuery] = useState("");
 
-  function refresh() {
-    setRows(registrationDeadlinesService.getAll());
+  const [deleteTarget, setDeleteTarget] = useState<RegistrationDeadline | null>(null);
+
+  async function refresh() {
+    const items = await registrationDeadlinesService.getAll();
+    setRows(items);
   }
 
   useEffect(() => {
-    refresh();
+    void refresh();
   }, []);
 
-  const filtered = useMemo(() => {
-    return registrationDeadlinesService.search(query);
-  }, [query, rows]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const items = await registrationDeadlinesService.search(query);
+        setRows(items);
+      } catch (e: any) {
+        snackbar.show(e?.message ?? "שגיאה בטעינת מועדי הרשמה");
+      }
+    })();
+  }, [query]);
 
-  function onDelete(id: string) {
-    registrationDeadlinesService.remove(id);
-    refresh();
+  const filtered = useMemo(() => {
+    return rows;
+  }, [rows]);
+
+  function askDelete(d: RegistrationDeadline) {
+    setDeleteTarget(d);
+  }
+
+  function cancelDelete() {
+    setDeleteTarget(null);
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+
+    try {
+      await registrationDeadlinesService.remove(deleteTarget.id);
+      setDeleteTarget(null);
+      await refresh();
+      snackbar.show("מועד ההרשמה נמחק בהצלחה");
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה במחיקה");
+    }
   }
 
   return (
@@ -89,7 +127,7 @@ export function RegistrationDeadlinesPage() {
                     <IconButton onClick={() => navigate(`/admin/deadlines/${d.id}/edit`)}>
                       <EditIcon />
                     </IconButton>
-                    <IconButton onClick={() => onDelete(d.id)}>
+                    <IconButton onClick={() => askDelete(d)}>
                       <DeleteIcon />
                     </IconButton>
                   </TableCell>
@@ -107,6 +145,25 @@ export function RegistrationDeadlinesPage() {
           </TableBody>
         </Table>
       </Paper>
+
+      <Dialog open={Boolean(deleteTarget)} onClose={cancelDelete}>
+        <DialogTitle>מחיקת מועד הרשמה</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            האם למחוק את מועד ההרשמה{deleteTarget ? ` "${deleteTarget.title}"` : ""} לצמיתות?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="outlined" onClick={cancelDelete}>
+            ביטול
+          </Button>
+          <Button variant="contained" color="error" onClick={() => void confirmDelete()}>
+            מחיקה
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <AppSnackbar open={snackbar.open} message={snackbar.message} onClose={snackbar.close} />
     </Box>
   );
 }
