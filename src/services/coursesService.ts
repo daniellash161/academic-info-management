@@ -7,7 +7,7 @@ import {
   setDoc,
   updateDoc,
 } from "firebase/firestore";
-import type { Course } from "../models/course";
+import type { Course, Semester } from "../models/course";
 import { firestore } from "../firebase/firebase";
 
 const COL = "courses";
@@ -21,13 +21,19 @@ function clean<T extends Record<string, unknown>>(obj: T): Partial<T> {
   return out;
 }
 
-function normalizeCourseFromDb(id: string, data: any): Course {
+function normalizeSemester(x: any): Semester {
+  return x === "א" || x === "ב" || x === "קיץ" ? x : "א";
+}
+
+function normalizeFromDb(id: string, data: any): Course {
   return {
     code: id,
     name: String(data?.name ?? ""),
-    semester: data?.semester,
+    semester: normalizeSemester(data?.semester),
     credits: Number(data?.credits ?? 0),
-    prerequisites: Array.isArray(data?.prerequisites) ? data.prerequisites : [],
+    prerequisites: Array.isArray(data?.prerequisites)
+      ? data.prerequisites.map((p: any) => String(p))
+      : undefined,
     syllabus: typeof data?.syllabus === "string" ? data.syllabus : undefined,
     lecturer: typeof data?.lecturer === "string" ? data.lecturer : undefined,
   };
@@ -36,7 +42,8 @@ function normalizeCourseFromDb(id: string, data: any): Course {
 export const coursesService = {
   async getAll(): Promise<Course[]> {
     const snap = await getDocs(collection(firestore, COL));
-    return snap.docs.map((d) => normalizeCourseFromDb(d.id, d.data()));
+    const items = snap.docs.map((d) => normalizeFromDb(d.id, d.data()));
+    return items.sort((a, b) => a.code.localeCompare(b.code));
   },
 
   async getByCode(code: string): Promise<Course | null> {
@@ -44,24 +51,24 @@ export const coursesService = {
     const ref = doc(firestore, COL, id);
     const snap = await getDoc(ref);
     if (!snap.exists()) return null;
-    return normalizeCourseFromDb(snap.id, snap.data());
+    return normalizeFromDb(snap.id, snap.data());
   },
 
   async create(course: Course): Promise<void> {
-    const id = decodeURIComponent(course.code).trim();
+    const id = course.code.trim();
+    if (!id) throw new Error("code is required");
+
     const ref = doc(firestore, COL, id);
-    const existing = await getDoc(ref);
-    if (existing.exists()) {
-      throw new Error("קוד קורס חייב להיות ייחודי");
-    }
+    const exists = await getDoc(ref);
+    if (exists.exists()) throw new Error("קוד קורס חייב להיות ייחודי");
 
     const data = clean({
       name: course.name.trim(),
       semester: course.semester,
       credits: Number(course.credits),
-      prerequisites: course.prerequisites ?? [],
-      syllabus: course.syllabus?.trim() || undefined,
-      lecturer: course.lecturer?.trim() || undefined,
+      prerequisites: course.prerequisites?.length ? course.prerequisites : undefined,
+      syllabus: course.syllabus?.trim() ? course.syllabus.trim() : undefined,
+      lecturer: course.lecturer?.trim() ? course.lecturer.trim() : undefined,
     });
 
     await setDoc(ref, data);
@@ -71,18 +78,26 @@ export const coursesService = {
     const id = decodeURIComponent(code).trim();
     const ref = doc(firestore, COL, id);
 
-    const existing = await getDoc(ref);
-    if (!existing.exists()) {
-      throw new Error("קורס לא נמצא");
-    }
+    const exists = await getDoc(ref);
+    if (!exists.exists()) throw new Error("קורס לא נמצא");
 
     const data = clean({
       name: patch.name !== undefined ? patch.name.trim() : undefined,
       semester: patch.semester,
       credits: patch.credits !== undefined ? Number(patch.credits) : undefined,
       prerequisites: patch.prerequisites,
-      syllabus: patch.syllabus !== undefined ? patch.syllabus?.trim() || undefined : undefined,
-      lecturer: patch.lecturer !== undefined ? patch.lecturer?.trim() || undefined : undefined,
+      syllabus:
+        patch.syllabus !== undefined
+          ? patch.syllabus?.trim()
+            ? patch.syllabus.trim()
+            : undefined
+          : undefined,
+      lecturer:
+        patch.lecturer !== undefined
+          ? patch.lecturer?.trim()
+            ? patch.lecturer.trim()
+            : undefined
+          : undefined,
     });
 
     await updateDoc(ref, data as any);
