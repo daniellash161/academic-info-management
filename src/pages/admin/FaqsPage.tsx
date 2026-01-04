@@ -13,6 +13,11 @@ import {
   Typography,
   FormControlLabel,
   Switch,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
@@ -29,6 +34,8 @@ export function FaqsPage() {
   const [rows, setRows] = useState<Faq[]>([]);
   const [query, setQuery] = useState("");
   const [publishedOnly, setPublishedOnly] = useState(false);
+
+  const [deleteTarget, setDeleteTarget] = useState<Faq | null>(null);
 
   async function refresh() {
     const items = await faqsService.getAll();
@@ -52,9 +59,20 @@ export function FaqsPage() {
 
   const filtered = useMemo(() => rows, [rows]);
 
-  async function onDelete(id: string) {
+  function askDelete(faq: Faq) {
+    setDeleteTarget(faq);
+  }
+
+  function cancelDelete() {
+    setDeleteTarget(null);
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+
     try {
-      await faqsService.remove(id);
+      await faqsService.remove(deleteTarget.id);
+      setDeleteTarget(null);
       await refresh();
       snackbar.show("השאלה נמחקה בהצלחה");
     } catch (e: any) {
@@ -80,10 +98,7 @@ export function FaqsPage() {
         />
         <FormControlLabel
           control={
-            <Switch
-              checked={publishedOnly}
-              onChange={(e) => setPublishedOnly(e.target.checked)}
-            />
+            <Switch checked={publishedOnly} onChange={(e) => setPublishedOnly(e.target.checked)} />
           }
           label="רק מפורסמות"
         />
@@ -110,7 +125,7 @@ export function FaqsPage() {
                   <IconButton onClick={() => navigate(`/admin/faqs/${f.id}/edit`)}>
                     <EditIcon />
                   </IconButton>
-                  <IconButton onClick={() => void onDelete(f.id)}>
+                  <IconButton onClick={() => askDelete(f)}>
                     <DeleteIcon />
                   </IconButton>
                 </TableCell>
@@ -127,6 +142,24 @@ export function FaqsPage() {
           </TableBody>
         </Table>
       </Paper>
+
+      <Dialog open={Boolean(deleteTarget)} onClose={cancelDelete}>
+        <DialogTitle>מחיקת שאלה</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            האם למחוק את השאלה
+            {deleteTarget ? ` "${deleteTarget.question}"` : ""} לצמיתות?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="outlined" onClick={cancelDelete}>
+            ביטול
+          </Button>
+          <Button variant="contained" color="error" onClick={() => void confirmDelete()}>
+            מחיקה
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <AppSnackbar open={snackbar.open} message={snackbar.message} onClose={snackbar.close} />
     </Box>
