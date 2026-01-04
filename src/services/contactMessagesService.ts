@@ -8,7 +8,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import type { ContactMessage, ContactMessageStatus } from "../models/contactMessage";
-import { firestore } from "../firebase/firebase";
+import { firestore } from "../firebase/config";
 
 const COL = "contactMessages";
 

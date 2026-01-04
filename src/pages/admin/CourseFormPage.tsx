@@ -102,7 +102,7 @@ export function CourseFormPage() {
         setLoading(false);
       }
     })();
-  }, [id]);
+  }, [id, snackbar]);
 
   const errors = useMemo(() => validate(values), [values]);
   const canSave = Object.keys(errors).length === 0;

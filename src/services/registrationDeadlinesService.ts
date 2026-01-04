@@ -8,7 +8,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import type { RegistrationDeadline } from "../models/registrationDeadline";
-import { firestore } from "../firebase/firebase";
+import { firestore } from "../firebase/config";
 
 export type RegistrationDeadlineStatus = "פתוח" | "עתידי" | "נסגר" | "לא פעיל";
 

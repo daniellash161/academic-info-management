@@ -8,7 +8,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import type { RegistrationRequest, RequestStatus } from "../models/registrationRequest";
-import { firestore } from "../firebase/firebase";
+import { firestore } from "../firebase/config";
 
 const COL = "requests";
 

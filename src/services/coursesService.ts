@@ -8,7 +8,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import type { Course, Semester } from "../models/course";
-import { firestore } from "../firebase/firebase";
+import { firestore } from "../firebase/config";
 
 const COL = "courses";
 

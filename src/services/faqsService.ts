@@ -8,7 +8,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import type { Faq } from "../models/faq";
-import { firestore } from "../firebase/firebase";
+import { firestore } from "../firebase/config";
 
 const COL = "faqs";
 
