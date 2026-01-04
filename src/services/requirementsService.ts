@@ -1,16 +1,47 @@
-import { LS_KEYS } from "../storage/lsKeys";
-import { makeId, readLS, writeLS } from "../storage/storage";
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+} from "firebase/firestore";
 import type { Requirement, RequirementType } from "../models/requirement";
+import { firestore } from "../firebase/firebase";
+
+const COL = "requirements";
 
 type CreateInput = Omit<Requirement, "id">;
 type UpdatePatch = Partial<Omit<Requirement, "id">>;
 
-function getAllInternal(): Requirement[] {
-  return readLS<Requirement[]>(LS_KEYS.requirements, []);
+function clean<T extends Record<string, unknown>>(obj: T): Partial<T> {
+  const out: Partial<T> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v === undefined) continue;
+    (out as any)[k] = v;
+  }
+  return out;
 }
 
-function saveAll(items: Requirement[]) {
-  writeLS(LS_KEYS.requirements, items);
+function normalizeType(x: any): RequirementType {
+  return x === "פסיכומטרי" || x === "בגרות" || x === "אנגלית" ? x : "פסיכומטרי";
+}
+
+function normalizeFromDb(id: string, data: any): Requirement {
+  return {
+    id,
+    type: normalizeType(data?.type),
+    minScore: Number(data?.minScore ?? 0),
+    title: String(data?.title ?? ""),
+    description: typeof data?.description === "string" ? data.description : undefined,
+    extraInfo: typeof data?.extraInfo === "string" ? data.extraInfo : undefined,
+    displayOrder: Number(data?.displayOrder ?? 1),
+    isMandatory: Boolean(data?.isMandatory ?? false),
+    courseCodes: Array.isArray(data?.courseCodes)
+      ? data.courseCodes.map((c: any) => String(c))
+      : [],
+  };
 }
 
 export const requirementsService = {
@@ -18,39 +49,65 @@ export const requirementsService = {
     return ["פסיכומטרי", "בגרות", "אנגלית"];
   },
 
-  getAll(): Requirement[] {
-    return getAllInternal();
+  async getAll(): Promise<Requirement[]> {
+    const snap = await getDocs(collection(firestore, COL));
+    const items = snap.docs.map((d) => normalizeFromDb(d.id, d.data()));
+    return items.sort((a, b) => a.displayOrder - b.displayOrder);
   },
 
-  getById(id: string): Requirement | undefined {
-    return getAllInternal().find((r) => r.id === id);
+  async getById(id: string): Promise<Requirement | null> {
+    const docId = decodeURIComponent(id).trim();
+    const ref = doc(firestore, COL, docId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+    return normalizeFromDb(snap.id, snap.data());
   },
 
-  create(input: CreateInput): Requirement {
+  async create(input: CreateInput): Promise<Requirement> {
+    const ref = doc(collection(firestore, COL));
+
     const item: Requirement = {
       ...input,
-      id: makeId(),
+      id: ref.id,
+      type: normalizeType(input.type),
+      minScore: Number(input.minScore),
       title: input.title.trim(),
       description: input.description?.trim() ? input.description.trim() : undefined,
       extraInfo: input.extraInfo?.trim() ? input.extraInfo.trim() : undefined,
+      displayOrder: Number(input.displayOrder),
+      isMandatory: Boolean(input.isMandatory),
       courseCodes: input.courseCodes ?? [],
     };
 
-    const all = getAllInternal();
-    saveAll([item, ...all]);
+    const data = clean({
+      type: item.type,
+      minScore: item.minScore,
+      title: item.title,
+      description: item.description,
+      extraInfo: item.extraInfo,
+      displayOrder: item.displayOrder,
+      isMandatory: item.isMandatory,
+      courseCodes: item.courseCodes,
+    });
+
+    await setDoc(ref, data);
     return item;
   },
 
-  update(id: string, patch: UpdatePatch): Requirement {
-    const all = getAllInternal();
-    const idx = all.findIndex((r) => r.id === id);
-    if (idx === -1) throw new Error("דרישה לא נמצאה");
+  async update(id: string, patch: UpdatePatch): Promise<Requirement> {
+    const docId = decodeURIComponent(id).trim();
+    const ref = doc(firestore, COL, docId);
 
-    const current = all[idx];
+    const existing = await getDoc(ref);
+    if (!existing.exists()) throw new Error("דרישה לא נמצאה");
+
+    const current = normalizeFromDb(existing.id, existing.data());
 
     const updated: Requirement = {
       ...current,
       ...patch,
+      type: patch.type !== undefined ? normalizeType(patch.type) : current.type,
+      minScore: patch.minScore !== undefined ? Number(patch.minScore) : current.minScore,
       title: patch.title !== undefined ? patch.title.trim() : current.title,
       description:
         patch.description !== undefined
@@ -64,39 +121,28 @@ export const requirementsService = {
             ? patch.extraInfo.trim()
             : undefined
           : current.extraInfo,
+      displayOrder: patch.displayOrder !== undefined ? Number(patch.displayOrder) : current.displayOrder,
+      isMandatory: patch.isMandatory !== undefined ? Boolean(patch.isMandatory) : current.isMandatory,
       courseCodes: patch.courseCodes !== undefined ? patch.courseCodes : current.courseCodes,
     };
 
-    all[idx] = updated;
-    saveAll(all);
+    const data = clean({
+      type: updated.type,
+      minScore: updated.minScore,
+      title: updated.title,
+      description: updated.description,
+      extraInfo: updated.extraInfo,
+      displayOrder: updated.displayOrder,
+      isMandatory: updated.isMandatory,
+      courseCodes: updated.courseCodes,
+    });
+
+    await updateDoc(ref, data as any);
     return updated;
   },
 
-  remove(id: string) {
-    saveAll(getAllInternal().filter((r) => r.id !== id));
-  },
-
-  searchAndFilter(query: string, typeFilter: RequirementType | "ALL"): Requirement[] {
-    const q = query.trim().toLowerCase();
-    let rows = getAllInternal();
-
-    if (typeFilter !== "ALL") rows = rows.filter((r) => r.type === typeFilter);
-
-    if (q) {
-      rows = rows.filter((r) => {
-        const hay = [
-          r.type,
-          r.title,
-          r.description ?? "",
-          r.extraInfo ?? "",
-          (r.courseCodes ?? []).join(","),
-        ]
-          .join(" ")
-          .toLowerCase();
-        return hay.includes(q);
-      });
-    }
-
-    return rows.sort((a, b) => a.displayOrder - b.displayOrder);
+  async remove(id: string): Promise<void> {
+    const docId = decodeURIComponent(id).trim();
+    await deleteDoc(doc(firestore, COL, docId));
   },
 };

@@ -16,26 +16,53 @@ import {
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import { useNavigate } from "react-router-dom";
-import type { RequirementType } from "../../models/requirement";
+import type { Requirement, RequirementType } from "../../models/requirement";
 import { requirementsService } from "../../services/requirementsService";
 
 export function RequirementsPage() {
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<RequirementType | "ALL">("ALL");
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [all, setAll] = useState<Requirement[]>([]);
   const navigate = useNavigate();
 
-  useEffect(() => {}, [refreshKey]);
+  async function refresh() {
+    const items = await requirementsService.getAll();
+    setAll(items);
+  }
+
+  useEffect(() => {
+    void refresh();
+  }, []);
 
   const types = requirementsService.types();
 
   const rows = useMemo(() => {
-    return requirementsService.searchAndFilter(query, typeFilter);
-  }, [query, typeFilter, refreshKey]);
+    const q = query.trim().toLowerCase();
+    let r = all;
 
-  function onDelete(id: string) {
-    requirementsService.remove(id);
-    setRefreshKey((x) => x + 1);
+    if (typeFilter !== "ALL") r = r.filter((x) => x.type === typeFilter);
+
+    if (q) {
+      r = r.filter((x) => {
+        const hay = [
+          x.type,
+          x.title,
+          x.description ?? "",
+          x.extraInfo ?? "",
+          (x.courseCodes ?? []).join(","),
+        ]
+          .join(" ")
+          .toLowerCase();
+        return hay.includes(q);
+      });
+    }
+
+    return [...r].sort((a, b) => a.displayOrder - b.displayOrder);
+  }, [all, query, typeFilter]);
+
+  async function onDelete(id: string) {
+    await requirementsService.remove(id);
+    await refresh();
   }
 
   return (
@@ -98,7 +125,7 @@ export function RequirementsPage() {
                   <IconButton onClick={() => navigate(`/admin/requirements/${r.id}/edit`)}>
                     <EditIcon />
                   </IconButton>
-                  <IconButton onClick={() => onDelete(r.id)}>
+                  <IconButton onClick={() => void onDelete(r.id)}>
                     <DeleteIcon />
                   </IconButton>
                 </TableCell>

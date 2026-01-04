@@ -17,6 +17,7 @@ import { requirementsService } from "../../services/requirementsService";
 import { coursesService } from "../../services/coursesService";
 import { useSnackbar } from "../../hooks/useSnackbar";
 import { AppSnackbar } from "../../components/AppSnackbar";
+import type { Course } from "../../models/course";
 
 type FormState = {
   type: RequirementType | "";
@@ -26,7 +27,7 @@ type FormState = {
   extraInfo: string;
   displayOrder: number | "";
   isMandatory: boolean;
-  courseCodes: string[]; 
+  courseCodes: string[];
 };
 
 function validate(v: FormState, validCourseCodes: Set<string>) {
@@ -43,10 +44,12 @@ function validate(v: FormState, validCourseCodes: Set<string>) {
     errors.displayOrder = "סדר תצוגה חייב להיות מספר שלם >= 1";
   }
 
-  for (const code of v.courseCodes) {
-    if (!validCourseCodes.has(code)) {
-      errors.courseCodes = `קורס לא קיים: ${code}`;
-      break;
+  if (validCourseCodes.size > 0) {
+    for (const code of v.courseCodes) {
+      if (!validCourseCodes.has(code)) {
+        errors.courseCodes = `קורס לא קיים: ${code}`;
+        break;
+      }
     }
   }
 
@@ -60,7 +63,8 @@ export function RequirementFormPage() {
   const snackbar = useSnackbar();
 
   const types = requirementsService.types();
-  const courses = coursesService.getAll(); // קיים אצלך כבר במערכת
+
+  const [courses, setCourses] = useState<Course[]>([]);
   const validCourseCodes = useMemo(() => new Set(courses.map((c) => c.code)), [courses]);
 
   const [values, setValues] = useState<FormState>({
@@ -75,20 +79,38 @@ export function RequirementFormPage() {
   });
 
   useEffect(() => {
-    if (!id) return;
-    const existing = requirementsService.getById(id);
-    if (!existing) return;
+    (async () => {
+      try {
+        const allCourses = await coursesService.getAll();
+        setCourses(allCourses);
+      } catch (e: any) {
+        snackbar.show(e?.message ?? "שגיאה בטעינת קורסים");
+      }
+    })();
+  }, []);
 
-    setValues({
-      type: existing.type,
-      minScore: existing.minScore,
-      title: existing.title,
-      description: existing.description ?? "",
-      extraInfo: existing.extraInfo ?? "",
-      displayOrder: existing.displayOrder,
-      isMandatory: existing.isMandatory,
-      courseCodes: existing.courseCodes ?? [],
-    });
+  useEffect(() => {
+    if (!id) return;
+
+    (async () => {
+      try {
+        const existing = await requirementsService.getById(id);
+        if (!existing) return;
+
+        setValues({
+          type: existing.type,
+          minScore: existing.minScore,
+          title: existing.title,
+          description: existing.description ?? "",
+          extraInfo: existing.extraInfo ?? "",
+          displayOrder: existing.displayOrder,
+          isMandatory: existing.isMandatory,
+          courseCodes: existing.courseCodes ?? [],
+        });
+      } catch (e: any) {
+        snackbar.show(e?.message ?? "שגיאה בטעינת דרישה");
+      }
+    })();
   }, [id]);
 
   const errors = useMemo(() => validate(values, validCourseCodes), [values, validCourseCodes]);
@@ -98,7 +120,7 @@ export function RequirementFormPage() {
     setValues((prev) => ({ ...prev, [key]: value }));
   }
 
-  function onSave() {
+  async function onSave() {
     if (!canSave) return;
 
     const payload: Omit<Requirement, "id"> = {
@@ -112,15 +134,19 @@ export function RequirementFormPage() {
       courseCodes: values.courseCodes,
     };
 
-    if (isEdit && id) {
-      requirementsService.update(id, payload);
-      snackbar.show("הדרישה עודכנה בהצלחה");
-    } else {
-      requirementsService.create(payload);
-      snackbar.show("הדרישה נשמרה בהצלחה");
-    }
+    try {
+      if (isEdit && id) {
+        await requirementsService.update(id, payload);
+        snackbar.show("הדרישה עודכנה בהצלחה");
+      } else {
+        await requirementsService.create(payload);
+        snackbar.show("הדרישה נשמרה בהצלחה");
+      }
 
-    navigate("/admin/requirements");
+      navigate("/admin/requirements");
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה בשמירה");
+    }
   }
 
   return (
@@ -192,7 +218,6 @@ export function RequirementFormPage() {
           helperText={errors.displayOrder ?? " "}
         />
 
-        {/* קשר דרישה ↔ קורסים */}
         <TextField
           select
           label="קורסים רלוונטיים (רשות)"
@@ -219,16 +244,13 @@ export function RequirementFormPage() {
 
         <FormControlLabel
           control={
-            <Switch
-              checked={values.isMandatory}
-              onChange={(e) => setField("isMandatory", e.target.checked)}
-            />
+            <Switch checked={values.isMandatory} onChange={(e) => setField("isMandatory", e.target.checked)} />
           }
           label="דרישת חובה"
         />
 
         <Stack direction="row" spacing={2}>
-          <Button variant="contained" onClick={onSave} disabled={!canSave}>
+          <Button variant="contained" onClick={() => void onSave()} disabled={!canSave}>
             שמור דרישה
           </Button>
           <Button variant="outlined" onClick={() => navigate("/admin/requirements")}>
