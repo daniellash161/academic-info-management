@@ -2,7 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   IconButton,
+  LinearProgress,
   MenuItem,
   Paper,
   Table,
@@ -12,11 +18,6 @@ import {
   TableRow,
   TextField,
   Typography,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
@@ -28,7 +29,7 @@ import { AppSnackbar } from "../../components/AppSnackbar";
 
 type ViewFilter = "ACTIVE" | "ARCHIVE" | "ALL";
 
-export function ContactMessagesPage() {
+export async function ContactMessagesPage() {
   const navigate = useNavigate();
   const snackbar = useSnackbar();
 
@@ -37,55 +38,49 @@ export function ContactMessagesPage() {
   const [statusFilter, setStatusFilter] = useState<ContactMessage["status"] | "ALL">("ALL");
   const [view, setView] = useState<ViewFilter>("ACTIVE");
 
-  const [deleteTarget, setDeleteTarget] = useState<ContactMessage | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   async function refresh() {
-    const items = await contactMessagesService.getAll();
-    setRows(items);
+    setLoading(true);
+    try {
+      const data = await contactMessagesService.getAll();
+      setRows(data);
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה בטעינת נתונים");
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
     void refresh();
   }, []);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const items =
-          statusFilter === "ALL"
-            ? await contactMessagesService.search(query, "ALL")
-            : await contactMessagesService.search(query, statusFilter);
-
-        setRows(items);
-      } catch (e: any) {
-        snackbar.show(e?.message ?? "שגיאה בטעינת פניות");
-      }
-    })();
-  }, [query, statusFilter]);
-
   const statuses = contactMessagesService.statuses();
 
-  const filtered = useMemo(() => {
-    const base = rows;
+  const filtered = await useMemo(async () => {
+    const base = statusFilter === "ALL"
+      ? contactMessagesService.search(query, "ALL")
+      : contactMessagesService.search(query, statusFilter);
 
-    if (view === "ACTIVE") return base.filter((m) => m.status !== "נסגר");
-    if (view === "ARCHIVE") return base.filter((m) => m.status === "נסגר");
+    if (view === "ACTIVE") return (await base).filter((m) => m.status !== "נסגר");
+    if (view === "ARCHIVE") return (await base).filter((m) => m.status === "נסגר");
     return base;
-  }, [rows, view]);
+  }, [query, statusFilter, view, rows]);
 
-  function askDelete(m: ContactMessage) {
-    setDeleteTarget(m);
+  function onAskDelete(id: string) {
+    setDeleteTarget(id);
   }
 
-  function cancelDelete() {
+  function onCancelDelete() {
     setDeleteTarget(null);
   }
 
-  async function confirmDelete() {
-    if (!deleteTarget) return;
-
+  async function onConfirmDelete() {
+    if (deleteTarget === null) return;
     try {
-      await contactMessagesService.remove(deleteTarget.id);
+      await contactMessagesService.remove(deleteTarget);
       setDeleteTarget(null);
       await refresh();
       snackbar.show("הפנייה נמחקה בהצלחה");
@@ -96,6 +91,8 @@ export function ContactMessagesPage() {
 
   return (
     <Box>
+      {loading && <LinearProgress />}
+
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
         <Typography variant="h5">ניהול פניות צור קשר</Typography>
 
@@ -163,14 +160,14 @@ export function ContactMessagesPage() {
                   <IconButton onClick={() => navigate(`/admin/contacts/${m.id}/edit`)}>
                     <EditIcon />
                   </IconButton>
-                  <IconButton onClick={() => askDelete(m)}>
+                  <IconButton onClick={() => onAskDelete(m.id)}>
                     <DeleteIcon />
                   </IconButton>
                 </TableCell>
               </TableRow>
             ))}
 
-            {filtered.length === 0 && (
+            {(await filtered).length === 0 && !loading && (
               <TableRow>
                 <TableCell colSpan={5} align="center">
                   אין פניות להצגה
@@ -181,19 +178,16 @@ export function ContactMessagesPage() {
         </Table>
       </Paper>
 
-      <Dialog open={Boolean(deleteTarget)} onClose={cancelDelete}>
+      <Dialog open={deleteTarget !== null} onClose={onCancelDelete}>
         <DialogTitle>מחיקת פנייה</DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            האם למחוק את הפנייה
-            {deleteTarget ? ` "${deleteTarget.subject}"` : ""} לצמיתות?
-          </DialogContentText>
+          <DialogContentText>האם למחוק את הפנייה לצמיתות?</DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" onClick={cancelDelete}>
+          <Button variant="outlined" onClick={onCancelDelete}>
             ביטול
           </Button>
-          <Button variant="contained" color="error" onClick={() => void confirmDelete()}>
+          <Button variant="contained" color="error" onClick={onConfirmDelete}>
             מחיקה
           </Button>
         </DialogActions>

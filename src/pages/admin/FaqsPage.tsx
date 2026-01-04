@@ -2,8 +2,16 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  FormControlLabel,
   IconButton,
+  LinearProgress,
   Paper,
+  Switch,
   Table,
   TableBody,
   TableCell,
@@ -11,13 +19,6 @@ import {
   TableRow,
   TextField,
   Typography,
-  FormControlLabel,
-  Switch,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
@@ -27,7 +28,7 @@ import { faqsService } from "../../services/faqsService";
 import { useSnackbar } from "../../hooks/useSnackbar";
 import { AppSnackbar } from "../../components/AppSnackbar";
 
-export function FaqsPage() {
+export async function FaqsPage() {
   const navigate = useNavigate();
   const snackbar = useSnackbar();
 
@@ -35,43 +36,41 @@ export function FaqsPage() {
   const [query, setQuery] = useState("");
   const [publishedOnly, setPublishedOnly] = useState(false);
 
-  const [deleteTarget, setDeleteTarget] = useState<Faq | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   async function refresh() {
-    const items = await faqsService.getAll();
-    setRows(items);
+    setLoading(true);
+    try {
+      const data = await faqsService.getAll();
+      setRows(data);
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה בטעינת נתונים");
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
     void refresh();
   }, []);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const items = await faqsService.search(query, publishedOnly);
-        setRows(items);
-      } catch (e: any) {
-        snackbar.show(e?.message ?? "שגיאה בטעינת שאלות");
-      }
-    })();
-  }, [query, publishedOnly]);
+  const filtered = await useMemo(() => {
+    return faqsService.search(query, publishedOnly);
+  }, [query, publishedOnly, rows]);
 
-  const filtered = useMemo(() => rows, [rows]);
-
-  function askDelete(faq: Faq) {
-    setDeleteTarget(faq);
+  function onAskDelete(id: string) {
+    setDeleteTarget(id);
   }
 
-  function cancelDelete() {
+  function onCancelDelete() {
     setDeleteTarget(null);
   }
 
-  async function confirmDelete() {
-    if (!deleteTarget) return;
-
+  async function onConfirmDelete() {
+    if (deleteTarget === null) return;
     try {
-      await faqsService.remove(deleteTarget.id);
+      await faqsService.remove(deleteTarget);
       setDeleteTarget(null);
       await refresh();
       snackbar.show("השאלה נמחקה בהצלחה");
@@ -82,6 +81,8 @@ export function FaqsPage() {
 
   return (
     <Box>
+      {loading && <LinearProgress />}
+
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
         <Typography variant="h5">ניהול שאלות נפוצות</Typography>
         <Button variant="contained" onClick={() => navigate("/admin/faqs/new")}>
@@ -125,14 +126,14 @@ export function FaqsPage() {
                   <IconButton onClick={() => navigate(`/admin/faqs/${f.id}/edit`)}>
                     <EditIcon />
                   </IconButton>
-                  <IconButton onClick={() => askDelete(f)}>
+                  <IconButton onClick={() => onAskDelete(f.id)}>
                     <DeleteIcon />
                   </IconButton>
                 </TableCell>
               </TableRow>
             ))}
 
-            {filtered.length === 0 && (
+            {filtered.length === 0 && !loading && (
               <TableRow>
                 <TableCell colSpan={4} align="center">
                   אין שאלות להצגה
@@ -143,19 +144,16 @@ export function FaqsPage() {
         </Table>
       </Paper>
 
-      <Dialog open={Boolean(deleteTarget)} onClose={cancelDelete}>
+      <Dialog open={deleteTarget !== null} onClose={onCancelDelete}>
         <DialogTitle>מחיקת שאלה</DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            האם למחוק את השאלה
-            {deleteTarget ? ` "${deleteTarget.question}"` : ""} לצמיתות?
-          </DialogContentText>
+          <DialogContentText>האם למחוק את השאלה לצמיתות?</DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" onClick={cancelDelete}>
+          <Button variant="outlined" onClick={onCancelDelete}>
             ביטול
           </Button>
-          <Button variant="contained" color="error" onClick={() => void confirmDelete()}>
+          <Button variant="contained" color="error" onClick={onConfirmDelete}>
             מחיקה
           </Button>
         </DialogActions>
