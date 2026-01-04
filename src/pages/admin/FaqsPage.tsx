@@ -18,6 +18,7 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
+  LinearProgress,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
@@ -36,10 +37,18 @@ export function FaqsPage() {
   const [publishedOnly, setPublishedOnly] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState<Faq | null>(null);
+  const [loading, setLoading] = useState(true);
 
   async function refresh() {
-    const items = await faqsService.getAll();
-    setRows(items);
+    setLoading(true);
+    try {
+      const items = await faqsService.search(query, publishedOnly);
+      setRows(items);
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה בטעינת שאלות");
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -47,14 +56,7 @@ export function FaqsPage() {
   }, []);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const items = await faqsService.search(query, publishedOnly);
-        setRows(items);
-      } catch (e: any) {
-        snackbar.show(e?.message ?? "שגיאה בטעינת שאלות");
-      }
-    })();
+    void refresh();
   }, [query, publishedOnly]);
 
   const filtered = useMemo(() => rows, [rows]);
@@ -70,6 +72,7 @@ export function FaqsPage() {
   async function confirmDelete() {
     if (!deleteTarget) return;
 
+    setLoading(true);
     try {
       await faqsService.remove(deleteTarget.id);
       setDeleteTarget(null);
@@ -77,11 +80,14 @@ export function FaqsPage() {
       snackbar.show("השאלה נמחקה בהצלחה");
     } catch (e: any) {
       snackbar.show(e?.message ?? "שגיאה במחיקה");
+      setLoading(false);
     }
   }
 
   return (
     <Box>
+      {loading && <LinearProgress />}
+
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
         <Typography variant="h5">ניהול שאלות נפוצות</Typography>
         <Button variant="contained" onClick={() => navigate("/admin/faqs/new")}>
@@ -89,9 +95,9 @@ export function FaqsPage() {
         </Button>
       </Box>
 
-      <Box sx={{ display: "flex", gap: 2, mb: 2, maxWidth: 900 }}>
+      <Box sx={{ display: "flex", gap: 2, mb: 2, maxWidth: 900, flexWrap: "wrap" }}>
         <TextField
-          fullWidth
+          sx={{ minWidth: 360, flexGrow: 1 }}
           label="חיפוש לפי שאלה / תשובה"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -132,7 +138,7 @@ export function FaqsPage() {
               </TableRow>
             ))}
 
-            {filtered.length === 0 && (
+            {filtered.length === 0 && !loading && (
               <TableRow>
                 <TableCell colSpan={4} align="center">
                   אין שאלות להצגה
@@ -147,15 +153,14 @@ export function FaqsPage() {
         <DialogTitle>מחיקת שאלה</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            האם למחוק את השאלה
-            {deleteTarget ? ` "${deleteTarget.question}"` : ""} לצמיתות?
+            האם למחוק את השאלה{deleteTarget ? ` "${deleteTarget.question}"` : ""} לצמיתות?
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" onClick={cancelDelete}>
+          <Button variant="outlined" onClick={cancelDelete} disabled={loading}>
             ביטול
           </Button>
-          <Button variant="contained" color="error" onClick={() => void confirmDelete()}>
+          <Button variant="contained" color="error" onClick={() => void confirmDelete()} disabled={loading}>
             מחיקה
           </Button>
         </DialogActions>
