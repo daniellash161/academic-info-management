@@ -29,7 +29,7 @@ import { AppSnackbar } from "../../components/AppSnackbar";
 
 type ViewFilter = "ACTIVE" | "ARCHIVE" | "ALL";
 
-export async function ContactMessagesPage() {
+export function ContactMessagesPage() {
   const navigate = useNavigate();
   const snackbar = useSnackbar();
 
@@ -38,13 +38,15 @@ export async function ContactMessagesPage() {
   const [statusFilter, setStatusFilter] = useState<ContactMessage["status"] | "ALL">("ALL");
   const [view, setView] = useState<ViewFilter>("ACTIVE");
 
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ContactMessage | null>(null);
   const [loading, setLoading] = useState(true);
 
-  async function refresh() {
+  const statuses = contactMessagesService.statuses();
+
+  async function load() {
     setLoading(true);
     try {
-      const data = await contactMessagesService.getAll();
+      const data = await contactMessagesService.search(query, statusFilter);
       setRows(data);
     } catch (e: any) {
       snackbar.show(e?.message ?? "שגיאה בטעינת נתונים");
@@ -54,23 +56,21 @@ export async function ContactMessagesPage() {
   }
 
   useEffect(() => {
-    void refresh();
+    void load();
   }, []);
 
-  const statuses = contactMessagesService.statuses();
+  useEffect(() => {
+    void load();
+  }, [query, statusFilter]);
 
-  const filtered = await useMemo(async () => {
-    const base = statusFilter === "ALL"
-      ? contactMessagesService.search(query, "ALL")
-      : contactMessagesService.search(query, statusFilter);
+  const filtered = useMemo(() => {
+    if (view === "ACTIVE") return rows.filter((m) => m.status !== "נסגר");
+    if (view === "ARCHIVE") return rows.filter((m) => m.status === "נסגר");
+    return rows;
+  }, [rows, view]);
 
-    if (view === "ACTIVE") return (await base).filter((m) => m.status !== "נסגר");
-    if (view === "ARCHIVE") return (await base).filter((m) => m.status === "נסגר");
-    return base;
-  }, [query, statusFilter, view, rows]);
-
-  function onAskDelete(id: string) {
-    setDeleteTarget(id);
+  function onAskDelete(m: ContactMessage) {
+    setDeleteTarget(m);
   }
 
   function onCancelDelete() {
@@ -78,14 +78,17 @@ export async function ContactMessagesPage() {
   }
 
   async function onConfirmDelete() {
-    if (deleteTarget === null) return;
+    if (!deleteTarget) return;
+
+    setLoading(true);
     try {
-      await contactMessagesService.remove(deleteTarget);
+      await contactMessagesService.remove(deleteTarget.id);
       setDeleteTarget(null);
-      await refresh();
+      await load();
       snackbar.show("הפנייה נמחקה בהצלחה");
     } catch (e: any) {
       snackbar.show(e?.message ?? "שגיאה במחיקה");
+      setLoading(false);
     }
   }
 
@@ -152,7 +155,7 @@ export async function ContactMessagesPage() {
           <TableBody>
             {filtered.map((m) => (
               <TableRow key={m.id} hover>
-                <TableCell>{m.createdAt.slice(0, 10)}</TableCell>
+                <TableCell>{(m.createdAt || "").slice(0, 10)}</TableCell>
                 <TableCell>{m.fullName}</TableCell>
                 <TableCell>{m.subject}</TableCell>
                 <TableCell>{m.status}</TableCell>
@@ -160,14 +163,14 @@ export async function ContactMessagesPage() {
                   <IconButton onClick={() => navigate(`/admin/contacts/${m.id}/edit`)}>
                     <EditIcon />
                   </IconButton>
-                  <IconButton onClick={() => onAskDelete(m.id)}>
+                  <IconButton onClick={() => onAskDelete(m)}>
                     <DeleteIcon />
                   </IconButton>
                 </TableCell>
               </TableRow>
             ))}
 
-            {(await filtered).length === 0 && !loading && (
+            {filtered.length === 0 && !loading && (
               <TableRow>
                 <TableCell colSpan={5} align="center">
                   אין פניות להצגה
@@ -178,16 +181,18 @@ export async function ContactMessagesPage() {
         </Table>
       </Paper>
 
-      <Dialog open={deleteTarget !== null} onClose={onCancelDelete}>
+      <Dialog open={Boolean(deleteTarget)} onClose={onCancelDelete}>
         <DialogTitle>מחיקת פנייה</DialogTitle>
         <DialogContent>
-          <DialogContentText>האם למחוק את הפנייה לצמיתות?</DialogContentText>
+          <DialogContentText>
+            האם למחוק את הפנייה{deleteTarget ? ` "${deleteTarget.subject}"` : ""} לצמיתות?
+          </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" onClick={onCancelDelete}>
+          <Button variant="outlined" onClick={onCancelDelete} disabled={loading}>
             ביטול
           </Button>
-          <Button variant="contained" color="error" onClick={onConfirmDelete}>
+          <Button variant="contained" color="error" onClick={() => void onConfirmDelete()} disabled={loading}>
             מחיקה
           </Button>
         </DialogActions>
