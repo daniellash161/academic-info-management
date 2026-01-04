@@ -148,11 +148,13 @@ export function AdminLayout() {
         </Toolbar>
       </AppBar>
 
-      <AdminNav open={navOpen} onClose={() => setNavOpen(false)} />
+      {isDesktop && <AdminNav open={navOpen} onClose={() => setNavOpen(false)} />}
 
       <Box sx={{ p: { xs: 2, md: 3 } }}>
         {!isDesktop ? (
-          <Alert severity="info">מסכי מנהל זמינים בדסקטופ בלבד.</Alert>
+          <Box sx={{ maxWidth: 720, mx: "auto" }}>
+            <Alert severity="info">מסכי מנהל זמינים בדסקטופ בלבד.</Alert>
+          </Box>
         ) : (
           <Outlet />
         )}
