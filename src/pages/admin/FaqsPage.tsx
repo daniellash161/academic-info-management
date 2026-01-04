@@ -19,9 +19,13 @@ import EditIcon from "@mui/icons-material/Edit";
 import { useNavigate } from "react-router-dom";
 import type { Faq } from "../../models/faq";
 import { faqsService } from "../../services/faqsService";
+import { useSnackbar } from "../../hooks/useSnackbar";
+import { AppSnackbar } from "../../components/AppSnackbar";
 
 export function FaqsPage() {
   const navigate = useNavigate();
+  const snackbar = useSnackbar();
+
   const [rows, setRows] = useState<Faq[]>([]);
   const [query, setQuery] = useState("");
   const [publishedOnly, setPublishedOnly] = useState(false);
@@ -37,16 +41,25 @@ export function FaqsPage() {
 
   useEffect(() => {
     (async () => {
-      const items = await faqsService.search(query, publishedOnly);
-      setRows(items);
+      try {
+        const items = await faqsService.search(query, publishedOnly);
+        setRows(items);
+      } catch (e: any) {
+        snackbar.show(e?.message ?? "שגיאה בטעינת שאלות");
+      }
     })();
   }, [query, publishedOnly]);
 
   const filtered = useMemo(() => rows, [rows]);
 
   async function onDelete(id: string) {
-    await faqsService.remove(id);
-    await refresh();
+    try {
+      await faqsService.remove(id);
+      await refresh();
+      snackbar.show("השאלה נמחקה בהצלחה");
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה במחיקה");
+    }
   }
 
   return (
@@ -66,7 +79,12 @@ export function FaqsPage() {
           onChange={(e) => setQuery(e.target.value)}
         />
         <FormControlLabel
-          control={<Switch checked={publishedOnly} onChange={(e) => setPublishedOnly(e.target.checked)} />}
+          control={
+            <Switch
+              checked={publishedOnly}
+              onChange={(e) => setPublishedOnly(e.target.checked)}
+            />
+          }
           label="רק מפורסמות"
         />
       </Box>
@@ -109,6 +127,8 @@ export function FaqsPage() {
           </TableBody>
         </Table>
       </Paper>
+
+      <AppSnackbar open={snackbar.open} message={snackbar.message} onClose={snackbar.close} />
     </Box>
   );
 }
