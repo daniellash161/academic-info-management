@@ -8,6 +8,7 @@ import {
   DialogContentText,
   DialogTitle,
   IconButton,
+  LinearProgress,
   MenuItem,
   Paper,
   Table,
@@ -31,16 +32,25 @@ export function RequestsPage() {
   const [rows, setRows] = useState<RegistrationRequest[]>([]);
   const [statusFilter, setStatusFilter] = useState<RequestStatus | "ALL">("ALL");
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const navigate = useNavigate();
   const snackbar = useSnackbar();
 
-  function refresh() {
-    setRows(requestsService.getAll());
+  async function refresh() {
+    setLoading(true);
+    try {
+      const data = await requestsService.getAll();
+      setRows(data);
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה בטעינת נתונים");
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
-    refresh();
+    void refresh();
   }, []);
 
   function onAskDelete(requestNumber: number) {
@@ -51,12 +61,16 @@ export function RequestsPage() {
     setDeleteTarget(null);
   }
 
-  function onConfirmDelete() {
+  async function onConfirmDelete() {
     if (deleteTarget === null) return;
-    requestsService.remove(deleteTarget);
-    setDeleteTarget(null);
-    refresh();
-    snackbar.show("הבקשה נמחקה בהצלחה");
+    try {
+      await requestsService.remove(deleteTarget);
+      setDeleteTarget(null);
+      await refresh();
+      snackbar.show("הבקשה נמחקה בהצלחה");
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה במחיקה");
+    }
   }
 
   const filtered = useMemo(() => {
@@ -68,6 +82,8 @@ export function RequestsPage() {
 
   return (
     <Box>
+      {loading && <LinearProgress />}
+
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
         <Typography variant="h5">ניהול בקשות הרשמה</Typography>
         <Button variant="contained" onClick={() => navigate("/admin/requests/new")}>
@@ -130,7 +146,7 @@ export function RequestsPage() {
               );
             })}
 
-            {filtered.length === 0 && (
+            {filtered.length === 0 && !loading && (
               <TableRow>
                 <TableCell colSpan={6} align="center">
                   אין בקשות להצגה

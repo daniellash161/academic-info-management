@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { Box, Button, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Button,
+  LinearProgress,
+  MenuItem,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import type { RegistrationRequest, RequestStatus } from "../../models/registrationRequest";
 import { requestsService } from "../../services/requestsService";
@@ -10,7 +19,7 @@ import { AppSnackbar } from "../../components/AppSnackbar";
 type FormState = {
   candidateId: string;
   status: RequestStatus | "";
-  createdAt: string; // YYYY-MM-DD
+  createdAt: string;
   notes: string;
 };
 
@@ -22,10 +31,6 @@ function validate(values: FormState) {
   const errors: Partial<Record<keyof FormState, string>> = {};
 
   if (!values.candidateId) errors.candidateId = "חובה לבחור מועמד";
-  else {
-    const c = usersService.getById(values.candidateId);
-    if (!c || c.role !== "CANDIDATE") errors.candidateId = "המועמד שנבחר לא קיים";
-  }
 
   if (!values.status) errors.status = "חובה לבחור סטטוס";
 
@@ -38,8 +43,8 @@ function validate(values: FormState) {
 }
 
 export function RequestFormPage() {
-  const { requestNumber } = useParams();
-  const isEdit = Boolean(requestNumber);
+  const { id } = useParams();
+  const isEdit = Boolean(id);
 
   const [searchParams] = useSearchParams();
   const prefCandidateId = searchParams.get("candidateId") ?? "";
@@ -49,6 +54,9 @@ export function RequestFormPage() {
 
   const candidates = usersService.getCandidates();
   const statuses = requestsService.statuses();
+
+  const [loading, setLoading] = useState<boolean>(isEdit);
+  const [notFound, setNotFound] = useState(false);
 
   const [values, setValues] = useState<FormState>({
     candidateId: prefCandidateId,
@@ -64,18 +72,32 @@ export function RequestFormPage() {
   }, [prefCandidateId, isEdit]);
 
   useEffect(() => {
-    if (!requestNumber) return;
-    const num = Number(requestNumber);
-    const existing = requestsService.getByNumber(num);
-    if (!existing) return;
+    if (!id) return;
 
-    setValues({
-      candidateId: existing.candidateId,
-      status: existing.status,
-      createdAt: existing.createdAt,
-      notes: existing.notes ?? "",
-    });
-  }, [requestNumber]);
+    (async () => {
+      setLoading(true);
+      setNotFound(false);
+
+      try {
+        const existing = await requestsService.getById(decodeURIComponent(id));
+        if (!existing) {
+          setNotFound(true);
+          return;
+        }
+
+        setValues({
+          candidateId: existing.candidateId,
+          status: existing.status,
+          createdAt: existing.createdAt,
+          notes: existing.notes ?? "",
+        });
+      } catch (e: any) {
+        snackbar.show(e?.message ?? "שגיאה בטעינת בקשה");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [id]);
 
   const errors = useMemo(() => validate(values), [values]);
   const canSave = Object.keys(errors).length === 0;
@@ -85,13 +107,11 @@ export function RequestFormPage() {
   }
 
   function goCreateCandidate() {
-    const returnTo = isEdit
-      ? `/admin/requests/${requestNumber}/edit`
-      : "/admin/requests/new";
+    const returnTo = isEdit ? `/admin/requests/${id}/edit` : "/admin/requests/new";
     navigate(`/admin/candidates/new?returnTo=${encodeURIComponent(returnTo)}`);
   }
 
-  function onSave() {
+  async function onSave() {
     if (!canSave) return;
 
     const payload: Omit<RegistrationRequest, "requestNumber"> = {
@@ -101,21 +121,37 @@ export function RequestFormPage() {
       notes: values.notes.trim() ? values.notes.trim() : undefined,
     };
 
-    if (isEdit) {
-      requestsService.update(Number(requestNumber), payload);
-      snackbar.show("הבקשה עודכנה בהצלחה");
-    } else {
-      requestsService.create(payload);
-      snackbar.show("הבקשה נשמרה בהצלחה");
-    }
+    try {
+      if (isEdit && id) {
+        await requestsService.update(Number(decodeURIComponent(id)), payload);
+        snackbar.show("הבקשה עודכנה בהצלחה");
+      } else {
+        await requestsService.create(payload);
+        snackbar.show("הבקשה נשמרה בהצלחה");
+      }
 
-    navigate("/admin/requests");
+      navigate("/admin/requests");
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה בשמירה");
+    }
+  }
+
+  if (loading) {
+    return (
+      <Box>
+        <LinearProgress />
+      </Box>
+    );
+  }
+
+  if (notFound) {
+    return <Alert severity="error">Request not found</Alert>;
   }
 
   return (
     <Box>
       <Typography variant="h5" sx={{ mb: 2 }}>
-        {isEdit ? `עריכת בקשה #${requestNumber}` : "הוספת בקשת הרשמה"}
+        {isEdit ? `עריכת בקשה #${decodeURIComponent(id!)}` : "הוספת בקשת הרשמה"}
       </Typography>
 
       <Stack spacing={2} sx={{ maxWidth: 520 }}>

@@ -1,7 +1,25 @@
-import { LS_KEYS } from "../storage/lsKeys";
-import { readLS, writeLS } from "../storage/storage";
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+} from "firebase/firestore";
 import type { RegistrationRequest, RequestStatus } from "../models/registrationRequest";
-import { usersService } from "./usersService";
+import { firestore } from "../firebase/firebase";
+
+const COL = "requests";
+
+function clean<T extends Record<string, unknown>>(obj: T): Partial<T> {
+  const out: Partial<T> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v === undefined) continue;
+    (out as any)[k] = v;
+  }
+  return out;
+}
 
 function todayYmd() {
   return new Date().toISOString().slice(0, 10);
@@ -27,100 +45,88 @@ function normalizeStatus(s: string): RequestStatus {
   return "בטיוטה";
 }
 
-function readAll(): RegistrationRequest[] {
-  const items = readLS<RegistrationRequest[]>(LS_KEYS.requests, []);
-  return items.map((r) => ({
-    ...r,
-    status: normalizeStatus(String(r.status)),
-  }));
-}
-
-function writeAll(items: RegistrationRequest[]) {
-  writeLS(LS_KEYS.requests, items);
-}
-
-function nextRequestNumber(items: RegistrationRequest[]) {
-  const max = items.reduce((acc, x) => Math.max(acc, x.requestNumber), 0);
-  return max + 1;
-}
-
-function assertCandidateExists(candidateId: string) {
-  if (!candidateId) throw new Error("candidateId is required");
-  const candidate = usersService.getById(candidateId);
-  if (!candidate || candidate.role !== "CANDIDATE") {
-    throw new Error("Candidate does not exist");
-  }
+function normalizeFromDb(id: string, data: any): RegistrationRequest {
+  return {
+    requestNumber: Number(id),
+    candidateId: String(data?.candidateId ?? ""),
+    status: normalizeStatus(String(data?.status ?? "בטיוטה")),
+    createdAt: String(data?.createdAt ?? ""),
+    notes: typeof data?.notes === "string" ? data.notes : undefined,
+  };
 }
 
 export const requestsService = {
-  getAll(): RegistrationRequest[] {
-    return [...readAll()].sort((a, b) => b.requestNumber - a.requestNumber);
+  async getAll(): Promise<RegistrationRequest[]> {
+    const snap = await getDocs(collection(firestore, COL));
+    const items = snap.docs.map((d) => normalizeFromDb(d.id, d.data()));
+    return items.sort((a, b) => b.requestNumber - a.requestNumber);
   },
 
-  getByNumber(requestNumber: number): RegistrationRequest | undefined {
-    return readAll().find((r) => r.requestNumber === requestNumber);
+  async getById(id: string): Promise<RegistrationRequest | null> {
+    const docId = decodeURIComponent(id).trim();
+    const ref = doc(firestore, COL, docId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+    return normalizeFromDb(snap.id, snap.data());
   },
 
-  create(input: Omit<RegistrationRequest, "requestNumber">): RegistrationRequest {
-    assertCandidateExists(input.candidateId);
+  async create(input: Omit<RegistrationRequest, "requestNumber">): Promise<RegistrationRequest> {
     assertValidDate(input.createdAt);
     assertValidNotes(input.notes);
 
-    const all = readAll();
+    const all = await this.getAll();
+    const next = all.reduce((acc, x) => Math.max(acc, x.requestNumber), 0) + 1;
+    const docId = String(next);
 
-    const newItem: RegistrationRequest = {
-      requestNumber: nextRequestNumber(all),
+    const ref = doc(firestore, COL, docId);
+    const data = clean({
+      candidateId: input.candidateId,
+      status: normalizeStatus(String(input.status)),
+      createdAt: input.createdAt,
+      notes: input.notes?.trim() ? input.notes.trim() : undefined,
+    });
+
+    await setDoc(ref, data);
+
+    return {
+      requestNumber: next,
       candidateId: input.candidateId,
       status: normalizeStatus(String(input.status)),
       createdAt: input.createdAt,
       notes: input.notes?.trim() ? input.notes.trim() : undefined,
     };
-
-    writeAll([newItem, ...all]);
-    return newItem;
   },
 
-  update(
+  async update(
     requestNumber: number,
     patch: Partial<Omit<RegistrationRequest, "requestNumber">>
-  ): RegistrationRequest | undefined {
-    const all = readAll();
-    const idx = all.findIndex((r) => r.requestNumber === requestNumber);
-    if (idx === -1) return undefined;
+  ): Promise<void> {
+    if (patch.createdAt !== undefined) assertValidDate(patch.createdAt);
+    if (patch.notes !== undefined) assertValidNotes(patch.notes);
 
-    if (patch.candidateId !== undefined) {
-      assertCandidateExists(patch.candidateId);
-    }
+    const docId = String(requestNumber);
+    const ref = doc(firestore, COL, docId);
 
-    if (patch.createdAt !== undefined) {
-      assertValidDate(patch.createdAt);
-    }
+    const existing = await getDoc(ref);
+    if (!existing.exists()) throw new Error("Request not found");
 
-    if (patch.notes !== undefined) {
-      assertValidNotes(patch.notes);
-    }
-
-    const current = all[idx];
-
-    const updated: RegistrationRequest = {
-      ...current,
-      ...patch,
-      status: patch.status !== undefined ? normalizeStatus(String(patch.status)) : current.status,
+    const data = clean({
+      candidateId: patch.candidateId,
+      status: patch.status !== undefined ? normalizeStatus(String(patch.status)) : undefined,
+      createdAt: patch.createdAt,
       notes:
         patch.notes !== undefined
           ? patch.notes.trim()
             ? patch.notes.trim()
             : undefined
-          : current.notes,
-    };
+          : undefined,
+    });
 
-    all[idx] = updated;
-    writeAll(all);
-    return updated;
+    await updateDoc(ref, data as any);
   },
 
-  remove(requestNumber: number) {
-    writeAll(readAll().filter((r) => r.requestNumber !== requestNumber));
+  async remove(requestNumber: number): Promise<void> {
+    await deleteDoc(doc(firestore, COL, String(requestNumber)));
   },
 
   statuses(): RequestStatus[] {
