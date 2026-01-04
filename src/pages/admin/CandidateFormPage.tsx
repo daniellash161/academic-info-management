@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Box, Button, MenuItem, Stack, TextField, Typography } from "@mui/material";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import type { InterestArea, UserRole } from "../../models/user";
 import { usersService } from "../../services/usersService";
+import { useSnackbar } from "../../hooks/useSnackbar";
+import { AppSnackbar } from "../../components/AppSnackbar";
 
-const INTERESTS: InterestArea[] = [
-  "תואר ראשון במדעי המחשב",
-  "תואר שני במדעי המחשב",
-];
+const INTERESTS: InterestArea[] = ["תואר ראשון במדעי המחשב", "תואר שני במדעי המחשב"];
 
 const ROLES: Exclude<UserRole, "ADMIN">[] = ["CANDIDATE", "STUDENT", "GRADUATE"];
 
@@ -47,10 +46,23 @@ function validate(values: FormState) {
   return errors;
 }
 
+function appendCandidateId(returnTo: string, candidateId: string) {
+  if (!returnTo) return `/admin/requests/new?candidateId=${encodeURIComponent(candidateId)}`;
+  const [path, qs = ""] = returnTo.split("?");
+  const sp = new URLSearchParams(qs);
+  sp.set("candidateId", candidateId);
+  const nextQs = sp.toString();
+  return nextQs ? `${path}?${nextQs}` : path;
+}
+
 export function CandidateFormPage() {
   const { id } = useParams();
   const isEdit = Boolean(id);
   const navigate = useNavigate();
+  const snackbar = useSnackbar();
+  const [searchParams] = useSearchParams();
+
+  const returnTo = searchParams.get("returnTo") ?? "/admin/candidates";
 
   const [values, setValues] = useState<FormState>({
     fullName: "",
@@ -88,33 +100,43 @@ export function CandidateFormPage() {
     setValues((prev) => ({ ...prev, [key]: value }));
   }
 
+  function onCancel() {
+    navigate(returnTo);
+  }
+
   function onSave() {
     if (!canSave) return;
 
-    if (isEdit && id) {
-      usersService.update(id, {
-        fullName: values.fullName.trim(),
-        nationalId: values.nationalId,
-        email: values.email.trim(),
-        phone: values.phone,
-        role: values.role as any,
-        interest: (values.interest || undefined) as any,
-        notes: values.notes || undefined,
-      });
+    try {
+      if (isEdit && id) {
+        const updated = usersService.update(id, {
+          fullName: values.fullName.trim(),
+          nationalId: values.nationalId,
+          email: values.email.trim(),
+          phone: values.phone,
+          role: values.role as any,
+          interest: (values.interest || undefined) as any,
+          notes: values.notes || undefined,
+        });
 
-      navigate("/admin/candidates", { state: { toast: "המועמד עודכן בהצלחה" } });
-    } else {
-      usersService.create({
-        fullName: values.fullName.trim(),
-        nationalId: values.nationalId,
-        email: values.email.trim(),
-        phone: values.phone,
-        role: values.role as any,
-        interest: (values.interest || undefined) as any,
-        notes: values.notes || undefined,
-      });
+        const target = appendCandidateId(returnTo, updated.id);
+        navigate(target, { state: { toast: "המועמד עודכן בהצלחה" } });
+      } else {
+        const created = usersService.create({
+          fullName: values.fullName.trim(),
+          nationalId: values.nationalId,
+          email: values.email.trim(),
+          phone: values.phone,
+          role: values.role as any,
+          interest: (values.interest || undefined) as any,
+          notes: values.notes || undefined,
+        });
 
-      navigate("/admin/candidates", { state: { toast: "המועמד נשמר בהצלחה" } });
+        const target = appendCandidateId(returnTo, created.id);
+        navigate(target, { state: { toast: "המועמד נשמר בהצלחה" } });
+      }
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה בשמירה");
     }
   }
 
@@ -205,11 +227,13 @@ export function CandidateFormPage() {
           <Button variant="contained" onClick={onSave} disabled={!canSave}>
             שמירה
           </Button>
-          <Button variant="outlined" onClick={() => navigate("/admin/candidates")}>
+          <Button variant="outlined" onClick={onCancel}>
             ביטול
           </Button>
         </Stack>
       </Stack>
+
+      <AppSnackbar open={snackbar.open} message={snackbar.message} onClose={snackbar.close} />
     </Box>
   );
 }

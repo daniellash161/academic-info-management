@@ -45,10 +45,8 @@ export function CandidatesPage() {
     if (!toast) return;
 
     snackbar.show(toast);
-
-    // ניקוי state כדי שלא יופיע שוב ברענון/ניווט חוזר
     navigate(location.pathname, { replace: true, state: null });
-  }, [location.state, location.pathname, navigate]); // snackbar יציב מה-hook
+  }, [location.state, location.pathname, navigate]);
 
   function askDelete(u: User) {
     setDeleteTarget(u);
@@ -97,10 +95,7 @@ export function CandidatesPage() {
                 <TableCell>{u.phone}</TableCell>
                 <TableCell>{u.interest ?? "-"}</TableCell>
                 <TableCell align="right">
-                  <IconButton
-                    aria-label="edit"
-                    onClick={() => navigate(`/admin/candidates/${u.id}/edit`)}
-                  >
+                  <IconButton aria-label="edit" onClick={() => navigate(`/admin/candidates/${u.id}/edit`)}>
                     <EditIcon />
                   </IconButton>
                   <IconButton aria-label="delete" onClick={() => askDelete(u)}>
