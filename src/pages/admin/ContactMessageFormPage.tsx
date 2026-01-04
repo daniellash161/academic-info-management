@@ -1,13 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Box,
-  Button,
-  Divider,
-  MenuItem,
-  Stack,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { Box, Button, Divider, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import PhoneIcon from "@mui/icons-material/Phone";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
@@ -48,17 +40,23 @@ export function ContactMessageFormPage() {
   useEffect(() => {
     if (!id) return;
 
-    const existing = contactMessagesService.getById(id);
-    if (!existing) {
-      setMessage(null);
-      return;
-    }
+    (async () => {
+      try {
+        const existing = await contactMessagesService.getById(id);
+        if (!existing) {
+          setMessage(null);
+          return;
+        }
 
-    setMessage(existing);
-    setValues({
-      status: existing.status,
-      adminNote: existing.adminNote ?? "",
-    });
+        setMessage(existing);
+        setValues({
+          status: existing.status,
+          adminNote: existing.adminNote ?? "",
+        });
+      } catch (e: any) {
+        snackbar.show(e?.message ?? "שגיאה בטעינת פנייה");
+      }
+    })();
   }, [id]);
 
   const errors = useMemo(() => validate(values), [values]);
@@ -77,16 +75,20 @@ export function ContactMessageFormPage() {
     }
   }
 
-  function onSave() {
+  async function onSave() {
     if (!id || !canSave) return;
 
-    contactMessagesService.update(id, {
-      status: values.status as ContactMessageStatus,
-      adminNote: values.adminNote,
-    });
+    try {
+      await contactMessagesService.update(id, {
+        status: values.status as ContactMessageStatus,
+        adminNote: values.adminNote,
+      });
 
-    snackbar.show("הפנייה עודכנה בהצלחה");
-    navigate("/admin/contacts");
+      snackbar.show("הפנייה עודכנה בהצלחה");
+      navigate("/admin/contacts");
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה בשמירה");
+    }
   }
 
   const statuses = contactMessagesService.statuses();
@@ -112,7 +114,6 @@ export function ContactMessageFormPage() {
         עריכת פנייה
       </Typography>
 
-      {/* פרטי פנייה + פעולות */}
       <Stack spacing={2} sx={{ maxWidth: 900 }}>
         <Typography variant="h6">פרטי פנייה</Typography>
 
@@ -145,7 +146,7 @@ export function ContactMessageFormPage() {
             gap: 2,
             rowGap: 1.5,
             justifyContent: "flex-start",
-            "& .MuiButton-endIcon": { m: 0 }, 
+            "& .MuiButton-endIcon": { m: 0 },
             "& .MuiButton-startIcon": { m: 0 },
           }}
         >
@@ -171,7 +172,7 @@ export function ContactMessageFormPage() {
             variant="outlined"
             endIcon={<ContentCopyIcon />}
             sx={{ gap: 1, whiteSpace: "nowrap", px: 2.5 }}
-            onClick={() => copyToClipboard(message.email)}
+            onClick={() => void copyToClipboard(message.email)}
           >
             העתקת מייל
           </Button>
@@ -180,7 +181,7 @@ export function ContactMessageFormPage() {
             variant="outlined"
             endIcon={<ContentCopyIcon />}
             sx={{ gap: 1, whiteSpace: "nowrap", px: 2.5 }}
-            onClick={() => copyToClipboard(message.phone)}
+            onClick={() => void copyToClipboard(message.phone)}
           >
             העתקת טלפון
           </Button>
@@ -188,7 +189,6 @@ export function ContactMessageFormPage() {
 
         <Divider sx={{ my: 1 }} />
 
-        {/* ניהול פנייה (מנהל) */}
         <Typography variant="h6">עריכת סטטוס והערת מנהל</Typography>
 
         <TextField
@@ -219,7 +219,7 @@ export function ContactMessageFormPage() {
         />
 
         <Stack direction="row" spacing={2}>
-          <Button variant="contained" onClick={onSave} disabled={!canSave}>
+          <Button variant="contained" onClick={() => void onSave()} disabled={!canSave}>
             שמירה
           </Button>
           <Button variant="outlined" onClick={() => navigate("/admin/contacts")}>

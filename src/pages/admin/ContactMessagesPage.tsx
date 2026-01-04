@@ -12,47 +12,86 @@ import {
   TableRow,
   TextField,
   Typography,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import { useNavigate } from "react-router-dom";
 import type { ContactMessage } from "../../models/contactMessage";
 import { contactMessagesService } from "../../services/contactMessagesService";
+import { useSnackbar } from "../../hooks/useSnackbar";
+import { AppSnackbar } from "../../components/AppSnackbar";
 
 type ViewFilter = "ACTIVE" | "ARCHIVE" | "ALL";
 
 export function ContactMessagesPage() {
   const navigate = useNavigate();
+  const snackbar = useSnackbar();
+
   const [rows, setRows] = useState<ContactMessage[]>([]);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<ContactMessage["status"] | "ALL">("ALL");
-
   const [view, setView] = useState<ViewFilter>("ACTIVE");
 
-  function refresh() {
-    setRows(contactMessagesService.getAll());
+  const [deleteTarget, setDeleteTarget] = useState<ContactMessage | null>(null);
+
+  async function refresh() {
+    const items = await contactMessagesService.getAll();
+    setRows(items);
   }
 
   useEffect(() => {
-    refresh();
+    void refresh();
   }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const items =
+          statusFilter === "ALL"
+            ? await contactMessagesService.search(query, "ALL")
+            : await contactMessagesService.search(query, statusFilter);
+
+        setRows(items);
+      } catch (e: any) {
+        snackbar.show(e?.message ?? "שגיאה בטעינת פניות");
+      }
+    })();
+  }, [query, statusFilter]);
 
   const statuses = contactMessagesService.statuses();
 
   const filtered = useMemo(() => {
-    const base =
-      statusFilter === "ALL"
-        ? contactMessagesService.search(query, "ALL")
-        : contactMessagesService.search(query, statusFilter);
+    const base = rows;
 
     if (view === "ACTIVE") return base.filter((m) => m.status !== "נסגר");
     if (view === "ARCHIVE") return base.filter((m) => m.status === "נסגר");
     return base;
-  }, [query, statusFilter, view, rows]);
+  }, [rows, view]);
 
-  function onDelete(id: string) {
-    contactMessagesService.remove(id);
-    refresh();
+  function askDelete(m: ContactMessage) {
+    setDeleteTarget(m);
+  }
+
+  function cancelDelete() {
+    setDeleteTarget(null);
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+
+    try {
+      await contactMessagesService.remove(deleteTarget.id);
+      setDeleteTarget(null);
+      await refresh();
+      snackbar.show("הפנייה נמחקה בהצלחה");
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה במחיקה");
+    }
   }
 
   return (
@@ -124,7 +163,7 @@ export function ContactMessagesPage() {
                   <IconButton onClick={() => navigate(`/admin/contacts/${m.id}/edit`)}>
                     <EditIcon />
                   </IconButton>
-                  <IconButton onClick={() => onDelete(m.id)}>
+                  <IconButton onClick={() => askDelete(m)}>
                     <DeleteIcon />
                   </IconButton>
                 </TableCell>
@@ -141,6 +180,26 @@ export function ContactMessagesPage() {
           </TableBody>
         </Table>
       </Paper>
+
+      <Dialog open={Boolean(deleteTarget)} onClose={cancelDelete}>
+        <DialogTitle>מחיקת פנייה</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            האם למחוק את הפנייה
+            {deleteTarget ? ` "${deleteTarget.subject}"` : ""} לצמיתות?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="outlined" onClick={cancelDelete}>
+            ביטול
+          </Button>
+          <Button variant="contained" color="error" onClick={() => void confirmDelete()}>
+            מחיקה
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <AppSnackbar open={snackbar.open} message={snackbar.message} onClose={snackbar.close} />
     </Box>
   );
 }
