@@ -1,13 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Box,
-  Button,
-  FormControlLabel,
-  Stack,
-  Switch,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { Box, Button, FormControlLabel, Stack, Switch, TextField, Typography } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
 import type { Faq } from "../../models/faq";
 import { faqsService } from "../../services/faqsService";
@@ -53,15 +45,22 @@ export function FaqFormPage() {
 
   useEffect(() => {
     if (!id) return;
-    const existing = faqsService.getById(id);
-    if (!existing) return;
 
-    setValues({
-      question: existing.question,
-      answer: existing.answer,
-      displayOrder: existing.displayOrder,
-      isPublished: existing.isPublished,
-    });
+    (async () => {
+      try {
+        const existing = await faqsService.getById(id);
+        if (!existing) return;
+
+        setValues({
+          question: existing.question,
+          answer: existing.answer,
+          displayOrder: existing.displayOrder,
+          isPublished: existing.isPublished,
+        });
+      } catch (e: any) {
+        snackbar.show(e?.message ?? "שגיאה בטעינת שאלה");
+      }
+    })();
   }, [id]);
 
   const errors = useMemo(() => validate(values), [values]);
@@ -71,7 +70,7 @@ export function FaqFormPage() {
     setValues((prev) => ({ ...prev, [key]: value }));
   }
 
-  function onSave() {
+  async function onSave() {
     if (!canSave) return;
 
     const payload: Omit<Faq, "id" | "createdAt"> = {
@@ -81,15 +80,19 @@ export function FaqFormPage() {
       isPublished: values.isPublished,
     };
 
-    if (isEdit && id) {
-      faqsService.update(id, payload);
-      snackbar.show("השאלה עודכנה בהצלחה");
-    } else {
-      faqsService.create(payload);
-      snackbar.show("השאלה נשמרה בהצלחה");
-    }
+    try {
+      if (isEdit && id) {
+        await faqsService.update(id, payload);
+        snackbar.show("השאלה עודכנה בהצלחה");
+      } else {
+        await faqsService.create(payload);
+        snackbar.show("השאלה נשמרה בהצלחה");
+      }
 
-    navigate("/admin/faqs");
+      navigate("/admin/faqs");
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה בשמירה");
+    }
   }
 
   return (
@@ -124,25 +127,18 @@ export function FaqFormPage() {
           required
           type="number"
           value={values.displayOrder}
-          onChange={(e) =>
-            setField("displayOrder", e.target.value === "" ? "" : Number(e.target.value))
-          }
+          onChange={(e) => setField("displayOrder", e.target.value === "" ? "" : Number(e.target.value))}
           error={Boolean(errors.displayOrder)}
           helperText={errors.displayOrder ?? " "}
         />
 
         <FormControlLabel
-          control={
-            <Switch
-              checked={values.isPublished}
-              onChange={(e) => setField("isPublished", e.target.checked)}
-            />
-          }
+          control={<Switch checked={values.isPublished} onChange={(e) => setField("isPublished", e.target.checked)} />}
           label="מפורסם"
         />
 
         <Stack direction="row" spacing={2}>
-          <Button variant="contained" onClick={onSave} disabled={!canSave}>
+          <Button variant="contained" onClick={() => void onSave()} disabled={!canSave}>
             שמירה
           </Button>
           <Button variant="outlined" onClick={() => navigate("/admin/faqs")}>

@@ -1,4 +1,3 @@
-// src/pages/admin/FaqsPage.tsx
 import { useEffect, useMemo, useState } from "react";
 import {
   Box,
@@ -27,21 +26,27 @@ export function FaqsPage() {
   const [query, setQuery] = useState("");
   const [publishedOnly, setPublishedOnly] = useState(false);
 
-  function refresh() {
-    setRows(faqsService.getAll());
+  async function refresh() {
+    const items = await faqsService.getAll();
+    setRows(items);
   }
 
   useEffect(() => {
-    refresh();
+    void refresh();
   }, []);
 
-  const filtered = useMemo(() => {
-    return faqsService.search(query, publishedOnly);
-  }, [query, publishedOnly, rows]);
+  useEffect(() => {
+    (async () => {
+      const items = await faqsService.search(query, publishedOnly);
+      setRows(items);
+    })();
+  }, [query, publishedOnly]);
 
-  function onDelete(id: string) {
-    faqsService.remove(id);
-    refresh();
+  const filtered = useMemo(() => rows, [rows]);
+
+  async function onDelete(id: string) {
+    await faqsService.remove(id);
+    await refresh();
   }
 
   return (
@@ -87,7 +92,7 @@ export function FaqsPage() {
                   <IconButton onClick={() => navigate(`/admin/faqs/${f.id}/edit`)}>
                     <EditIcon />
                   </IconButton>
-                  <IconButton onClick={() => onDelete(f.id)}>
+                  <IconButton onClick={() => void onDelete(f.id)}>
                     <DeleteIcon />
                   </IconButton>
                 </TableCell>
