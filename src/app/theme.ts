@@ -9,7 +9,7 @@ export function buildTheme(mode: "light" | "dark") {
     palette: {
       mode,
 
-      primary: { main: isDark ? blue[300] : blue[700] },
+      primary: { main: isDark ? blue[200] : blue[700] },
       secondary: { main: isDark ? deepOrange[200] : deepOrange[400] },
 
       background: isDark
@@ -17,14 +17,14 @@ export function buildTheme(mode: "light" | "dark") {
         : { default: grey[50], paper: "#fff" },
 
       text: isDark
-        ? { primary: grey[100], secondary: grey[400] }
+        ? { primary: grey[100], secondary: grey[300] }
         : { primary: grey[900], secondary: grey[700] },
-
-      divider: isDark ? grey[800] : grey[200],
     },
+
     typography: {
       fontFamily: ["Heebo", "Roboto", "Arial", "sans-serif"].join(","),
     },
+
     shape: { borderRadius: 12 },
   });
 
