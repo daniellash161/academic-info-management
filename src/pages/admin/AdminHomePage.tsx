@@ -27,7 +27,6 @@ import { requestsService } from "../../services/requestsService";
 import { coursesService } from "../../services/coursesService";
 import { requirementsService } from "../../services/requirementsService";
 import type { RegistrationRequest } from "../../models/registrationRequest";
-import type { User } from "../../models/user";
 
 import { useSnackbar } from "../../hooks/useSnackbar";
 import { AppSnackbar } from "../../components/AppSnackbar";
@@ -87,6 +86,19 @@ type RecentCandidateRow = {
   createdAt: string;
 };
 
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = window.setTimeout(() => reject(new Error(`Timeout: ${label}`)), ms);
+    p.then((x) => {
+      window.clearTimeout(t);
+      resolve(x);
+    }).catch((e) => {
+      window.clearTimeout(t);
+      reject(e);
+    });
+  });
+}
+
 export function AdminHomePage() {
   const navigate = useNavigate();
   const snackbar = useSnackbar();
@@ -104,24 +116,28 @@ export function AdminHomePage() {
 
   async function refresh() {
     setLoading(true);
+
     try {
+      // 10-12 שניות זה מספיק כדי להבין שיש בעיית חיבור/Rules/Config במקום להיתקע דקה+
       const [candidates, courses, requirements, allRequests] = await Promise.all([
-        usersService.getCandidates(),
-        coursesService.getAll(),
-        requirementsService.getAll(),
-        requestsService.getAll(),
+        withTimeout(Promise.resolve(usersService.getCandidates() as any), 12000, "candidates"),
+        withTimeout(coursesService.getAll(), 12000, "courses"),
+        withTimeout(requirementsService.getAll(), 12000, "requirements"),
+        withTimeout(requestsService.getAll(), 12000, "requests"),
       ]);
 
-      setCandidatesCount(candidates.length);
-      setCoursesCount(courses.length);
-      setRequirementsCount(requirements.length);
+      setCandidatesCount(Array.isArray(candidates) ? candidates.length : 0);
+      setCoursesCount(Array.isArray(courses) ? courses.length : 0);
+      setRequirementsCount(Array.isArray(requirements) ? requirements.length : 0);
 
-      setRequests(allRequests);
+      setRequests(Array.isArray(allRequests) ? allRequests : []);
 
-      const candidatesById: Record<string, User> = {};
-      for (const c of candidates) candidatesById[c.id] = c;
+      const candidatesById: Record<string, any> = {};
+      if (Array.isArray(candidates)) {
+        for (const c of candidates) candidatesById[c.id] = c;
+      }
 
-      const pendingTop = [...allRequests]
+      const pendingTop = [...(Array.isArray(allRequests) ? allRequests : [])]
         .filter((r) => r.status === "נשלחה")
         .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
         .slice(0, 5)
@@ -137,7 +153,7 @@ export function AdminHomePage() {
 
       setPendingRequests(pendingTop);
 
-      const recent = [...candidates]
+      const recent = [...(Array.isArray(candidates) ? candidates : [])]
         .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
         .slice(0, 5)
         .map((c) => ({
@@ -148,7 +164,9 @@ export function AdminHomePage() {
 
       setRecentCandidates(recent);
     } catch (e: any) {
-      snackbar.show(e?.message ?? "שגיאה בטעינת נתונים (בדקי חיבור Firebase / הרשאות)");
+      console.error("AdminHomePage refresh error:", e);
+      snackbar.show(e?.message ?? "שגיאה בטעינת נתונים (בדקי חיבור ל-Firestore)");
+      // לא משנים עיצוב: פשוט מציגים 0/ריק במקום להיתקע
       setCandidatesCount(0);
       setCoursesCount(0);
       setRequirementsCount(0);
