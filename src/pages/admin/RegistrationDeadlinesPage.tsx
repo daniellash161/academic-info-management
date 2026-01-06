@@ -18,6 +18,7 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
+  MenuItem,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
@@ -31,12 +32,15 @@ function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+type ActiveFilter = "ALL" | "ACTIVE" | "INACTIVE";
+
 export function RegistrationDeadlinesPage() {
   const navigate = useNavigate();
   const snackbar = useSnackbar();
 
   const [rows, setRows] = useState<RegistrationDeadline[]>([]);
   const [query, setQuery] = useState("");
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>("ALL");
   const [loading, setLoading] = useState(true);
 
   const [deleteTarget, setDeleteTarget] = useState<RegistrationDeadline | null>(null);
@@ -79,7 +83,11 @@ export function RegistrationDeadlinesPage() {
     };
   }, [query]);
 
-  const filtered = useMemo(() => rows, [rows]);
+  const filtered = useMemo(() => {
+    if (activeFilter === "ALL") return rows;
+    if (activeFilter === "ACTIVE") return rows.filter((r) => r.isActive);
+    return rows.filter((r) => !r.isActive);
+  }, [rows, activeFilter]);
 
   function askDelete(d: RegistrationDeadline) {
     setDeleteTarget(d);
@@ -110,7 +118,9 @@ export function RegistrationDeadlinesPage() {
 
   return (
     <Box>
-      {loading && <LinearProgress />}
+      <Box sx={{ height: 4 }}>
+        <LinearProgress sx={{ visibility: loading ? "visible" : "hidden" }} />
+      </Box>
 
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
         <Typography variant="h5">ניהול מועדי הרשמה</Typography>
@@ -119,7 +129,19 @@ export function RegistrationDeadlinesPage() {
         </Button>
       </Box>
 
-      <Box sx={{ mb: 2, maxWidth: 420 }}>
+      <Box sx={{ display: "flex", gap: 2, mb: 2, maxWidth: 900 }}>
+        <TextField
+          select
+          label="סינון פעיל"
+          value={activeFilter}
+          onChange={(e) => setActiveFilter(e.target.value as ActiveFilter)}
+          sx={{ width: 220 }}
+        >
+          <MenuItem value="ALL">הכל</MenuItem>
+          <MenuItem value="ACTIVE">פעיל</MenuItem>
+          <MenuItem value="INACTIVE">לא פעיל</MenuItem>
+        </TextField>
+
         <TextField
           fullWidth
           label="חיפוש לפי כותרת / תאריכים / הערות / סטטוס"
