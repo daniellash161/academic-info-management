@@ -77,12 +77,16 @@ export function CourseFormPage() {
   useEffect(() => {
     if (!id) return;
 
+    let alive = true;
+
     (async () => {
       setLoading(true);
       setNotFound(false);
 
       try {
         const existing = await coursesService.getByCode(decodeURIComponent(id));
+        if (!alive) return;
+
         if (!existing) {
           setNotFound(true);
           return;
@@ -98,12 +102,18 @@ export function CourseFormPage() {
           lecturer: existing.lecturer ?? "",
         });
       } catch (e: any) {
+        if (!alive) return;
         snackbar.show(e?.message ?? "שגיאה בטעינת קורס");
       } finally {
+        if (!alive) return;
         setLoading(false);
       }
     })();
-  }, [id, snackbar]);
+
+    return () => {
+      alive = false;
+    };
+  }, [id]);
 
   const errors = useMemo(() => validate(values), [values]);
   const canSave = Object.keys(errors).length === 0;
@@ -112,13 +122,16 @@ export function CourseFormPage() {
     setValues((prev) => ({ ...prev, [key]: value }));
   }
 
-  async function validatePrereqAgainstDb() {
+  async function validatePrereqAgainstDb(): Promise<string | null> {
     const prereq = parsePrereq(values.prerequisites);
     if (prereq.length === 0) return null;
 
+    // single DB call instead of many
+    const all = await coursesService.getAll();
+    const codes = new Set(all.map((c) => c.code));
+
     for (const p of prereq) {
-      const exists = await coursesService.getByCode(p);
-      if (!exists) return `קורס קדם לא קיים: ${p}`;
+      if (!codes.has(p)) return `קורס קדם לא קיים: ${p}`;
     }
     return null;
   }
@@ -126,24 +139,24 @@ export function CourseFormPage() {
   async function onSave() {
     if (!canSave || saving) return;
 
-    const prereqError = await validatePrereqAgainstDb();
-    if (prereqError) {
-      snackbar.show(prereqError);
-      return;
-    }
-
-    const payload: Course = {
-      name: values.name.trim(),
-      code: values.code.trim(),
-      semester: values.semester as Semester,
-      credits: Number(values.credits),
-      prerequisites: parsePrereq(values.prerequisites),
-      syllabus: values.syllabus.trim() ? values.syllabus.trim() : undefined,
-      lecturer: values.lecturer.trim() ? values.lecturer.trim() : undefined,
-    };
-
     setSaving(true);
     try {
+      const prereqError = await validatePrereqAgainstDb();
+      if (prereqError) {
+        snackbar.show(prereqError);
+        return;
+      }
+
+      const payload: Course = {
+        name: values.name.trim(),
+        code: values.code.trim(),
+        semester: values.semester as Semester,
+        credits: Number(values.credits),
+        prerequisites: parsePrereq(values.prerequisites),
+        syllabus: values.syllabus.trim() ? values.syllabus.trim() : undefined,
+        lecturer: values.lecturer.trim() ? values.lecturer.trim() : undefined,
+      };
+
       if (isEdit && id) {
         await coursesService.update(decodeURIComponent(id), {
           name: payload.name,
@@ -195,6 +208,7 @@ export function CourseFormPage() {
           onChange={(e) => setField("name", e.target.value)}
           error={Boolean(errors.name)}
           helperText={errors.name ?? " "}
+          disabled={saving}
         />
 
         <TextField
@@ -204,7 +218,7 @@ export function CourseFormPage() {
           onChange={(e) => setField("code", e.target.value)}
           error={Boolean(errors.code)}
           helperText={errors.code ?? (isEdit ? "Code cannot be changed" : " ")}
-          disabled={isEdit}
+          disabled={isEdit || saving}
         />
 
         <TextField
@@ -215,6 +229,7 @@ export function CourseFormPage() {
           onChange={(e) => setField("semester", e.target.value as any)}
           error={Boolean(errors.semester)}
           helperText={errors.semester ?? " "}
+          disabled={saving}
         >
           <MenuItem value="א">א</MenuItem>
           <MenuItem value="ב">ב</MenuItem>
@@ -229,6 +244,7 @@ export function CourseFormPage() {
           onChange={(e) => setField("credits", Number(e.target.value) as any)}
           error={Boolean(errors.credits)}
           helperText={errors.credits ?? " "}
+          disabled={saving}
         >
           {[1, 2, 3, 4, 5].map((n) => (
             <MenuItem key={n} value={n}>
@@ -241,12 +257,14 @@ export function CourseFormPage() {
           label="קורסי קדם (optional, comma-separated)"
           value={values.prerequisites}
           onChange={(e) => setField("prerequisites", e.target.value)}
+          disabled={saving}
         />
 
         <TextField
           label="מרצה אחראי (optional)"
           value={values.lecturer}
           onChange={(e) => setField("lecturer", e.target.value)}
+          disabled={saving}
         />
 
         <TextField
@@ -255,6 +273,7 @@ export function CourseFormPage() {
           onChange={(e) => setField("syllabus", e.target.value)}
           multiline
           minRows={4}
+          disabled={saving}
         />
 
         <Stack direction="row" spacing={2}>

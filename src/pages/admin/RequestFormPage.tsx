@@ -69,18 +69,28 @@ export function RequestFormPage() {
   });
 
   useEffect(() => {
+    let alive = true;
+
     (async () => {
       setCandidatesLoading(true);
       try {
         const list = await usersService.getCandidates();
+        if (!alive) return;
         setCandidates(list);
       } catch (e: any) {
+        if (!alive) return;
         snackbar.show(e?.message ?? "שגיאה בטעינת מועמדים");
       } finally {
+        if (!alive) return;
         setCandidatesLoading(false);
       }
     })();
-  }, [snackbar]);
+
+    return () => {
+      alive = false;
+    };
+    
+  }, []);
 
   useEffect(() => {
     if (!isEdit && prefCandidateId) {
@@ -91,12 +101,16 @@ export function RequestFormPage() {
   useEffect(() => {
     if (!id) return;
 
+    let alive = true;
+
     (async () => {
       setLoading(true);
       setNotFound(false);
 
       try {
         const existing = await requestsService.getById(decodeURIComponent(id));
+        if (!alive) return;
+
         if (!existing) {
           setNotFound(true);
           return;
@@ -109,12 +123,18 @@ export function RequestFormPage() {
           notes: existing.notes ?? "",
         });
       } catch (e: any) {
+        if (!alive) return;
         snackbar.show(e?.message ?? "שגיאה בטעינת בקשה");
       } finally {
+        if (!alive) return;
         setLoading(false);
       }
     })();
-  }, [id, snackbar]);
+
+    return () => {
+      alive = false;
+    };
+  }, [id]);
 
   const errors = useMemo(() => validate(values), [values]);
   const canSave = Object.keys(errors).length === 0;
@@ -170,6 +190,8 @@ export function RequestFormPage() {
 
   return (
     <Box>
+      {saving && <LinearProgress sx={{ mb: 2 }} />}
+
       <Typography variant="h5" sx={{ mb: 2 }}>
         {isEdit ? `עריכת בקשה #${decodeURIComponent(id!)}` : "הוספת בקשת הרשמה"}
       </Typography>
@@ -185,7 +207,7 @@ export function RequestFormPage() {
             onChange={(e) => setField("candidateId", e.target.value)}
             error={Boolean(errors.candidateId)}
             helperText={errors.candidateId ?? " "}
-            disabled={candidatesLoading}
+            disabled={candidatesLoading || saving}
           >
             <MenuItem value="">— בחרי מועמד —</MenuItem>
             {candidates.map((c) => (
@@ -195,7 +217,12 @@ export function RequestFormPage() {
             ))}
           </TextField>
 
-          <Button variant="outlined" onClick={goCreateCandidate} sx={{ whiteSpace: "nowrap", mt: "2px" }}>
+          <Button
+            variant="outlined"
+            onClick={goCreateCandidate}
+            sx={{ whiteSpace: "nowrap", mt: "2px" }}
+            disabled={saving}
+          >
             יצירת מועמד חדש
           </Button>
         </Stack>
@@ -208,6 +235,7 @@ export function RequestFormPage() {
           onChange={(e) => setField("status", e.target.value as any)}
           error={Boolean(errors.status)}
           helperText={errors.status ?? " "}
+          disabled={saving}
         >
           {statuses.map((s) => (
             <MenuItem key={s} value={s}>
@@ -225,6 +253,7 @@ export function RequestFormPage() {
           error={Boolean(errors.createdAt)}
           helperText={errors.createdAt ?? " "}
           InputLabelProps={{ shrink: true }}
+          disabled={saving}
         />
 
         <TextField
@@ -235,13 +264,18 @@ export function RequestFormPage() {
           minRows={3}
           error={Boolean(errors.notes)}
           helperText={errors.notes ?? `${values.notes.length}/300`}
+          disabled={saving}
         />
 
         <Stack direction="row" spacing={2}>
-          <Button variant="contained" onClick={() => void onSave()} disabled={!canSave || saving || candidatesLoading}>
+          <Button
+            variant="contained"
+            onClick={() => void onSave()}
+            disabled={!canSave || saving || candidatesLoading}
+          >
             שמירה
           </Button>
-          <Button variant="outlined" onClick={() => navigate("/admin/requests")}>
+          <Button variant="outlined" onClick={() => navigate("/admin/requests")} disabled={saving}>
             ביטול
           </Button>
         </Stack>
