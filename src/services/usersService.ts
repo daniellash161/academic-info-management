@@ -8,11 +8,13 @@ import {
   setDoc,
   updateDoc,
   where,
+  writeBatch,
 } from "firebase/firestore";
 import type { InterestArea, User, UserRole } from "../models/user";
 import { firestore } from "../firebase/config";
 
 const COL = "users";
+const REQUESTS_COL = "requests";
 
 type CreateUserInput = Omit<User, "id" | "createdAt">;
 type UpdateUserPatch = Partial<Omit<User, "id" | "createdAt">>;
@@ -31,9 +33,7 @@ function normalizeEmail(email: string) {
 }
 
 function normalizeRole(x: any): UserRole {
-  return x === "CANDIDATE" || x === "ADMIN" || x === "STUDENT" || x === "GRADUATE"
-    ? x
-    : "CANDIDATE";
+  return x === "CANDIDATE" || x === "ADMIN" || x === "STUDENT" || x === "GRADUATE" ? x : "CANDIDATE";
 }
 
 function normalizeInterest(x: any): InterestArea | undefined {
@@ -45,14 +45,14 @@ function normalizeFromDb(id: string, data: any): User {
   return {
     id,
     fullName: String(data?.fullName ?? ""),
-    nationalId: String(data?.nationalId ?? ""),
+    nationalId: String(data?.nationalId ?? id), // נשמור עקבי
     email: String(data?.email ?? ""),
     phone: String(data?.phone ?? ""),
     role: normalizeRole(data?.role),
     password: typeof data?.password === "string" ? data.password : undefined,
     interest: normalizeInterest(data?.interest),
     notes: typeof data?.notes === "string" ? data.notes : undefined,
-    createdAt: typeof data?.createdAt === "string" ? data.createdAt : new Date(0).toISOString(),
+    createdAt: String(data?.createdAt ?? ""),
   };
 }
 
@@ -93,6 +93,18 @@ function assertValidNotes(notes?: string) {
   if (notes.length > 300) throw new Error("הערות עד 300 תווים");
 }
 
+async function updateCandidateIdInRequests(oldCandidateId: string, newCandidateId: string) {
+  const q = query(collection(firestore, REQUESTS_COL), where("candidateId", "==", oldCandidateId));
+  const snap = await getDocs(q);
+  if (snap.empty) return;
+
+  const batch = writeBatch(firestore);
+  for (const d of snap.docs) {
+    batch.update(d.ref, { candidateId: newCandidateId });
+  }
+  await batch.commit();
+}
+
 export const usersService = {
   async getAll(): Promise<User[]> {
     const snap = await getDocs(collection(firestore, COL));
@@ -100,23 +112,15 @@ export const usersService = {
     return items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   },
 
-
   async getCandidates(): Promise<User[]> {
-    const qy = query(collection(firestore, COL), where("role", "==", "CANDIDATE"));
-    const snap = await getDocs(qy);
-
-    let items = snap.docs.map((d) => normalizeFromDb(d.id, d.data()));
-
-    if (items.length === 0) {
-      const all = await this.getAll();
-      items = all.filter((u) => normalizeRole(u.role) === "CANDIDATE");
-    }
-
+    const q = query(collection(firestore, COL), where("role", "==", "CANDIDATE"));
+    const snap = await getDocs(q);
+    const items = snap.docs.map((d) => normalizeFromDb(d.id, d.data()));
     return items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   },
 
   async getById(id: string): Promise<User | null> {
-    const docId = decodeURIComponent(id).trim();
+    const docId = decodeURIComponent(id).trim(); // docId = ת"ז
     const ref = doc(firestore, COL, docId);
     const snap = await getDoc(ref);
     if (!snap.exists()) return null;
@@ -125,29 +129,18 @@ export const usersService = {
 
   async isNationalIdTaken(nationalId: string, excludeId?: string): Promise<boolean> {
     const nid = String(nationalId).trim();
-    const qy = query(collection(firestore, COL), where("nationalId", "==", nid));
-    const snap = await getDocs(qy);
-    if (snap.empty) return false;
-    return snap.docs.some((d) => d.id !== excludeId);
+    if (excludeId && nid === excludeId) return false;
+    const ref = doc(firestore, COL, nid);
+    const snap = await getDoc(ref);
+    return snap.exists();
   },
 
-  
   async isEmailTaken(email: string, excludeId?: string): Promise<boolean> {
-    const eLower = normalizeEmail(email);
-
-    const qLower = query(collection(firestore, COL), where("emailLower", "==", eLower));
-    const snapLower = await getDocs(qLower);
-    if (!snapLower.empty) return snapLower.docs.some((d) => d.id !== excludeId);
-
-    const qEmail1 = query(collection(firestore, COL), where("email", "==", email.trim()));
-    const snap1 = await getDocs(qEmail1);
-    if (!snap1.empty) return snap1.docs.some((d) => d.id !== excludeId);
-
-    const qEmail2 = query(collection(firestore, COL), where("email", "==", eLower));
-    const snap2 = await getDocs(qEmail2);
-    if (!snap2.empty) return snap2.docs.some((d) => d.id !== excludeId);
-
-    return false;
+    const e = normalizeEmail(email);
+    const q = query(collection(firestore, COL), where("emailLower", "==", e));
+    const snap = await getDocs(q);
+    if (snap.empty) return false;
+    return snap.docs.some((d) => d.id !== excludeId);
   },
 
   async create(input: CreateUserInput): Promise<User> {
@@ -158,19 +151,19 @@ export const usersService = {
     assertValidPassword(input.role, input.password);
     assertValidNotes(input.notes);
 
-    const nationalId = String(input.nationalId).trim();
+    const nationalId = String(input.nationalId).trim(); // יהיה ה-ID
     const email = input.email.trim();
     const emailLower = normalizeEmail(email);
 
     if (await this.isNationalIdTaken(nationalId)) throw new Error('ת"ז כבר קיימת במערכת');
     if (await this.isEmailTaken(email)) throw new Error("מייל כבר קיים במערכת");
 
-    const ref = doc(collection(firestore, COL));
+    const ref = doc(firestore, COL, nationalId);
     const createdAt = new Date().toISOString();
 
     const user: User = {
       ...input,
-      id: ref.id,
+      id: nationalId,
       createdAt,
       fullName: input.fullName.trim(),
       nationalId,
@@ -185,7 +178,7 @@ export const usersService = {
       fullName: user.fullName,
       nationalId: user.nationalId,
       email: user.email,
-      emailLower, 
+      emailLower,
       phone: user.phone,
       role: user.role,
       password: user.password,
@@ -199,7 +192,7 @@ export const usersService = {
   },
 
   async update(id: string, patch: UpdateUserPatch): Promise<User> {
-    const docId = decodeURIComponent(id).trim();
+    const docId = decodeURIComponent(id).trim(); // docId = ת"ז הנוכחית
     const ref = doc(firestore, COL, docId);
 
     const snap = await getDoc(ref);
@@ -232,13 +225,20 @@ export const usersService = {
     assertValidPassword(nextRole, nextPassword ? nextPassword : undefined);
     assertValidNotes(nextNotes ? nextNotes : undefined);
 
-    if (await this.isNationalIdTaken(nextNationalId, docId)) throw new Error('ת"ז כבר קיימת במערכת');
-    if (await this.isEmailTaken(nextEmail, docId)) throw new Error("מייל כבר קיים במערכת");
+    const changingId = nextNationalId !== docId;
+
+    if (changingId) {
+      if (await this.isNationalIdTaken(nextNationalId)) throw new Error('ת"ז כבר קיימת במערכת');
+    }
+
+    if (await this.isEmailTaken(nextEmail, changingId ? undefined : docId)) {
+      throw new Error("מייל כבר קיים במערכת");
+    }
 
     const updated: User = {
       ...current,
       ...patch,
-      id: current.id,
+      id: nextNationalId, 
       createdAt: current.createdAt,
       fullName: nextFullName,
       nationalId: nextNationalId,
@@ -254,20 +254,31 @@ export const usersService = {
       fullName: updated.fullName,
       nationalId: updated.nationalId,
       email: updated.email,
-      emailLower: nextEmailLower, 
+      emailLower: nextEmailLower,
       phone: updated.phone,
       role: updated.role,
       password: updated.password,
       interest: updated.interest,
       notes: updated.notes,
+      createdAt: updated.createdAt,
     });
 
-    await updateDoc(ref, data as any);
+    if (!changingId) {
+      await updateDoc(ref, data as any);
+      return updated;
+    }
+
+    const newRef = doc(firestore, COL, nextNationalId);
+
+    await setDoc(newRef, data); 
+    await deleteDoc(ref);       
+    await updateCandidateIdInRequests(docId, nextNationalId);
+
     return updated;
   },
 
   async remove(id: string): Promise<void> {
-    const docId = decodeURIComponent(id).trim();
+    const docId = decodeURIComponent(id).trim(); // docId = ת"ז
     await deleteDoc(doc(firestore, COL, docId));
   },
 };
