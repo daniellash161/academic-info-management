@@ -24,6 +24,23 @@ function clean<T extends Record<string, unknown>>(obj: T): Partial<T> {
   return out;
 }
 
+function assertValidQuestion(question: string) {
+  const q = (question ?? "").trim();
+  if (!q) throw new Error("question is required");
+  if (q.length > 120) throw new Error("question must be up to 120 characters");
+}
+
+function assertValidAnswer(answer: string) {
+  const a = (answer ?? "").trim();
+  if (!a) throw new Error("answer is required");
+  if (a.length > 800) throw new Error("answer must be up to 800 characters");
+}
+
+function assertValidDisplayOrder(displayOrder: number) {
+  const n = Number(displayOrder);
+  if (!Number.isInteger(n) || n < 1) throw new Error("displayOrder must be an integer >= 1");
+}
+
 function normalizeFromDb(id: string, data: any): Faq {
   return {
     id,
@@ -56,6 +73,10 @@ export const faqsService = {
   },
 
   async create(input: CreateInput): Promise<Faq> {
+    assertValidQuestion(input.question);
+    assertValidAnswer(input.answer);
+    assertValidDisplayOrder(Number(input.displayOrder));
+
     const ref = doc(collection(firestore, COL));
 
     const item: Faq = {
@@ -88,12 +109,21 @@ export const faqsService = {
 
     const current = normalizeFromDb(existing.id, existing.data());
 
+    const nextQuestion = patch.question !== undefined ? patch.question.trim() : current.question;
+    const nextAnswer = patch.answer !== undefined ? patch.answer.trim() : current.answer;
+    const nextDisplayOrder =
+      patch.displayOrder !== undefined ? Number(patch.displayOrder) : current.displayOrder;
+
+    assertValidQuestion(nextQuestion);
+    assertValidAnswer(nextAnswer);
+    assertValidDisplayOrder(nextDisplayOrder);
+
     const updated: Faq = {
       ...current,
       ...patch,
-      question: patch.question !== undefined ? patch.question.trim() : current.question,
-      answer: patch.answer !== undefined ? patch.answer.trim() : current.answer,
-      displayOrder: patch.displayOrder !== undefined ? Number(patch.displayOrder) : current.displayOrder,
+      question: nextQuestion,
+      answer: nextAnswer,
+      displayOrder: nextDisplayOrder,
       isPublished: patch.isPublished !== undefined ? Boolean(patch.isPublished) : current.isPublished,
       createdAt: current.createdAt,
     };
