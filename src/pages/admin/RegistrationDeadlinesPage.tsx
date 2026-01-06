@@ -2,7 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   IconButton,
+  LinearProgress,
   Paper,
   Table,
   TableBody,
@@ -11,12 +18,6 @@ import {
   TableRow,
   TextField,
   Typography,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
@@ -34,10 +35,18 @@ export function RegistrationDeadlinesPage() {
   const [query, setQuery] = useState("");
 
   const [deleteTarget, setDeleteTarget] = useState<RegistrationDeadline | null>(null);
+  const [loading, setLoading] = useState(true);
 
   async function refresh() {
-    const items = await registrationDeadlinesService.getAll();
-    setRows(items);
+    setLoading(true);
+    try {
+      const items = await registrationDeadlinesService.getAll();
+      setRows(items);
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה בטעינת מועדי הרשמה");
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -46,18 +55,19 @@ export function RegistrationDeadlinesPage() {
 
   useEffect(() => {
     (async () => {
+      setLoading(true);
       try {
         const items = await registrationDeadlinesService.search(query);
         setRows(items);
       } catch (e: any) {
         snackbar.show(e?.message ?? "שגיאה בטעינת מועדי הרשמה");
+      } finally {
+        setLoading(false);
       }
     })();
-  }, [query]);
+  }, [query, snackbar]);
 
-  const filtered = useMemo(() => {
-    return rows;
-  }, [rows]);
+  const filtered = useMemo(() => rows, [rows]);
 
   function askDelete(d: RegistrationDeadline) {
     setDeleteTarget(d);
@@ -70,6 +80,7 @@ export function RegistrationDeadlinesPage() {
   async function confirmDelete() {
     if (!deleteTarget) return;
 
+    setLoading(true);
     try {
       await registrationDeadlinesService.remove(deleteTarget.id);
       setDeleteTarget(null);
@@ -77,11 +88,14 @@ export function RegistrationDeadlinesPage() {
       snackbar.show("מועד ההרשמה נמחק בהצלחה");
     } catch (e: any) {
       snackbar.show(e?.message ?? "שגיאה במחיקה");
+      setLoading(false);
     }
   }
 
   return (
     <Box>
+      {loading && <LinearProgress />}
+
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
         <Typography variant="h5">ניהול מועדי הרשמה</Typography>
         <Button variant="contained" onClick={() => navigate("/admin/deadlines/new")}>
@@ -135,7 +149,7 @@ export function RegistrationDeadlinesPage() {
               );
             })}
 
-            {filtered.length === 0 && (
+            {filtered.length === 0 && !loading && (
               <TableRow>
                 <TableCell colSpan={6} align="center">
                   אין מועדים להצגה
@@ -154,10 +168,10 @@ export function RegistrationDeadlinesPage() {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" onClick={cancelDelete}>
+          <Button variant="outlined" onClick={cancelDelete} disabled={loading}>
             ביטול
           </Button>
-          <Button variant="contained" color="error" onClick={() => void confirmDelete()}>
+          <Button variant="contained" color="error" onClick={() => void confirmDelete()} disabled={loading}>
             מחיקה
           </Button>
         </DialogActions>
