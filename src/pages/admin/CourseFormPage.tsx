@@ -61,6 +61,7 @@ export function CourseFormPage() {
   const snackbar = useSnackbar();
 
   const [loading, setLoading] = useState<boolean>(isEdit);
+  const [saving, setSaving] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
   const [values, setValues] = useState<FormState>({
@@ -123,7 +124,7 @@ export function CourseFormPage() {
   }
 
   async function onSave() {
-    if (!canSave) return;
+    if (!canSave || saving) return;
 
     const prereqError = await validatePrereqAgainstDb();
     if (prereqError) {
@@ -141,6 +142,7 @@ export function CourseFormPage() {
       lecturer: values.lecturer.trim() ? values.lecturer.trim() : undefined,
     };
 
+    setSaving(true);
     try {
       if (isEdit && id) {
         await coursesService.update(decodeURIComponent(id), {
@@ -160,6 +162,8 @@ export function CourseFormPage() {
       navigate("/admin/courses");
     } catch (e: any) {
       snackbar.show(e?.message ?? "שגיאה בשמירה");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -177,6 +181,8 @@ export function CourseFormPage() {
 
   return (
     <Box>
+      {saving && <LinearProgress sx={{ mb: 2 }} />}
+
       <Typography variant="h5" sx={{ mb: 2 }}>
         {isEdit ? `עריכת קורס ${decodeURIComponent(id!)}` : "הוספת קורס חדש"}
       </Typography>
@@ -197,7 +203,7 @@ export function CourseFormPage() {
           value={values.code}
           onChange={(e) => setField("code", e.target.value)}
           error={Boolean(errors.code)}
-          helperText={errors.code ?? " "}
+          helperText={errors.code ?? (isEdit ? "Code cannot be changed" : " ")}
           disabled={isEdit}
         />
 
@@ -232,19 +238,19 @@ export function CourseFormPage() {
         </TextField>
 
         <TextField
-          label="קורסי קדם (comma-separated)"
+          label="קורסי קדם (optional, comma-separated)"
           value={values.prerequisites}
           onChange={(e) => setField("prerequisites", e.target.value)}
         />
 
         <TextField
-          label="מרצה אחראי"
+          label="מרצה אחראי (optional)"
           value={values.lecturer}
           onChange={(e) => setField("lecturer", e.target.value)}
         />
 
         <TextField
-          label="סילבוס"
+          label="סילבוס (optional)"
           value={values.syllabus}
           onChange={(e) => setField("syllabus", e.target.value)}
           multiline
@@ -252,10 +258,10 @@ export function CourseFormPage() {
         />
 
         <Stack direction="row" spacing={2}>
-          <Button variant="contained" onClick={() => void onSave()} disabled={!canSave}>
+          <Button variant="contained" onClick={() => void onSave()} disabled={!canSave || saving}>
             שמירה
           </Button>
-          <Button variant="outlined" onClick={() => navigate("/admin/courses")}>
+          <Button variant="outlined" onClick={() => navigate("/admin/courses")} disabled={saving}>
             ביטול
           </Button>
         </Stack>

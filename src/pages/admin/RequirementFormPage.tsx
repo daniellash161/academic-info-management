@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Alert,
   Box,
   Button,
   Checkbox,
@@ -70,8 +69,8 @@ export function RequirementFormPage() {
   const validCourseCodes = useMemo(() => new Set(courses.map((c) => c.code)), [courses]);
 
   const [loadingCourses, setLoadingCourses] = useState(true);
-  const [loading, setLoading] = useState<boolean>(isEdit);
-  const [notFound, setNotFound] = useState(false);
+  const [loadingRequirement, setLoadingRequirement] = useState(isEdit);
+  const [saving, setSaving] = useState(false);
 
   const [values, setValues] = useState<FormState>({
     type: "",
@@ -85,42 +84,27 @@ export function RequirementFormPage() {
   });
 
   useEffect(() => {
-    let alive = true;
-
     (async () => {
       setLoadingCourses(true);
       try {
         const allCourses = await coursesService.getAll();
-        if (!alive) return;
-        setCourses(Array.isArray(allCourses) ? allCourses : []);
+        setCourses(allCourses);
       } catch (e: any) {
-        if (!alive) return;
-        setCourses([]);
         snackbar.show(e?.message ?? "שגיאה בטעינת קורסים");
       } finally {
-        if (!alive) return;
         setLoadingCourses(false);
       }
     })();
-
-    return () => {
-      alive = false;
-    };
   }, [snackbar]);
 
   useEffect(() => {
     if (!id) return;
 
     (async () => {
-      setLoading(true);
-      setNotFound(false);
-
+      setLoadingRequirement(true);
       try {
         const existing = await requirementsService.getById(id);
-        if (!existing) {
-          setNotFound(true);
-          return;
-        }
+        if (!existing) return;
 
         setValues({
           type: existing.type,
@@ -135,7 +119,7 @@ export function RequirementFormPage() {
       } catch (e: any) {
         snackbar.show(e?.message ?? "שגיאה בטעינת דרישה");
       } finally {
-        setLoading(false);
+        setLoadingRequirement(false);
       }
     })();
   }, [id, snackbar]);
@@ -148,7 +132,7 @@ export function RequirementFormPage() {
   }
 
   async function onSave() {
-    if (!canSave || loadingCourses) return;
+    if (!canSave || saving) return;
 
     const payload: Omit<Requirement, "id"> = {
       type: values.type as RequirementType,
@@ -161,6 +145,7 @@ export function RequirementFormPage() {
       courseCodes: values.courseCodes,
     };
 
+    setSaving(true);
     try {
       if (isEdit && id) {
         await requirementsService.update(id, payload);
@@ -173,10 +158,12 @@ export function RequirementFormPage() {
       navigate("/admin/requirements");
     } catch (e: any) {
       snackbar.show(e?.message ?? "שגיאה בשמירה");
+    } finally {
+      setSaving(false);
     }
   }
 
-  if (loading) {
+  if (loadingCourses || loadingRequirement) {
     return (
       <Box>
         <LinearProgress />
@@ -184,20 +171,9 @@ export function RequirementFormPage() {
     );
   }
 
-  if (notFound) {
-    return (
-      <Box>
-        <Alert severity="error">Requirement not found</Alert>
-        <Button sx={{ mt: 2 }} variant="outlined" onClick={() => navigate("/admin/requirements")}>
-          חזרה לרשימה
-        </Button>
-      </Box>
-    );
-  }
-
   return (
     <Box>
-      {loadingCourses && <LinearProgress />}
+      {saving && <LinearProgress sx={{ mb: 2 }} />}
 
       <Typography variant="h5" sx={{ mb: 2 }}>
         {isEdit ? "עריכת דרישת קבלה" : "הוספת דרישת קבלה"}
@@ -270,13 +246,16 @@ export function RequirementFormPage() {
           select
           label="קורסים רלוונטיים (רשות)"
           value={values.courseCodes}
-          onChange={(e) => setField("courseCodes", e.target.value as unknown as string[])}
+          onChange={(e) => {
+            const v = e.target.value;
+            const next = typeof v === "string" ? v.split(",") : (v as string[]);
+            setField("courseCodes", next);
+          }}
           SelectProps={{
             multiple: true,
             renderValue: (selected) =>
               (selected as string[]).length ? (selected as string[]).join(", ") : "—",
           }}
-          disabled={loadingCourses}
           error={Boolean(errors.courseCodes)}
           helperText={errors.courseCodes ?? "אפשר לבחור כמה קורסים, או להשאיר ריק"}
         >
@@ -293,19 +272,16 @@ export function RequirementFormPage() {
 
         <FormControlLabel
           control={
-            <Switch
-              checked={values.isMandatory}
-              onChange={(e) => setField("isMandatory", e.target.checked)}
-            />
+            <Switch checked={values.isMandatory} onChange={(e) => setField("isMandatory", e.target.checked)} />
           }
           label="דרישת חובה"
         />
 
         <Stack direction="row" spacing={2}>
-          <Button variant="contained" onClick={() => void onSave()} disabled={!canSave || loadingCourses}>
+          <Button variant="contained" onClick={() => void onSave()} disabled={!canSave || saving}>
             שמור דרישה
           </Button>
-          <Button variant="outlined" onClick={() => navigate("/admin/requirements")}>
+          <Button variant="outlined" onClick={() => navigate("/admin/requirements")} disabled={saving}>
             ביטול
           </Button>
         </Stack>

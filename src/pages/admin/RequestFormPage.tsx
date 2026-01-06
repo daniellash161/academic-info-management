@@ -11,11 +11,11 @@ import {
 } from "@mui/material";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import type { RegistrationRequest, RequestStatus } from "../../models/registrationRequest";
-import type { User } from "../../models/user";
 import { requestsService } from "../../services/requestsService";
 import { usersService } from "../../services/usersService";
 import { useSnackbar } from "../../hooks/useSnackbar";
 import { AppSnackbar } from "../../components/AppSnackbar";
+import type { User } from "../../models/user";
 
 type FormState = {
   candidateId: string;
@@ -55,9 +55,10 @@ export function RequestFormPage() {
   const statuses = requestsService.statuses();
 
   const [loading, setLoading] = useState<boolean>(isEdit);
-  const [loadingCandidates, setLoadingCandidates] = useState<boolean>(true);
+  const [saving, setSaving] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
+  const [candidatesLoading, setCandidatesLoading] = useState(true);
   const [candidates, setCandidates] = useState<User[]>([]);
 
   const [values, setValues] = useState<FormState>({
@@ -68,27 +69,17 @@ export function RequestFormPage() {
   });
 
   useEffect(() => {
-    let alive = true;
-
     (async () => {
-      setLoadingCandidates(true);
+      setCandidatesLoading(true);
       try {
-        const data = await usersService.getCandidates();
-        if (!alive) return;
-        setCandidates(Array.isArray(data) ? data : []);
+        const list = await usersService.getCandidates();
+        setCandidates(list);
       } catch (e: any) {
-        if (!alive) return;
-        setCandidates([]);
         snackbar.show(e?.message ?? "שגיאה בטעינת מועמדים");
       } finally {
-        if (!alive) return;
-        setLoadingCandidates(false);
+        setCandidatesLoading(false);
       }
     })();
-
-    return () => {
-      alive = false;
-    };
   }, [snackbar]);
 
   useEffect(() => {
@@ -138,7 +129,7 @@ export function RequestFormPage() {
   }
 
   async function onSave() {
-    if (!canSave) return;
+    if (!canSave || saving) return;
 
     const payload: Omit<RegistrationRequest, "requestNumber"> = {
       candidateId: values.candidateId,
@@ -147,6 +138,7 @@ export function RequestFormPage() {
       notes: values.notes.trim() ? values.notes.trim() : undefined,
     };
 
+    setSaving(true);
     try {
       if (isEdit && id) {
         await requestsService.update(Number(decodeURIComponent(id)), payload);
@@ -159,6 +151,8 @@ export function RequestFormPage() {
       navigate("/admin/requests");
     } catch (e: any) {
       snackbar.show(e?.message ?? "שגיאה בשמירה");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -176,8 +170,6 @@ export function RequestFormPage() {
 
   return (
     <Box>
-      {loadingCandidates && <LinearProgress />}
-
       <Typography variant="h5" sx={{ mb: 2 }}>
         {isEdit ? `עריכת בקשה #${decodeURIComponent(id!)}` : "הוספת בקשת הרשמה"}
       </Typography>
@@ -193,7 +185,7 @@ export function RequestFormPage() {
             onChange={(e) => setField("candidateId", e.target.value)}
             error={Boolean(errors.candidateId)}
             helperText={errors.candidateId ?? " "}
-            disabled={loadingCandidates}
+            disabled={candidatesLoading}
           >
             <MenuItem value="">— בחרי מועמד —</MenuItem>
             {candidates.map((c) => (
@@ -203,11 +195,7 @@ export function RequestFormPage() {
             ))}
           </TextField>
 
-          <Button
-            variant="outlined"
-            onClick={goCreateCandidate}
-            sx={{ whiteSpace: "nowrap", mt: "2px" }}
-          >
+          <Button variant="outlined" onClick={goCreateCandidate} sx={{ whiteSpace: "nowrap", mt: "2px" }}>
             יצירת מועמד חדש
           </Button>
         </Stack>
@@ -250,7 +238,7 @@ export function RequestFormPage() {
         />
 
         <Stack direction="row" spacing={2}>
-          <Button variant="contained" onClick={() => void onSave()} disabled={!canSave || loadingCandidates}>
+          <Button variant="contained" onClick={() => void onSave()} disabled={!canSave || saving || candidatesLoading}>
             שמירה
           </Button>
           <Button variant="outlined" onClick={() => navigate("/admin/requests")}>

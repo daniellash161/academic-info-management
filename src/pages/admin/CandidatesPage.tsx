@@ -1,4 +1,3 @@
-// src/pages/admin/CandidatesPage.tsx
 import { useEffect, useState } from "react";
 import {
   Box,
@@ -30,6 +29,7 @@ export function CandidatesPage() {
   const [rows, setRows] = useState<User[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -39,11 +39,9 @@ export function CandidatesPage() {
     setLoading(true);
     try {
       const data = await usersService.getCandidates();
-      if (!Array.isArray(data)) throw new Error("Invalid candidates response");
       setRows(data);
     } catch (e: any) {
       snackbar.show(e?.message ?? "שגיאה בטעינת נתונים");
-      setRows([]);
     } finally {
       setLoading(false);
     }
@@ -66,11 +64,14 @@ export function CandidatesPage() {
   }
 
   function cancelDelete() {
+    if (deleting) return;
     setDeleteTarget(null);
   }
 
   async function confirmDelete() {
-    if (!deleteTarget) return;
+    if (!deleteTarget || deleting) return;
+
+    setDeleting(true);
     try {
       await usersService.remove(deleteTarget.id);
       setDeleteTarget(null);
@@ -78,6 +79,8 @@ export function CandidatesPage() {
       snackbar.show("המועמד נמחק בהצלחה");
     } catch (e: any) {
       snackbar.show(e?.message ?? "שגיאה במחיקה");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -114,10 +117,7 @@ export function CandidatesPage() {
                 <TableCell>{u.phone}</TableCell>
                 <TableCell>{u.interest ?? "-"}</TableCell>
                 <TableCell align="right">
-                  <IconButton
-                    aria-label="edit"
-                    onClick={() => navigate(`/admin/candidates/${u.id}/edit`)}
-                  >
+                  <IconButton aria-label="edit" onClick={() => navigate(`/admin/candidates/${u.id}/edit`)}>
                     <EditIcon />
                   </IconButton>
                   <IconButton aria-label="delete" onClick={() => askDelete(u)}>
@@ -146,10 +146,10 @@ export function CandidatesPage() {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" onClick={cancelDelete}>
+          <Button variant="outlined" onClick={cancelDelete} disabled={deleting}>
             ביטול
           </Button>
-          <Button variant="contained" color="error" onClick={() => void confirmDelete()}>
+          <Button variant="contained" color="error" onClick={() => void confirmDelete()} disabled={deleting}>
             מחיקה
           </Button>
         </DialogActions>

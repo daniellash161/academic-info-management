@@ -60,11 +60,11 @@ function validate(values: FormState) {
 export function CandidateFormPage() {
   const { id } = useParams();
   const isEdit = Boolean(id);
-
   const navigate = useNavigate();
   const snackbar = useSnackbar();
 
   const [loading, setLoading] = useState<boolean>(isEdit);
+  const [saving, setSaving] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
   const [values, setValues] = useState<FormState>({
@@ -80,16 +80,12 @@ export function CandidateFormPage() {
   useEffect(() => {
     if (!id) return;
 
-    let alive = true;
-
     (async () => {
       setLoading(true);
       setNotFound(false);
 
       try {
         const existing = await usersService.getById(id);
-        if (!alive) return;
-
         if (!existing) {
           setNotFound(true);
           return;
@@ -108,17 +104,11 @@ export function CandidateFormPage() {
           notes: existing.notes ?? "",
         });
       } catch (e: any) {
-        if (!alive) return;
         snackbar.show(e?.message ?? "שגיאה בטעינת מועמד");
       } finally {
-        if (!alive) return;
         setLoading(false);
       }
     })();
-
-    return () => {
-      alive = false;
-    };
   }, [id, snackbar]);
 
   const errors = useMemo(() => validate(values), [values]);
@@ -129,8 +119,9 @@ export function CandidateFormPage() {
   }
 
   async function onSave() {
-    if (!canSave) return;
+    if (!canSave || saving) return;
 
+    setSaving(true);
     try {
       if (isEdit && id) {
         await usersService.update(id, {
@@ -159,6 +150,8 @@ export function CandidateFormPage() {
       }
     } catch (e: any) {
       snackbar.show(e?.message ?? "שגיאה בשמירה");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -176,6 +169,8 @@ export function CandidateFormPage() {
 
   return (
     <Box>
+      {saving && <LinearProgress sx={{ mb: 2 }} />}
+
       <Typography variant="h5" sx={{ mb: 2 }}>
         {isEdit ? "עריכת מועמד" : "הוספת מועמד"}
       </Typography>
@@ -260,10 +255,14 @@ export function CandidateFormPage() {
         />
 
         <Stack direction="row" spacing={2}>
-          <Button variant="contained" onClick={() => void onSave()} disabled={!canSave}>
+          <Button
+            variant="contained"
+            onClick={() => void onSave()}
+            disabled={!canSave || saving}
+          >
             שמירה
           </Button>
-          <Button variant="outlined" onClick={() => navigate("/admin/candidates")}>
+          <Button variant="outlined" onClick={() => navigate("/admin/candidates")} disabled={saving}>
             ביטול
           </Button>
         </Stack>

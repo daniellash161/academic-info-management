@@ -31,6 +31,7 @@ export function CoursesPage() {
   const [query, setQuery] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
 
   const navigate = useNavigate();
   const snackbar = useSnackbar();
@@ -68,11 +69,14 @@ export function CoursesPage() {
   }
 
   function cancelDelete() {
+    if (deleting) return;
     setDeleteTarget(null);
   }
 
   async function confirmDelete() {
-    if (!deleteTarget) return;
+    if (!deleteTarget || deleting) return;
+
+    setDeleting(true);
     try {
       await coursesService.remove(deleteTarget.code);
       setDeleteTarget(null);
@@ -80,6 +84,8 @@ export function CoursesPage() {
       snackbar.show("הקורס נמחק בהצלחה");
     } catch (e: any) {
       snackbar.show(e?.message ?? "שגיאה במחיקה");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -157,10 +163,10 @@ export function CoursesPage() {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" onClick={cancelDelete}>
+          <Button variant="outlined" onClick={cancelDelete} disabled={deleting}>
             ביטול
           </Button>
-          <Button variant="contained" color="error" onClick={() => void confirmDelete()}>
+          <Button variant="contained" color="error" onClick={() => void confirmDelete()} disabled={deleting}>
             מחיקה
           </Button>
         </DialogActions>
