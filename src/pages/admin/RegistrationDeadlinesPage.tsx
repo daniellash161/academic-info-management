@@ -2,14 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
   IconButton,
-  LinearProgress,
   Paper,
   Table,
   TableBody,
@@ -18,6 +11,13 @@ import {
   TableRow,
   TextField,
   Typography,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  LinearProgress,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
@@ -33,39 +33,38 @@ export function RegistrationDeadlinesPage() {
 
   const [rows, setRows] = useState<RegistrationDeadline[]>([]);
   const [query, setQuery] = useState("");
-
-  const [deleteTarget, setDeleteTarget] = useState<RegistrationDeadline | null>(null);
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [loading, setLoading] = useState(true);
 
-  async function refresh() {
-    setLoading(true);
-    try {
-      const items = await registrationDeadlinesService.getAll();
-      setRows(items);
-    } catch (e: any) {
-      snackbar.show(e?.message ?? "שגיאה בטעינת מועדי הרשמה");
-    } finally {
-      setLoading(false);
-    }
-  }
+  const [deleteTarget, setDeleteTarget] = useState<RegistrationDeadline | null>(null);
 
   useEffect(() => {
-    void refresh();
-  }, []);
+    const t = window.setTimeout(() => setDebouncedQuery(query), 250);
+    return () => window.clearTimeout(t);
+  }, [query]);
 
   useEffect(() => {
+    let alive = true;
+
     (async () => {
       setLoading(true);
       try {
-        const items = await registrationDeadlinesService.search(query);
+        const items = await registrationDeadlinesService.search(debouncedQuery);
+        if (!alive) return;
         setRows(items);
       } catch (e: any) {
+        if (!alive) return;
         snackbar.show(e?.message ?? "שגיאה בטעינת מועדי הרשמה");
       } finally {
+        if (!alive) return;
         setLoading(false);
       }
     })();
-  }, [query, snackbar]);
+
+    return () => {
+      alive = false;
+    };
+  }, [debouncedQuery]);
 
   const filtered = useMemo(() => rows, [rows]);
 
@@ -80,15 +79,13 @@ export function RegistrationDeadlinesPage() {
   async function confirmDelete() {
     if (!deleteTarget) return;
 
-    setLoading(true);
     try {
       await registrationDeadlinesService.remove(deleteTarget.id);
+      setRows((prev) => prev.filter((x) => x.id !== deleteTarget.id));
       setDeleteTarget(null);
-      await refresh();
       snackbar.show("מועד ההרשמה נמחק בהצלחה");
     } catch (e: any) {
       snackbar.show(e?.message ?? "שגיאה במחיקה");
-      setLoading(false);
     }
   }
 
@@ -149,7 +146,7 @@ export function RegistrationDeadlinesPage() {
               );
             })}
 
-            {filtered.length === 0 && !loading && (
+            {!loading && filtered.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6} align="center">
                   אין מועדים להצגה
@@ -168,10 +165,10 @@ export function RegistrationDeadlinesPage() {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" onClick={cancelDelete} disabled={loading}>
+          <Button variant="outlined" onClick={cancelDelete}>
             ביטול
           </Button>
-          <Button variant="contained" color="error" onClick={() => void confirmDelete()} disabled={loading}>
+          <Button variant="contained" color="error" onClick={() => void confirmDelete()}>
             מחיקה
           </Button>
         </DialogActions>
