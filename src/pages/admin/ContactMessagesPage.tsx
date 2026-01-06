@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   Box,
   Button,
   Dialog,
@@ -38,15 +39,13 @@ export function ContactMessagesPage() {
   const [statusFilter, setStatusFilter] = useState<ContactMessage["status"] | "ALL">("ALL");
   const [view, setView] = useState<ViewFilter>("ACTIVE");
 
-  const [deleteTarget, setDeleteTarget] = useState<ContactMessage | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const statuses = contactMessagesService.statuses();
-
-  async function load() {
+  async function refresh() {
     setLoading(true);
     try {
-      const data = await contactMessagesService.search(query, statusFilter);
+      const data = await contactMessagesService.getAll();
       setRows(data);
     } catch (e: any) {
       snackbar.show(e?.message ?? "שגיאה בטעינת נתונים");
@@ -56,21 +55,48 @@ export function ContactMessagesPage() {
   }
 
   useEffect(() => {
-    void load();
+    void refresh();
   }, []);
 
-  useEffect(() => {
-    void load();
-  }, [query, statusFilter]);
+  const statuses = contactMessagesService.statuses();
 
   const filtered = useMemo(() => {
-    if (view === "ACTIVE") return rows.filter((m) => m.status !== "נסגר");
-    if (view === "ARCHIVE") return rows.filter((m) => m.status === "נסגר");
-    return rows;
-  }, [rows, view]);
+    const q = query.trim().toLowerCase();
 
-  function onAskDelete(m: ContactMessage) {
-    setDeleteTarget(m);
+    let r = [...rows];
+
+    if (statusFilter !== "ALL") {
+      r = r.filter((x) => x.status === statusFilter);
+    }
+
+    if (view === "ACTIVE") {
+      r = r.filter((x) => x.status !== "נסגר");
+    } else if (view === "ARCHIVE") {
+      r = r.filter((x) => x.status === "נסגר");
+    }
+
+    if (q) {
+      r = r.filter((x) => {
+        const hay = [
+          x.fullName,
+          x.email,
+          x.phone,
+          x.subject,
+          x.message,
+          x.adminNote ?? "",
+          x.status,
+        ]
+          .join(" ")
+          .toLowerCase();
+        return hay.includes(q);
+      });
+    }
+
+    return r.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }, [rows, query, statusFilter, view]);
+
+  function onAskDelete(id: string) {
+    setDeleteTarget(id);
   }
 
   function onCancelDelete() {
@@ -78,17 +104,14 @@ export function ContactMessagesPage() {
   }
 
   async function onConfirmDelete() {
-    if (!deleteTarget) return;
-
-    setLoading(true);
+    if (deleteTarget === null) return;
     try {
-      await contactMessagesService.remove(deleteTarget.id);
+      await contactMessagesService.remove(deleteTarget);
       setDeleteTarget(null);
-      await load();
+      await refresh();
       snackbar.show("הפנייה נמחקה בהצלחה");
     } catch (e: any) {
       snackbar.show(e?.message ?? "שגיאה במחיקה");
-      setLoading(false);
     }
   }
 
@@ -140,59 +163,53 @@ export function ContactMessagesPage() {
         />
       </Box>
 
-      <Paper>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>תאריך</TableCell>
-              <TableCell>שם</TableCell>
-              <TableCell>נושא</TableCell>
-              <TableCell>סטטוס</TableCell>
-              <TableCell align="right">פעולות</TableCell>
-            </TableRow>
-          </TableHead>
-
-          <TableBody>
-            {filtered.map((m) => (
-              <TableRow key={m.id} hover>
-                <TableCell>{(m.createdAt || "").slice(0, 10)}</TableCell>
-                <TableCell>{m.fullName}</TableCell>
-                <TableCell>{m.subject}</TableCell>
-                <TableCell>{m.status}</TableCell>
-                <TableCell align="right">
-                  <IconButton onClick={() => navigate(`/admin/contacts/${m.id}/edit`)}>
-                    <EditIcon />
-                  </IconButton>
-                  <IconButton onClick={() => onAskDelete(m)}>
-                    <DeleteIcon />
-                  </IconButton>
-                </TableCell>
-              </TableRow>
-            ))}
-
-            {filtered.length === 0 && !loading && (
+      {!loading && filtered.length === 0 ? (
+        <Alert severity="info">אין פניות להצגה</Alert>
+      ) : (
+        <Paper>
+          <Table>
+            <TableHead>
               <TableRow>
-                <TableCell colSpan={5} align="center">
-                  אין פניות להצגה
-                </TableCell>
+                <TableCell>תאריך</TableCell>
+                <TableCell>שם</TableCell>
+                <TableCell>נושא</TableCell>
+                <TableCell>סטטוס</TableCell>
+                <TableCell align="right">פעולות</TableCell>
               </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </Paper>
+            </TableHead>
 
-      <Dialog open={Boolean(deleteTarget)} onClose={onCancelDelete}>
+            <TableBody>
+              {filtered.map((m) => (
+                <TableRow key={m.id} hover>
+                  <TableCell>{m.createdAt.slice(0, 10)}</TableCell>
+                  <TableCell>{m.fullName}</TableCell>
+                  <TableCell>{m.subject}</TableCell>
+                  <TableCell>{m.status}</TableCell>
+                  <TableCell align="right">
+                    <IconButton onClick={() => navigate(`/admin/contacts/${m.id}/edit`)}>
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton onClick={() => onAskDelete(m.id)}>
+                      <DeleteIcon />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Paper>
+      )}
+
+      <Dialog open={deleteTarget !== null} onClose={onCancelDelete}>
         <DialogTitle>מחיקת פנייה</DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            האם למחוק את הפנייה{deleteTarget ? ` "${deleteTarget.subject}"` : ""} לצמיתות?
-          </DialogContentText>
+          <DialogContentText>האם למחוק את הפנייה לצמיתות?</DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" onClick={onCancelDelete} disabled={loading}>
+          <Button variant="outlined" onClick={onCancelDelete}>
             ביטול
           </Button>
-          <Button variant="contained" color="error" onClick={() => void onConfirmDelete()} disabled={loading}>
+          <Button variant="contained" color="error" onClick={() => void onConfirmDelete()}>
             מחיקה
           </Button>
         </DialogActions>
