@@ -4,13 +4,14 @@ import {
   Button,
   Checkbox,
   FormControlLabel,
-  LinearProgress,
-  MenuItem,
   ListItemText,
+  MenuItem,
   Stack,
   Switch,
   TextField,
   Typography,
+  LinearProgress,
+  Alert,
 } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
 import type { Requirement, RequirementType } from "../../models/requirement";
@@ -45,6 +46,7 @@ function validate(v: FormState, validCourseCodes: Set<string>) {
     errors.displayOrder = "סדר תצוגה חייב להיות מספר שלם >= 1";
   }
 
+  // בודקים קורסים רק אם טענו קורסים (כלומר יש סט)
   if (validCourseCodes.size > 0) {
     for (const code of v.courseCodes) {
       if (!validCourseCodes.has(code)) {
@@ -68,9 +70,9 @@ export function RequirementFormPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const validCourseCodes = useMemo(() => new Set(courses.map((c) => c.code)), [courses]);
 
-  const [loadingCourses, setLoadingCourses] = useState(true);
-  const [loadingRequirement, setLoadingRequirement] = useState(isEdit);
+  const [loading, setLoading] = useState(true); // כולל קורסים + (אם edit) דרישה
   const [saving, setSaving] = useState(false);
+  const [notFound, setNotFound] = useState(false);
 
   const [values, setValues] = useState<FormState>({
     type: "",
@@ -84,45 +86,53 @@ export function RequirementFormPage() {
   });
 
   useEffect(() => {
+    let alive = true;
+
     (async () => {
-      setLoadingCourses(true);
+      setLoading(true);
+      setNotFound(false);
+
       try {
+        // 1) תמיד טוענים קורסים (לטופס)
         const allCourses = await coursesService.getAll();
+        if (!alive) return;
         setCourses(allCourses);
+
+        // 2) אם זה עריכה – טוענים את הדרישה
+        if (id) {
+          const existing = await requirementsService.getById(id);
+          if (!alive) return;
+
+          if (!existing) {
+            setNotFound(true);
+            return;
+          }
+
+          setValues({
+            type: existing.type,
+            minScore: existing.minScore,
+            title: existing.title,
+            description: existing.description ?? "",
+            extraInfo: existing.extraInfo ?? "",
+            displayOrder: existing.displayOrder,
+            isMandatory: existing.isMandatory,
+            courseCodes: existing.courseCodes ?? [],
+          });
+        }
       } catch (e: any) {
-        snackbar.show(e?.message ?? "שגיאה בטעינת קורסים");
+        if (!alive) return;
+        snackbar.show(e?.message ?? "שגיאה בטעינת טופס דרישת קבלה");
       } finally {
-        setLoadingCourses(false);
+        if (!alive) return;
+        setLoading(false);
       }
     })();
-  }, [snackbar]);
 
-  useEffect(() => {
-    if (!id) return;
-
-    (async () => {
-      setLoadingRequirement(true);
-      try {
-        const existing = await requirementsService.getById(id);
-        if (!existing) return;
-
-        setValues({
-          type: existing.type,
-          minScore: existing.minScore,
-          title: existing.title,
-          description: existing.description ?? "",
-          extraInfo: existing.extraInfo ?? "",
-          displayOrder: existing.displayOrder,
-          isMandatory: existing.isMandatory,
-          courseCodes: existing.courseCodes ?? [],
-        });
-      } catch (e: any) {
-        snackbar.show(e?.message ?? "שגיאה בטעינת דרישה");
-      } finally {
-        setLoadingRequirement(false);
-      }
-    })();
-  }, [id, snackbar]);
+    return () => {
+      alive = false;
+    };
+    // בכוונה בלי snackbar ב-deps כדי לא ליצור לופים
+  }, [id]);
 
   const errors = useMemo(() => validate(values, validCourseCodes), [values, validCourseCodes]);
   const canSave = Object.keys(errors).length === 0;
@@ -163,7 +173,7 @@ export function RequirementFormPage() {
     }
   }
 
-  if (loadingCourses || loadingRequirement) {
+  if (loading) {
     return (
       <Box>
         <LinearProgress />
@@ -171,9 +181,13 @@ export function RequirementFormPage() {
     );
   }
 
+  if (notFound) {
+    return <Alert severity="error">Requirement not found</Alert>;
+  }
+
   return (
     <Box>
-      {saving && <LinearProgress sx={{ mb: 2 }} />}
+      {(saving) && <LinearProgress sx={{ mb: 2 }} />}
 
       <Typography variant="h5" sx={{ mb: 2 }}>
         {isEdit ? "עריכת דרישת קבלה" : "הוספת דרישת קבלה"}
@@ -246,11 +260,7 @@ export function RequirementFormPage() {
           select
           label="קורסים רלוונטיים (רשות)"
           value={values.courseCodes}
-          onChange={(e) => {
-            const v = e.target.value;
-            const next = typeof v === "string" ? v.split(",") : (v as string[]);
-            setField("courseCodes", next);
-          }}
+          onChange={(e) => setField("courseCodes", e.target.value as unknown as string[])}
           SelectProps={{
             multiple: true,
             renderValue: (selected) =>
@@ -271,9 +281,7 @@ export function RequirementFormPage() {
         </TextField>
 
         <FormControlLabel
-          control={
-            <Switch checked={values.isMandatory} onChange={(e) => setField("isMandatory", e.target.checked)} />
-          }
+          control={<Switch checked={values.isMandatory} onChange={(e) => setField("isMandatory", e.target.checked)} />}
           label="דרישת חובה"
         />
 
