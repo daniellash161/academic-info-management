@@ -8,23 +8,25 @@ export function buildTheme(mode: "light" | "dark") {
     direction: "rtl",
     palette: {
       mode,
-
       primary: { main: isDark ? blue[200] : blue[700] },
       secondary: { main: isDark ? deepOrange[200] : deepOrange[400] },
-
       background: isDark
         ? { default: grey[900], paper: grey[900] }
         : { default: grey[50], paper: "#fff" },
-
       text: isDark
         ? { primary: grey[100], secondary: grey[300] }
         : { primary: grey[900], secondary: grey[700] },
     },
-
     typography: {
       fontFamily: ["Heebo", "Roboto", "Arial", "sans-serif"].join(","),
     },
-
+    components: {
+      MuiAppBar: {
+        defaultProps: {
+          enableColorOnDark: true,
+        },
+      },
+    },
     shape: { borderRadius: 12 },
   });
 
