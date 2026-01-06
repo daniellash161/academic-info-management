@@ -31,7 +31,9 @@ function normalizeEmail(email: string) {
 }
 
 function normalizeRole(x: any): UserRole {
-  return x === "CANDIDATE" || x === "ADMIN" || x === "STUDENT" || x === "GRADUATE" ? x : "CANDIDATE";
+  return x === "CANDIDATE" || x === "ADMIN" || x === "STUDENT" || x === "GRADUATE"
+    ? x
+    : "CANDIDATE";
 }
 
 function normalizeInterest(x: any): InterestArea | undefined {
@@ -50,7 +52,7 @@ function normalizeFromDb(id: string, data: any): User {
     password: typeof data?.password === "string" ? data.password : undefined,
     interest: normalizeInterest(data?.interest),
     notes: typeof data?.notes === "string" ? data.notes : undefined,
-    createdAt: String(data?.createdAt ?? ""),
+    createdAt: typeof data?.createdAt === "string" ? data.createdAt : new Date(0).toISOString(),
   };
 }
 
@@ -98,10 +100,18 @@ export const usersService = {
     return items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   },
 
+
   async getCandidates(): Promise<User[]> {
-    const q = query(collection(firestore, COL), where("role", "==", "CANDIDATE"));
-    const snap = await getDocs(q);
-    const items = snap.docs.map((d) => normalizeFromDb(d.id, d.data()));
+    const qy = query(collection(firestore, COL), where("role", "==", "CANDIDATE"));
+    const snap = await getDocs(qy);
+
+    let items = snap.docs.map((d) => normalizeFromDb(d.id, d.data()));
+
+    if (items.length === 0) {
+      const all = await this.getAll();
+      items = all.filter((u) => normalizeRole(u.role) === "CANDIDATE");
+    }
+
     return items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   },
 
@@ -115,18 +125,29 @@ export const usersService = {
 
   async isNationalIdTaken(nationalId: string, excludeId?: string): Promise<boolean> {
     const nid = String(nationalId).trim();
-    const q = query(collection(firestore, COL), where("nationalId", "==", nid));
-    const snap = await getDocs(q);
+    const qy = query(collection(firestore, COL), where("nationalId", "==", nid));
+    const snap = await getDocs(qy);
     if (snap.empty) return false;
     return snap.docs.some((d) => d.id !== excludeId);
   },
 
+  
   async isEmailTaken(email: string, excludeId?: string): Promise<boolean> {
-    const e = normalizeEmail(email);
-    const q = query(collection(firestore, COL), where("emailLower", "==", e));
-    const snap = await getDocs(q);
-    if (snap.empty) return false;
-    return snap.docs.some((d) => d.id !== excludeId);
+    const eLower = normalizeEmail(email);
+
+    const qLower = query(collection(firestore, COL), where("emailLower", "==", eLower));
+    const snapLower = await getDocs(qLower);
+    if (!snapLower.empty) return snapLower.docs.some((d) => d.id !== excludeId);
+
+    const qEmail1 = query(collection(firestore, COL), where("email", "==", email.trim()));
+    const snap1 = await getDocs(qEmail1);
+    if (!snap1.empty) return snap1.docs.some((d) => d.id !== excludeId);
+
+    const qEmail2 = query(collection(firestore, COL), where("email", "==", eLower));
+    const snap2 = await getDocs(qEmail2);
+    if (!snap2.empty) return snap2.docs.some((d) => d.id !== excludeId);
+
+    return false;
   },
 
   async create(input: CreateUserInput): Promise<User> {
@@ -164,7 +185,7 @@ export const usersService = {
       fullName: user.fullName,
       nationalId: user.nationalId,
       email: user.email,
-      emailLower,
+      emailLower, 
       phone: user.phone,
       role: user.role,
       password: user.password,
@@ -233,7 +254,7 @@ export const usersService = {
       fullName: updated.fullName,
       nationalId: updated.nationalId,
       email: updated.email,
-      emailLower: nextEmailLower,
+      emailLower: nextEmailLower, 
       phone: updated.phone,
       role: updated.role,
       password: updated.password,
