@@ -21,6 +21,10 @@ function todayYmd() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function isYmd(s: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(s);
+}
+
 function clean<T extends Record<string, unknown>>(obj: T): Partial<T> {
   const out: Partial<T> = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -28,6 +32,23 @@ function clean<T extends Record<string, unknown>>(obj: T): Partial<T> {
     (out as any)[k] = v;
   }
   return out;
+}
+
+function assertValidTitle(title: string) {
+  const t = (title ?? "").trim();
+  if (!t) throw new Error("title is required");
+  if (t.length > 60) throw new Error("title must be up to 60 characters");
+}
+
+function assertValidDates(startDate: string, endDate: string) {
+  if (!isYmd(startDate)) throw new Error("startDate must be YYYY-MM-DD");
+  if (!isYmd(endDate)) throw new Error("endDate must be YYYY-MM-DD");
+  if (startDate > endDate) throw new Error("endDate must be >= startDate");
+}
+
+function assertValidNotes(notes?: string) {
+  if (notes === undefined) return;
+  if (notes.length > 300) throw new Error("notes must be up to 300 characters");
 }
 
 function normalizeFromDb(id: string, data: any): RegistrationDeadline {
@@ -76,9 +97,7 @@ export const registrationDeadlinesService = {
     const q = query.trim().toLowerCase();
     let rows = await this.getAll();
 
-    if (statusFilter !== "ALL") {
-      rows = rows.filter((d) => this.statusOf(d) === statusFilter);
-    }
+    if (statusFilter !== "ALL") rows = rows.filter((d) => this.statusOf(d) === statusFilter);
 
     if (q) {
       rows = rows.filter((d) => {
@@ -93,6 +112,10 @@ export const registrationDeadlinesService = {
   },
 
   async create(input: CreateInput): Promise<RegistrationDeadline> {
+    assertValidTitle(input.title);
+    assertValidDates(input.startDate, input.endDate);
+    assertValidNotes(input.notes);
+
     const ref = doc(collection(firestore, COL));
 
     const item: RegistrationDeadline = {
@@ -127,12 +150,20 @@ export const registrationDeadlinesService = {
 
     const current = normalizeFromDb(snap.id, snap.data());
 
+    const nextTitle = patch.title !== undefined ? patch.title : current.title;
+    const nextStart = patch.startDate !== undefined ? patch.startDate : current.startDate;
+    const nextEnd = patch.endDate !== undefined ? patch.endDate : current.endDate;
+
+    assertValidTitle(nextTitle);
+    assertValidDates(nextStart, nextEnd);
+    if (patch.notes !== undefined) assertValidNotes(patch.notes);
+
     const updated: RegistrationDeadline = {
       ...current,
       ...patch,
-      title: patch.title !== undefined ? patch.title.trim() : current.title,
-      startDate: patch.startDate !== undefined ? patch.startDate : current.startDate,
-      endDate: patch.endDate !== undefined ? patch.endDate : current.endDate,
+      title: nextTitle.trim(),
+      startDate: nextStart,
+      endDate: nextEnd,
       isActive: patch.isActive !== undefined ? Boolean(patch.isActive) : current.isActive,
       notes:
         patch.notes !== undefined
@@ -140,6 +171,8 @@ export const registrationDeadlinesService = {
             ? patch.notes.trim()
             : undefined
           : current.notes,
+      createdAt: current.createdAt,
+      id: current.id,
     };
 
     const data = clean({

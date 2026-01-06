@@ -1,5 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import { Box, Button, FormControlLabel, Stack, Switch, TextField, Typography } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Button,
+  FormControlLabel,
+  LinearProgress,
+  Stack,
+  Switch,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
 import type { RegistrationDeadline } from "../../models/registrationDeadline";
 import { registrationDeadlinesService } from "../../services/registrationDeadlinesService";
@@ -18,14 +28,22 @@ function todayYmd() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function isYmd(s: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(s);
+}
+
 function validate(v: FormState) {
   const e: Partial<Record<keyof FormState, string>> = {};
 
-  if (!v.title.trim()) e.title = "שדה חובה";
-  else if (v.title.trim().length > 60) e.title = "עד 60 תווים";
+  const title = v.title.trim();
+  if (!title) e.title = "שדה חובה";
+  else if (title.length > 60) e.title = "עד 60 תווים";
 
   if (!v.startDate) e.startDate = "שדה חובה";
+  else if (!isYmd(v.startDate)) e.startDate = "תאריך לא תקין";
+
   if (!v.endDate) e.endDate = "שדה חובה";
+  else if (!isYmd(v.endDate)) e.endDate = "תאריך לא תקין";
 
   if (v.startDate && v.endDate && v.startDate > v.endDate) {
     e.endDate = "תאריך סיום חייב להיות אחרי/שווה לתאריך התחלה";
@@ -33,21 +51,18 @@ function validate(v: FormState) {
 
   if (v.notes.length > 300) e.notes = "עד 300 תווים";
 
-  if (v.startDate && v.startDate > "9999-99-99") e.startDate = "תאריך לא תקין";
-  if (v.endDate && v.endDate > "9999-99-99") e.endDate = "תאריך לא תקין";
-
-  if (v.startDate && v.startDate > todayYmd() && v.endDate && v.endDate < v.startDate) {
-    e.endDate = "תאריך לא תקין";
-  }
-
   return e;
 }
 
 export function RegistrationDeadlineFormPage() {
   const { id } = useParams();
   const isEdit = Boolean(id);
+
   const navigate = useNavigate();
   const snackbar = useSnackbar();
+
+  const [loading, setLoading] = useState<boolean>(isEdit);
+  const [notFound, setNotFound] = useState(false);
 
   const [values, setValues] = useState<FormState>({
     title: "",
@@ -61,9 +76,15 @@ export function RegistrationDeadlineFormPage() {
     if (!id) return;
 
     (async () => {
+      setLoading(true);
+      setNotFound(false);
+
       try {
         const existing = await registrationDeadlinesService.getById(id);
-        if (!existing) return;
+        if (!existing) {
+          setNotFound(true);
+          return;
+        }
 
         setValues({
           title: existing.title,
@@ -74,9 +95,11 @@ export function RegistrationDeadlineFormPage() {
         });
       } catch (e: any) {
         snackbar.show(e?.message ?? "שגיאה בטעינת מועד הרשמה");
+      } finally {
+        setLoading(false);
       }
     })();
-  }, [id]);
+  }, [id, snackbar]);
 
   const errors = useMemo(() => validate(values), [values]);
   const canSave = Object.keys(errors).length === 0;
@@ -109,6 +132,18 @@ export function RegistrationDeadlineFormPage() {
     } catch (e: any) {
       snackbar.show(e?.message ?? "שגיאה בשמירה");
     }
+  }
+
+  if (loading) {
+    return (
+      <Box>
+        <LinearProgress />
+      </Box>
+    );
+  }
+
+  if (notFound) {
+    return <Alert severity="error">Registration deadline not found</Alert>;
   }
 
   return (
@@ -151,7 +186,10 @@ export function RegistrationDeadlineFormPage() {
 
         <FormControlLabel
           control={
-            <Switch checked={values.isActive} onChange={(e) => setField("isActive", e.target.checked)} />
+            <Switch
+              checked={values.isActive}
+              onChange={(e) => setField("isActive", e.target.checked)}
+            />
           }
           label="מועד פעיל"
         />
