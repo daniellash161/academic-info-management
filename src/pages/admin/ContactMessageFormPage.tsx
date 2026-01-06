@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { Box, Button, Divider, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Divider,
+  LinearProgress,
+  MenuItem,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import PhoneIcon from "@mui/icons-material/Phone";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
@@ -30,6 +39,9 @@ export function ContactMessageFormPage() {
   const navigate = useNavigate();
   const snackbar = useSnackbar();
 
+  const [loading, setLoading] = useState<boolean>(true);
+  const [notFound, setNotFound] = useState<boolean>(false);
+
   const [message, setMessage] = useState<ContactMessage | null>(null);
 
   const [values, setValues] = useState<FormState>({
@@ -38,13 +50,20 @@ export function ContactMessageFormPage() {
   });
 
   useEffect(() => {
-    if (!id) return;
+    if (!id) {
+      setLoading(false);
+      setNotFound(true);
+      return;
+    }
 
     (async () => {
+      setLoading(true);
+      setNotFound(false);
       try {
         const existing = await contactMessagesService.getById(id);
         if (!existing) {
           setMessage(null);
+          setNotFound(true);
           return;
         }
 
@@ -55,9 +74,11 @@ export function ContactMessageFormPage() {
         });
       } catch (e: any) {
         snackbar.show(e?.message ?? "שגיאה בטעינת פנייה");
+      } finally {
+        setLoading(false);
       }
     })();
-  }, [id]);
+  }, [id, snackbar]);
 
   const errors = useMemo(() => validate(values), [values]);
   const canSave = Object.keys(errors).length === 0;
@@ -93,17 +114,22 @@ export function ContactMessageFormPage() {
 
   const statuses = contactMessagesService.statuses();
 
-  if (!id) {
-    return <Box sx={{ p: 2 }}>חסר מזהה פנייה</Box>;
+  if (loading) {
+    return (
+      <Box>
+        <LinearProgress />
+      </Box>
+    );
   }
 
-  if (!message) {
+  if (notFound || !message) {
     return (
       <Box sx={{ p: 2 }}>
         <Typography variant="h6">פנייה לא נמצאה</Typography>
         <Button sx={{ mt: 2 }} variant="outlined" onClick={() => navigate("/admin/contacts")}>
           חזרה לרשימה
         </Button>
+        <AppSnackbar open={snackbar.open} message={snackbar.message} onClose={snackbar.close} />
       </Box>
     );
   }

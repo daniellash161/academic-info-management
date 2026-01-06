@@ -26,6 +26,11 @@ function clean<T extends Record<string, unknown>>(obj: T): Partial<T> {
   return out;
 }
 
+function assertValidAdminNote(adminNote?: string) {
+  if (adminNote === undefined) return;
+  if (adminNote.length > 300) throw new Error("adminNote must be up to 300 characters");
+}
+
 function normalizeFromDb(id: string, data: any): ContactMessage {
   return {
     id,
@@ -57,35 +62,6 @@ export const contactMessagesService = {
     const snap = await getDoc(ref);
     if (!snap.exists()) return null;
     return normalizeFromDb(snap.id, snap.data());
-  },
-
-  async search(
-    query: string,
-    statusFilter: ContactMessageStatus | "ALL" = "ALL"
-  ): Promise<ContactMessage[]> {
-    const q = query.trim().toLowerCase();
-    let rows = await this.getAll();
-
-    if (statusFilter !== "ALL") rows = rows.filter((x) => x.status === statusFilter);
-
-    if (q) {
-      rows = rows.filter((x) => {
-        const hay = [
-          x.fullName,
-          x.email,
-          x.phone,
-          x.subject,
-          x.message,
-          x.adminNote ?? "",
-          x.status,
-        ]
-          .join(" ")
-          .toLowerCase();
-        return hay.includes(q);
-      });
-    }
-
-    return rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   },
 
   async create(input: Omit<ContactMessage, "id" | "createdAt" | "status">): Promise<ContactMessage> {
@@ -127,6 +103,8 @@ export const contactMessagesService = {
 
     const snap = await getDoc(ref);
     if (!snap.exists()) throw new Error("פנייה לא נמצאה");
+
+    assertValidAdminNote(patch.adminNote);
 
     const current = normalizeFromDb(snap.id, snap.data());
 
