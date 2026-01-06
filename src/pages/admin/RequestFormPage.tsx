@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import type { RegistrationRequest, RequestStatus } from "../../models/registrationRequest";
+import type { User } from "../../models/user";
 import { requestsService } from "../../services/requestsService";
 import { usersService } from "../../services/usersService";
 import { useSnackbar } from "../../hooks/useSnackbar";
@@ -31,7 +32,6 @@ function validate(values: FormState) {
   const errors: Partial<Record<keyof FormState, string>> = {};
 
   if (!values.candidateId) errors.candidateId = "חובה לבחור מועמד";
-
   if (!values.status) errors.status = "חובה לבחור סטטוס";
 
   if (!values.createdAt) errors.createdAt = "חובה לבחור תאריך";
@@ -52,11 +52,13 @@ export function RequestFormPage() {
   const navigate = useNavigate();
   const snackbar = useSnackbar();
 
-  const candidates = usersService.getCandidates();
   const statuses = requestsService.statuses();
 
   const [loading, setLoading] = useState<boolean>(isEdit);
+  const [loadingCandidates, setLoadingCandidates] = useState<boolean>(true);
   const [notFound, setNotFound] = useState(false);
+
+  const [candidates, setCandidates] = useState<User[]>([]);
 
   const [values, setValues] = useState<FormState>({
     candidateId: prefCandidateId,
@@ -64,6 +66,30 @@ export function RequestFormPage() {
     createdAt: todayYmd(),
     notes: "",
   });
+
+  useEffect(() => {
+    let alive = true;
+
+    (async () => {
+      setLoadingCandidates(true);
+      try {
+        const data = await usersService.getCandidates();
+        if (!alive) return;
+        setCandidates(Array.isArray(data) ? data : []);
+      } catch (e: any) {
+        if (!alive) return;
+        setCandidates([]);
+        snackbar.show(e?.message ?? "שגיאה בטעינת מועמדים");
+      } finally {
+        if (!alive) return;
+        setLoadingCandidates(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [snackbar]);
 
   useEffect(() => {
     if (!isEdit && prefCandidateId) {
@@ -97,7 +123,7 @@ export function RequestFormPage() {
         setLoading(false);
       }
     })();
-  }, [id]);
+  }, [id, snackbar]);
 
   const errors = useMemo(() => validate(values), [values]);
   const canSave = Object.keys(errors).length === 0;
@@ -150,6 +176,8 @@ export function RequestFormPage() {
 
   return (
     <Box>
+      {loadingCandidates && <LinearProgress />}
+
       <Typography variant="h5" sx={{ mb: 2 }}>
         {isEdit ? `עריכת בקשה #${decodeURIComponent(id!)}` : "הוספת בקשת הרשמה"}
       </Typography>
@@ -165,6 +193,7 @@ export function RequestFormPage() {
             onChange={(e) => setField("candidateId", e.target.value)}
             error={Boolean(errors.candidateId)}
             helperText={errors.candidateId ?? " "}
+            disabled={loadingCandidates}
           >
             <MenuItem value="">— בחרי מועמד —</MenuItem>
             {candidates.map((c) => (
@@ -174,7 +203,11 @@ export function RequestFormPage() {
             ))}
           </TextField>
 
-          <Button variant="outlined" onClick={goCreateCandidate} sx={{ whiteSpace: "nowrap", mt: "2px" }}>
+          <Button
+            variant="outlined"
+            onClick={goCreateCandidate}
+            sx={{ whiteSpace: "nowrap", mt: "2px" }}
+          >
             יצירת מועמד חדש
           </Button>
         </Stack>
@@ -217,7 +250,7 @@ export function RequestFormPage() {
         />
 
         <Stack direction="row" spacing={2}>
-          <Button variant="contained" onClick={onSave} disabled={!canSave}>
+          <Button variant="contained" onClick={() => void onSave()} disabled={!canSave || loadingCandidates}>
             שמירה
           </Button>
           <Button variant="outlined" onClick={() => navigate("/admin/requests")}>
