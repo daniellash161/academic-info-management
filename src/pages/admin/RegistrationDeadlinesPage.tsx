@@ -18,6 +18,7 @@ import {
   DialogContentText,
   DialogTitle,
   LinearProgress,
+  MenuItem,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
@@ -27,6 +28,8 @@ import { registrationDeadlinesService } from "../../services/registrationDeadlin
 import { useSnackbar } from "../../hooks/useSnackbar";
 import { AppSnackbar } from "../../components/AppSnackbar";
 
+type ActiveFilter = "ALL" | "ACTIVE" | "INACTIVE";
+
 export function RegistrationDeadlinesPage() {
   const navigate = useNavigate();
   const snackbar = useSnackbar();
@@ -35,6 +38,8 @@ export function RegistrationDeadlinesPage() {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [loading, setLoading] = useState(true);
+
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>("ALL");
 
   const [deleteTarget, setDeleteTarget] = useState<RegistrationDeadline | null>(null);
 
@@ -64,9 +69,13 @@ export function RegistrationDeadlinesPage() {
     return () => {
       alive = false;
     };
-  }, [debouncedQuery]);
+  }, [debouncedQuery, snackbar]);
 
-  const filtered = useMemo(() => rows, [rows]);
+  const filtered = useMemo(() => {
+    if (activeFilter === "ALL") return rows;
+    if (activeFilter === "ACTIVE") return rows.filter((x) => x.isActive);
+    return rows.filter((x) => !x.isActive);
+  }, [rows, activeFilter]);
 
   function askDelete(d: RegistrationDeadline) {
     setDeleteTarget(d);
@@ -100,13 +109,25 @@ export function RegistrationDeadlinesPage() {
         </Button>
       </Box>
 
-      <Box sx={{ mb: 2, maxWidth: 420 }}>
+      <Box sx={{ display: "flex", gap: 2, mb: 2, maxWidth: 720 }}>
         <TextField
-          fullWidth
+          sx={{ flex: 1, maxWidth: 420 }}
           label="חיפוש לפי כותרת / תאריכים / הערות / סטטוס"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
+
+        <TextField
+          select
+          sx={{ width: 220 }}
+          label="סינון לפי פעילות"
+          value={activeFilter}
+          onChange={(e) => setActiveFilter(e.target.value as ActiveFilter)}
+        >
+          <MenuItem value="ALL">הכל</MenuItem>
+          <MenuItem value="ACTIVE">פעיל</MenuItem>
+          <MenuItem value="INACTIVE">לא פעיל</MenuItem>
+        </TextField>
       </Box>
 
       <Paper>
