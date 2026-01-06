@@ -60,6 +60,7 @@ function validate(values: FormState) {
 export function CandidateFormPage() {
   const { id } = useParams();
   const isEdit = Boolean(id);
+
   const navigate = useNavigate();
   const snackbar = useSnackbar();
 
@@ -79,12 +80,16 @@ export function CandidateFormPage() {
   useEffect(() => {
     if (!id) return;
 
+    let alive = true;
+
     (async () => {
       setLoading(true);
       setNotFound(false);
 
       try {
         const existing = await usersService.getById(id);
+        if (!alive) return;
+
         if (!existing) {
           setNotFound(true);
           return;
@@ -103,12 +108,18 @@ export function CandidateFormPage() {
           notes: existing.notes ?? "",
         });
       } catch (e: any) {
+        if (!alive) return;
         snackbar.show(e?.message ?? "שגיאה בטעינת מועמד");
       } finally {
+        if (!alive) return;
         setLoading(false);
       }
     })();
-  }, [id]);
+
+    return () => {
+      alive = false;
+    };
+  }, [id, snackbar]);
 
   const errors = useMemo(() => validate(values), [values]);
   const canSave = Object.keys(errors).length === 0;

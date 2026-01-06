@@ -1,3 +1,4 @@
+// src/pages/admin/CandidatesPage.tsx
 import { useEffect, useState } from "react";
 import {
   Box,
@@ -38,9 +39,11 @@ export function CandidatesPage() {
     setLoading(true);
     try {
       const data = await usersService.getCandidates();
+      if (!Array.isArray(data)) throw new Error("Invalid candidates response");
       setRows(data);
     } catch (e: any) {
       snackbar.show(e?.message ?? "שגיאה בטעינת נתונים");
+      setRows([]);
     } finally {
       setLoading(false);
     }
@@ -56,7 +59,7 @@ export function CandidatesPage() {
 
     snackbar.show(toast);
     navigate(location.pathname, { replace: true, state: null });
-  }, [location.state, location.pathname, navigate]);
+  }, [location.state, location.pathname, navigate, snackbar]);
 
   function askDelete(u: User) {
     setDeleteTarget(u);
@@ -111,7 +114,10 @@ export function CandidatesPage() {
                 <TableCell>{u.phone}</TableCell>
                 <TableCell>{u.interest ?? "-"}</TableCell>
                 <TableCell align="right">
-                  <IconButton aria-label="edit" onClick={() => navigate(`/admin/candidates/${u.id}/edit`)}>
+                  <IconButton
+                    aria-label="edit"
+                    onClick={() => navigate(`/admin/candidates/${u.id}/edit`)}
+                  >
                     <EditIcon />
                   </IconButton>
                   <IconButton aria-label="delete" onClick={() => askDelete(u)}>

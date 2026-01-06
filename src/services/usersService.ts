@@ -189,10 +189,13 @@ export const usersService = {
     const nextRole = patch.role !== undefined ? patch.role : current.role;
 
     const nextFullName = patch.fullName !== undefined ? patch.fullName.trim() : current.fullName;
+
     const nextNationalId =
       patch.nationalId !== undefined ? String(patch.nationalId).trim() : current.nationalId;
+
     const nextEmail = patch.email !== undefined ? patch.email.trim() : current.email;
     const nextEmailLower = normalizeEmail(nextEmail);
+
     const nextPhone = patch.phone !== undefined ? String(patch.phone).trim() : current.phone;
 
     const nextNotes =
