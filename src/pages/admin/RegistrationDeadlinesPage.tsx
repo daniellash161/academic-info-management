@@ -1,8 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
   Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   IconButton,
+  LinearProgress,
+  MenuItem,
   Paper,
   Table,
   TableBody,
@@ -12,13 +19,6 @@ import {
   TextField,
   Typography,
   Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  LinearProgress,
-  MenuItem,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
@@ -36,46 +36,38 @@ export function RegistrationDeadlinesPage() {
 
   const [rows, setRows] = useState<RegistrationDeadline[]>([]);
   const [query, setQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [loading, setLoading] = useState(true);
-
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>("ALL");
+  const [loading, setLoading] = useState(true);
 
   const [deleteTarget, setDeleteTarget] = useState<RegistrationDeadline | null>(null);
 
-  useEffect(() => {
-    const t = window.setTimeout(() => setDebouncedQuery(query), 250);
-    return () => window.clearTimeout(t);
-  }, [query]);
+  const loadSeq = useRef(0);
 
   useEffect(() => {
-    let alive = true;
-
-    (async () => {
+    const seq = ++loadSeq.current;
+    const t = setTimeout(async () => {
       setLoading(true);
       try {
-        const items = await registrationDeadlinesService.search(debouncedQuery);
-        if (!alive) return;
+        let items = await registrationDeadlinesService.search(query);
+
+        if (activeFilter === "ACTIVE") items = items.filter((d) => d.isActive);
+        if (activeFilter === "INACTIVE") items = items.filter((d) => !d.isActive);
+
+        if (seq !== loadSeq.current) return;
         setRows(items);
       } catch (e: any) {
-        if (!alive) return;
+        if (seq !== loadSeq.current) return;
         snackbar.show(e?.message ?? "שגיאה בטעינת מועדי הרשמה");
       } finally {
-        if (!alive) return;
+        if (seq !== loadSeq.current) return;
         setLoading(false);
       }
-    })();
+    }, 200);
 
-    return () => {
-      alive = false;
-    };
-  }, [debouncedQuery, snackbar]);
+    return () => clearTimeout(t);
+  }, [query, activeFilter, snackbar]);
 
-  const filtered = useMemo(() => {
-    if (activeFilter === "ALL") return rows;
-    if (activeFilter === "ACTIVE") return rows.filter((x) => x.isActive);
-    return rows.filter((x) => !x.isActive);
-  }, [rows, activeFilter]);
+  const filtered = useMemo(() => rows, [rows]);
 
   function askDelete(d: RegistrationDeadline) {
     setDeleteTarget(d);
@@ -90,9 +82,9 @@ export function RegistrationDeadlinesPage() {
 
     try {
       await registrationDeadlinesService.remove(deleteTarget.id);
-      setRows((prev) => prev.filter((x) => x.id !== deleteTarget.id));
       setDeleteTarget(null);
       snackbar.show("מועד ההרשמה נמחק בהצלחה");
+      setQuery((x) => x);
     } catch (e: any) {
       snackbar.show(e?.message ?? "שגיאה במחיקה");
     }
@@ -100,7 +92,7 @@ export function RegistrationDeadlinesPage() {
 
   return (
     <Box>
-      {loading && <LinearProgress />}
+      <LinearProgress sx={{ opacity: loading ? 1 : 0, transition: "opacity 200ms" }} />
 
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
         <Typography variant="h5">ניהול מועדי הרשמה</Typography>
@@ -109,25 +101,25 @@ export function RegistrationDeadlinesPage() {
         </Button>
       </Box>
 
-      <Box sx={{ display: "flex", gap: 2, mb: 2, maxWidth: 720 }}>
-        <TextField
-          sx={{ flex: 1, maxWidth: 420 }}
-          label="חיפוש לפי כותרת / תאריכים / הערות / סטטוס"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-
+      <Box sx={{ display: "flex", gap: 2, mb: 2, maxWidth: 900 }}>
         <TextField
           select
-          sx={{ width: 220 }}
           label="סינון לפי פעילות"
           value={activeFilter}
           onChange={(e) => setActiveFilter(e.target.value as ActiveFilter)}
+          sx={{ width: 220 }}
         >
           <MenuItem value="ALL">הכל</MenuItem>
           <MenuItem value="ACTIVE">פעיל</MenuItem>
           <MenuItem value="INACTIVE">לא פעיל</MenuItem>
         </TextField>
+
+        <TextField
+          fullWidth
+          label="חיפוש לפי כותרת / תאריכים / הערות / סטטוס"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
       </Box>
 
       <Paper>
@@ -167,7 +159,7 @@ export function RegistrationDeadlinesPage() {
               );
             })}
 
-            {!loading && filtered.length === 0 && (
+            {filtered.length === 0 && !loading && (
               <TableRow>
                 <TableCell colSpan={6} align="center">
                   אין מועדים להצגה
