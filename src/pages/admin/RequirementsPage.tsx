@@ -8,6 +8,7 @@ import {
   DialogContentText,
   DialogTitle,
   IconButton,
+  LinearProgress,
   MenuItem,
   Paper,
   Table,
@@ -31,16 +32,20 @@ export function RequirementsPage() {
   const [typeFilter, setTypeFilter] = useState<RequirementType | "ALL">("ALL");
   const [all, setAll] = useState<Requirement[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<Requirement | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const navigate = useNavigate();
   const snackbar = useSnackbar();
 
   async function refresh() {
+    setLoading(true);
     try {
       const items = await requirementsService.getAll();
       setAll(items);
     } catch (e: any) {
       snackbar.show(e?.message ?? "שגיאה בטעינת דרישות");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -85,6 +90,7 @@ export function RequirementsPage() {
   async function confirmDelete() {
     if (!deleteTarget) return;
 
+    setLoading(true);
     try {
       await requirementsService.remove(deleteTarget.id);
       setDeleteTarget(null);
@@ -92,11 +98,14 @@ export function RequirementsPage() {
       snackbar.show("הדרישה נמחקה בהצלחה");
     } catch (e: any) {
       snackbar.show(e?.message ?? "שגיאה במחיקה");
+      setLoading(false);
     }
   }
 
   return (
     <Box>
+      {loading && <LinearProgress />}
+
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
         <Typography variant="h5">ניהול דרישות קבלה</Typography>
         <Button variant="contained" onClick={() => navigate("/admin/requirements/new")}>
@@ -164,7 +173,7 @@ export function RequirementsPage() {
               </TableRow>
             ))}
 
-            {rows.length === 0 && (
+            {rows.length === 0 && !loading && (
               <TableRow>
                 <TableCell colSpan={7} align="center">
                   אין דרישות במערכת
@@ -183,10 +192,10 @@ export function RequirementsPage() {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" onClick={cancelDelete}>
+          <Button variant="outlined" onClick={cancelDelete} disabled={loading}>
             ביטול
           </Button>
-          <Button variant="contained" color="error" onClick={() => void confirmDelete()}>
+          <Button variant="contained" color="error" onClick={() => void confirmDelete()} disabled={loading}>
             מחיקה
           </Button>
         </DialogActions>
