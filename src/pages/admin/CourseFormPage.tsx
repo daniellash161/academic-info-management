@@ -117,9 +117,7 @@ export function CourseFormPage() {
 
     for (const p of prereq) {
       const exists = await coursesService.getByCode(p);
-      if (!exists) {
-        return `קורס קדם לא קיים: ${p}`;
-      }
+      if (!exists) return `קורס קדם לא קיים: ${p}`;
     }
     return null;
   }
@@ -199,7 +197,7 @@ export function CourseFormPage() {
           value={values.code}
           onChange={(e) => setField("code", e.target.value)}
           error={Boolean(errors.code)}
-          helperText={errors.code ?? (isEdit ? "Code cannot be changed" : " ")}
+          helperText={errors.code ?? " "}
           disabled={isEdit}
         />
 
@@ -234,19 +232,19 @@ export function CourseFormPage() {
         </TextField>
 
         <TextField
-          label="קורסי קדם (optional, comma-separated)"
+          label="קורסי קדם (comma-separated)"
           value={values.prerequisites}
           onChange={(e) => setField("prerequisites", e.target.value)}
         />
 
         <TextField
-          label="מרצה אחראי (optional)"
+          label="מרצה אחראי"
           value={values.lecturer}
           onChange={(e) => setField("lecturer", e.target.value)}
         />
 
         <TextField
-          label="סילבוס (optional)"
+          label="סילבוס"
           value={values.syllabus}
           onChange={(e) => setField("syllabus", e.target.value)}
           multiline
@@ -254,7 +252,7 @@ export function CourseFormPage() {
         />
 
         <Stack direction="row" spacing={2}>
-          <Button variant="contained" onClick={onSave} disabled={!canSave}>
+          <Button variant="contained" onClick={() => void onSave()} disabled={!canSave}>
             שמירה
           </Button>
           <Button variant="outlined" onClick={() => navigate("/admin/courses")}>

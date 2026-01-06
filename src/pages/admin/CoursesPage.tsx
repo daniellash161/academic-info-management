@@ -160,7 +160,7 @@ export function CoursesPage() {
           <Button variant="outlined" onClick={cancelDelete}>
             ביטול
           </Button>
-          <Button variant="contained" color="error" onClick={confirmDelete}>
+          <Button variant="contained" color="error" onClick={() => void confirmDelete()}>
             מחיקה
           </Button>
         </DialogActions>
