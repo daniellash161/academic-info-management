@@ -19,10 +19,9 @@ function env(name: RequiredEnvKey): string {
 const missing = REQUIRED_ENVS.filter((k) => !env(k));
 
 if (missing.length) {
-  // eslint-disable-next-line no-console
   console.error("[FIREBASE CONFIG] Missing env vars:", missing);
 
-  // eslint-disable-next-line no-console
+ 
   console.error("[FIREBASE CONFIG] Loaded values (masked):", {
     VITE_FIREBASE_API_KEY: env("VITE_FIREBASE_API_KEY") ? "OK" : "",
     VITE_FIREBASE_AUTH_DOMAIN: env("VITE_FIREBASE_AUTH_DOMAIN"),
