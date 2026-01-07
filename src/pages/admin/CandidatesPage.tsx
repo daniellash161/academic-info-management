@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -25,6 +25,15 @@ import { usersService } from "../../services/usersService";
 import { useSnackbar } from "../../hooks/useSnackbar";
 import { AppSnackbar } from "../../components/AppSnackbar";
 
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) => {
+      setTimeout(() => reject(new Error(`Timeout: ${label}`)), ms);
+    }),
+  ]);
+}
+
 export function CandidatesPage() {
   const [rows, setRows] = useState<User[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
@@ -35,10 +44,12 @@ export function CandidatesPage() {
   const location = useLocation();
   const snackbar = useSnackbar();
 
+  const toastShownRef = useRef(false);
+
   async function refresh() {
     setLoading(true);
     try {
-      const data = await usersService.getCandidates();
+      const data = await withTimeout(usersService.getCandidates(), 8000, "candidates");
       setRows(data);
     } catch (e: any) {
       snackbar.show(e?.message ?? "שגיאה בטעינת נתונים");
@@ -54,10 +65,13 @@ export function CandidatesPage() {
   useEffect(() => {
     const toast = (location.state as any)?.toast as string | undefined;
     if (!toast) return;
+    if (toastShownRef.current) return;
 
+    toastShownRef.current = true;
     snackbar.show(toast);
     navigate(location.pathname, { replace: true, state: null });
-  }, [location.state, location.pathname, navigate, snackbar]);
+
+  }, [location.key]);
 
   function askDelete(u: User) {
     setDeleteTarget(u);
@@ -73,7 +87,7 @@ export function CandidatesPage() {
 
     setDeleting(true);
     try {
-      await usersService.remove(deleteTarget.id);
+      await withTimeout(usersService.remove(deleteTarget.id), 8000, "delete candidate");
       setDeleteTarget(null);
       await refresh();
       snackbar.show("המועמד נמחק בהצלחה");
@@ -117,7 +131,10 @@ export function CandidatesPage() {
                 <TableCell>{u.phone}</TableCell>
                 <TableCell>{u.interest ?? "-"}</TableCell>
                 <TableCell align="right">
-                  <IconButton aria-label="edit" onClick={() => navigate(`/admin/candidates/${u.id}/edit`)}>
+                  <IconButton
+                    aria-label="edit"
+                    onClick={() => navigate(`/admin/candidates/${encodeURIComponent(u.id)}/edit`)}
+                  >
                     <EditIcon />
                   </IconButton>
                   <IconButton aria-label="delete" onClick={() => askDelete(u)}>

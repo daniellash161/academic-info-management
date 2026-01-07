@@ -35,6 +35,24 @@ type FormState = {
   notes: string;
 };
 
+function safeDecode(x: string) {
+  const v = (x ?? "").trim();
+  try {
+    return decodeURIComponent(v).trim();
+  } catch {
+    return v;
+  }
+}
+
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) => {
+      setTimeout(() => reject(new Error(`Timeout: ${label}`)), ms);
+    }),
+  ]);
+}
+
 function validate(values: FormState) {
   const errors: Partial<Record<keyof FormState, string>> = {};
 
@@ -59,7 +77,9 @@ function validate(values: FormState) {
 
 export function CandidateFormPage() {
   const { id } = useParams();
+  const decodedId = safeDecode(id ?? "");
   const isEdit = Boolean(id);
+
   const navigate = useNavigate();
   const snackbar = useSnackbar();
 
@@ -78,14 +98,18 @@ export function CandidateFormPage() {
   });
 
   useEffect(() => {
-    if (!id) return;
+    if (!isEdit) return;
+
+    let alive = true;
 
     (async () => {
       setLoading(true);
       setNotFound(false);
 
       try {
-        const existing = await usersService.getById(id);
+        const existing = await withTimeout(usersService.getById(decodedId), 8000, "candidate");
+        if (!alive) return;
+
         if (!existing) {
           setNotFound(true);
           return;
@@ -104,12 +128,19 @@ export function CandidateFormPage() {
           notes: existing.notes ?? "",
         });
       } catch (e: any) {
+        if (!alive) return;
         snackbar.show(e?.message ?? "שגיאה בטעינת מועמד");
       } finally {
+        if (!alive) return;
         setLoading(false);
       }
     })();
-  }, [id, snackbar]);
+
+    return () => {
+      alive = false;
+    };
+
+  }, [decodedId, isEdit]);
 
   const errors = useMemo(() => validate(values), [values]);
   const canSave = Object.keys(errors).length === 0;
@@ -123,29 +154,21 @@ export function CandidateFormPage() {
 
     setSaving(true);
     try {
-      if (isEdit && id) {
-        await usersService.update(id, {
-          fullName: values.fullName.trim(),
-          nationalId: values.nationalId,
-          email: values.email.trim(),
-          phone: values.phone,
-          role: values.role as any,
-          interest: (values.interest || undefined) as any,
-          notes: values.notes.trim() ? values.notes.trim() : undefined,
-        });
+      const payload = {
+        fullName: values.fullName.trim(),
+        nationalId: values.nationalId,
+        email: values.email.trim(),
+        phone: values.phone,
+        role: values.role as any,
+        interest: (values.interest || undefined) as any,
+        notes: values.notes.trim() ? values.notes.trim() : undefined,
+      };
 
+      if (isEdit && decodedId) {
+        await usersService.update(decodedId, payload);
         navigate("/admin/candidates", { state: { toast: "המועמד עודכן בהצלחה" } });
       } else {
-        await usersService.create({
-          fullName: values.fullName.trim(),
-          nationalId: values.nationalId,
-          email: values.email.trim(),
-          phone: values.phone,
-          role: values.role as any,
-          interest: (values.interest || undefined) as any,
-          notes: values.notes.trim() ? values.notes.trim() : undefined,
-        });
-
+        await usersService.create(payload as any);
         navigate("/admin/candidates", { state: { toast: "המועמד נשמר בהצלחה" } });
       }
     } catch (e: any) {
@@ -255,11 +278,7 @@ export function CandidateFormPage() {
         />
 
         <Stack direction="row" spacing={2}>
-          <Button
-            variant="contained"
-            onClick={() => void onSave()}
-            disabled={!canSave || saving}
-          >
+          <Button variant="contained" onClick={() => void onSave()} disabled={!canSave || saving}>
             שמירה
           </Button>
           <Button variant="outlined" onClick={() => navigate("/admin/candidates")} disabled={saving}>
