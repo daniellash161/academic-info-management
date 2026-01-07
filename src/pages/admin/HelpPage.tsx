@@ -10,6 +10,7 @@ import {
   Stack,
   TextField,
   Typography,
+  Divider,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useNavigate } from "react-router-dom";
@@ -116,13 +117,26 @@ export function HelpPage() {
   }, [items, query]);
 
   return (
-    <Box>
-      <Typography variant="h5" sx={{ mb: 2, fontWeight: 900 }}>
-        עזרה למנהל מערכת
-      </Typography>
+    <Box sx={{ maxWidth: 980, mx: "auto" }}>
+      <Paper
+        sx={{
+          p: 2.5,
+          mb: 2,
+          borderRadius: 3,
+          background:
+            "linear-gradient(135deg, rgba(59,130,246,0.10), rgba(34,197,94,0.10))",
+        }}
+      >
+        <Typography variant="h5" sx={{ fontWeight: 900, mb: 0.5 }}>
+          עזרה למנהל מערכת
+        </Typography>
+        <Typography sx={{ opacity: 0.75 }}>
+          חיפוש מהיר והנחיות תפעול למסכי הניהול
+        </Typography>
 
-      <Paper sx={{ p: 2, mb: 2 }}>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ alignItems: "stretch" }}>
+        <Divider sx={{ my: 2 }} />
+
+        <Stack spacing={2}>
           <TextField
             fullWidth
             label="חיפוש בעזרה (למשל: מועמדים / קורסים / בקשות)"
@@ -130,72 +144,115 @@ export function HelpPage() {
             onChange={(e) => setQuery(e.target.value)}
           />
 
-          <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", alignItems: "center" }}>
-            <Button variant="contained" onClick={() => navigate("/admin/candidates")}>
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{
+              flexWrap: "wrap",
+              gap: 1,
+            }}
+          >
+            <Button variant="outlined" onClick={() => navigate("/admin/candidates")}>
               מועמדים
             </Button>
-            <Button variant="contained" onClick={() => navigate("/admin/requests")}>
+            <Button variant="outlined" onClick={() => navigate("/admin/requests")}>
               בקשות
             </Button>
-            <Button variant="contained" onClick={() => navigate("/admin/courses")}>
+            <Button variant="outlined" onClick={() => navigate("/admin/courses")}>
               קורסים
             </Button>
-            <Button variant="contained" onClick={() => navigate("/admin/requirements")}>
+            <Button variant="outlined" onClick={() => navigate("/admin/requirements")}>
               דרישות
             </Button>
-            <Button variant="contained" onClick={() => navigate("/admin/deadlines")}>
+            <Button variant="outlined" onClick={() => navigate("/admin/deadlines")}>
               מועדים
             </Button>
           </Stack>
         </Stack>
       </Paper>
 
-      <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: "wrap" }}>
-        <Chip label="מועמדים" onClick={() => setQuery("מועמדים")} />
-        <Chip label="בקשות" onClick={() => setQuery("בקשות")} />
-        <Chip label="קורסים" onClick={() => setQuery("קורסים")} />
-        <Chip label="דרישות" onClick={() => setQuery("דרישות")} />
-        <Chip label="מועדי הרשמה" onClick={() => setQuery("מועדי הרשמה")} />
-        <Chip label="פניות" onClick={() => setQuery("פניות")} />
-        <Chip label="איפוס חיפוש" variant="outlined" onClick={() => setQuery("")} />
-      </Stack>
+      <Paper sx={{ p: 2, mb: 2, borderRadius: 3 }}>
+        <Typography sx={{ fontWeight: 900, mb: 1 }}>סינון מהיר</Typography>
+        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", gap: 1 }}>
+          <Chip label="מועמדים" onClick={() => setQuery("מועמדים")} />
+          <Chip label="בקשות" onClick={() => setQuery("בקשות")} />
+          <Chip label="קורסים" onClick={() => setQuery("קורסים")} />
+          <Chip label="דרישות" onClick={() => setQuery("דרישות")} />
+          <Chip label="מועדי הרשמה" onClick={() => setQuery("מועדי הרשמה")} />
+          <Chip label="פניות" onClick={() => setQuery("פניות")} />
+          <Chip label="איפוס חיפוש" variant="outlined" onClick={() => setQuery("")} />
+        </Stack>
+      </Paper>
 
       {filtered.length === 0 ? (
-        <Paper sx={{ p: 2 }}>
+        <Paper sx={{ p: 2, borderRadius: 3 }}>
           <Typography>לא נמצאו תוצאות.</Typography>
         </Paper>
       ) : (
-        <Stack spacing={2}>
+        <Stack spacing={1.5}>
           {filtered.map((x) => (
-            <Paper key={x.id} sx={{ overflow: "hidden" }}>
-              <Accordion defaultExpanded={filtered.length === 1}>
-                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Accordion
+              key={x.id}
+              defaultExpanded={filtered.length === 1}
+              sx={{
+                borderRadius: 3,
+                overflow: "hidden",
+                "&:before": { display: "none" },
+              }}
+            >
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ width: "100%" }}>
                   <Typography sx={{ fontWeight: 900 }}>{x.title}</Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <Stack spacing={1}>
-                    {x.steps.map((s, idx) => (
-                      <Typography key={idx} sx={{ lineHeight: 1.7 }}>
-                        {idx + 1}. {s}
-                      </Typography>
-                    ))}
+                  <Box sx={{ flex: 1 }} />
+                  <Chip size="small" label={`${x.steps.length} צעדים`} variant="outlined" />
+                </Stack>
+              </AccordionSummary>
 
-                    {x.tips && x.tips.length > 0 && (
-                      <Box sx={{ mt: 1 }}>
-                        <Typography sx={{ fontWeight: 900, mb: 0.5 }}>Tips</Typography>
-                        <Stack spacing={0.5}>
-                          {x.tips.map((t, idx) => (
-                            <Typography key={idx} sx={{ opacity: 0.85 }}>
-                              • {t}
-                            </Typography>
-                          ))}
-                        </Stack>
+              <AccordionDetails>
+                <Stack spacing={1.25}>
+                  {x.steps.map((s, idx) => (
+                    <Box key={idx} sx={{ display: "flex", gap: 1.25 }}>
+                      <Box
+                        sx={{
+                          width: 26,
+                          height: 26,
+                          borderRadius: 999,
+                          display: "grid",
+                          placeItems: "center",
+                          bgcolor: "rgba(0,0,0,0.06)",
+                          fontWeight: 900,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {idx + 1}
                       </Box>
-                    )}
-                  </Stack>
-                </AccordionDetails>
-              </Accordion>
-            </Paper>
+                      <Typography sx={{ lineHeight: 1.8 }}>{s}</Typography>
+                    </Box>
+                  ))}
+
+                  {x.tips && x.tips.length > 0 && (
+                    <Paper
+                      variant="outlined"
+                      sx={{
+                        p: 1.5,
+                        borderRadius: 3,
+                        bgcolor: "rgba(34,197,94,0.06)",
+                        borderColor: "rgba(34,197,94,0.25)",
+                      }}
+                    >
+                      <Typography sx={{ fontWeight: 900, mb: 0.5 }}>Tips</Typography>
+                      <Stack spacing={0.5}>
+                        {x.tips.map((t, idx) => (
+                          <Typography key={idx} sx={{ opacity: 0.9 }}>
+                            • {t}
+                          </Typography>
+                        ))}
+                      </Stack>
+                    </Paper>
+                  )}
+                </Stack>
+              </AccordionDetails>
+            </Accordion>
           ))}
         </Stack>
       )}
