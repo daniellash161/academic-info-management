@@ -13,15 +13,11 @@ const REQUIRED_ENVS = [
 type RequiredEnvKey = (typeof REQUIRED_ENVS)[number];
 
 function env(name: RequiredEnvKey): string {
-  return (import.meta as any).env?.[name] ?? "";
+  return import.meta.env[name] ?? "";
 }
 
 const missing = REQUIRED_ENVS.filter((k) => !env(k));
 
-/**
- * חשוב: זה כדי שלא “ננחש”.
- * אם חסר משהו - את תראי בקונסול בדיוק מה חסר.
- */
 if (missing.length) {
   // eslint-disable-next-line no-console
   console.error("[FIREBASE CONFIG] Missing env vars:", missing);
