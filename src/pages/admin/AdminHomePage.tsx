@@ -41,15 +41,37 @@ type StatCardProps = {
 
 function StatCard({ title, value, color, icon, onClick }: StatCardProps) {
   return (
-    <Card sx={{ flex: "1 1 260px", minWidth: 260, position: "relative", overflow: "hidden" }}>
+    <Card
+      sx={{
+        flex: "1 1 260px",
+        minWidth: 260,
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
       <Box sx={{ height: 4, bgcolor: color }} />
-      <CardContent sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <CardContent
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
         <Box>
-          <Typography sx={{ fontWeight: 900, opacity: 0.75 }}>{title}</Typography>
-          <Typography variant="h3" sx={{ fontWeight: 900, lineHeight: 1.1, my: 0.5 }}>
+          <Typography sx={{ fontWeight: 900, opacity: 0.75 }}>
+            {title}
+          </Typography>
+          <Typography
+            variant="h3"
+            sx={{ fontWeight: 900, lineHeight: 1.1, my: 0.5 }}
+          >
             {value}
           </Typography>
-          <Button onClick={onClick} size="small" sx={{ px: 0, fontWeight: 900 }}>
+          <Button
+            onClick={onClick}
+            size="small"
+            sx={{ px: 0, fontWeight: 900 }}
+          >
             מעבר למסך
           </Button>
         </Box>
@@ -88,7 +110,10 @@ type RecentCandidateRow = {
 
 function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const t = window.setTimeout(() => reject(new Error(`Timeout: ${label}`)), ms);
+    const t = window.setTimeout(
+      () => reject(new Error(`Timeout: ${label}`)),
+      ms
+    );
     p.then((x) => {
       window.clearTimeout(t);
       resolve(x);
@@ -112,23 +137,31 @@ export function AdminHomePage() {
   const [requests, setRequests] = useState<RegistrationRequest[]>([]);
 
   const [pendingRequests, setPendingRequests] = useState<PendingRow[]>([]);
-  const [recentCandidates, setRecentCandidates] = useState<RecentCandidateRow[]>([]);
+  const [recentCandidates, setRecentCandidates] = useState<
+    RecentCandidateRow[]
+  >([]);
 
   async function refresh() {
     setLoading(true);
 
     try {
-      // 10-12 שניות זה מספיק כדי להבין שיש בעיית חיבור/Rules/Config במקום להיתקע דקה+
-      const [candidates, courses, requirements, allRequests] = await Promise.all([
-        withTimeout(Promise.resolve(usersService.getCandidates() as any), 12000, "candidates"),
-        withTimeout(coursesService.getAll(), 12000, "courses"),
-        withTimeout(requirementsService.getAll(), 12000, "requirements"),
-        withTimeout(requestsService.getAll(), 12000, "requests"),
-      ]);
+      const [candidates, courses, requirements, allRequests] =
+        await Promise.all([
+          withTimeout(
+            Promise.resolve(usersService.getCandidates() as any),
+            12000,
+            "candidates"
+          ),
+          withTimeout(coursesService.getAll(), 12000, "courses"),
+          withTimeout(requirementsService.getAll(), 12000, "requirements"),
+          withTimeout(requestsService.getAll(), 12000, "requests"),
+        ]);
 
       setCandidatesCount(Array.isArray(candidates) ? candidates.length : 0);
       setCoursesCount(Array.isArray(courses) ? courses.length : 0);
-      setRequirementsCount(Array.isArray(requirements) ? requirements.length : 0);
+      setRequirementsCount(
+        Array.isArray(requirements) ? requirements.length : 0
+      );
 
       setRequests(Array.isArray(allRequests) ? allRequests : []);
 
@@ -165,8 +198,9 @@ export function AdminHomePage() {
       setRecentCandidates(recent);
     } catch (e: any) {
       console.error("AdminHomePage refresh error:", e);
-      snackbar.show(e?.message ?? "שגיאה בטעינת נתונים (בדקי חיבור ל-Firestore)");
-      // לא משנים עיצוב: פשוט מציגים 0/ריק במקום להיתקע
+      snackbar.show(
+        e?.message ?? "שגיאה בטעינת נתונים (בדקי חיבור ל-Firestore)"
+      );
       setCandidatesCount(0);
       setCoursesCount(0);
       setRequirementsCount(0);
@@ -239,11 +273,15 @@ export function AdminHomePage() {
 
       <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", mb: 3 }}>
         <Paper sx={{ p: 2, flex: "1 1 520px", minWidth: 520 }}>
-          <Typography sx={{ fontWeight: 900, mb: 1 }}>בקשות הרשמה לטיפול</Typography>
+          <Typography sx={{ fontWeight: 900, mb: 1 }}>
+            בקשות הרשמה לטיפול
+          </Typography>
           <Divider sx={{ mb: 2 }} />
 
           {pendingRequests.length === 0 ? (
-            <Typography sx={{ opacity: 0.75 }}>אין בקשות בסטטוס “נשלחה”.</Typography>
+            <Typography sx={{ opacity: 0.75 }}>
+              אין בקשות בסטטוס “נשלחה”.
+            </Typography>
           ) : (
             <Table size="small">
               <TableHead>
@@ -266,7 +304,9 @@ export function AdminHomePage() {
                       <Button
                         size="small"
                         sx={{ fontWeight: 900 }}
-                        onClick={() => navigate(`/admin/requests/${r.requestNumber}/edit`)}
+                        onClick={() =>
+                          navigate(`/admin/requests/${r.requestNumber}/edit`)
+                        }
                       >
                         מעבר לבקשה
                       </Button>
@@ -279,7 +319,9 @@ export function AdminHomePage() {
         </Paper>
 
         <Paper sx={{ p: 2, flex: "1 1 520px", minWidth: 520 }}>
-          <Typography sx={{ fontWeight: 900, mb: 1 }}>מועמדים אחרונים</Typography>
+          <Typography sx={{ fontWeight: 900, mb: 1 }}>
+            מועמדים אחרונים
+          </Typography>
           <Divider sx={{ mb: 2 }} />
 
           {recentCandidates.length === 0 ? (
@@ -302,7 +344,9 @@ export function AdminHomePage() {
                       <Button
                         size="small"
                         sx={{ fontWeight: 900 }}
-                        onClick={() => navigate(`/admin/candidates/${c.id}/edit`)}
+                        onClick={() =>
+                          navigate(`/admin/candidates/${c.id}/edit`)
+                        }
                       >
                         מעבר למועמד
                       </Button>
@@ -317,25 +361,56 @@ export function AdminHomePage() {
 
       <Typography sx={{ fontWeight: 900, mb: 1 }}>פעולות מהירות</Typography>
 
-      <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", justifyContent: "flex-end" }}>
-        <Button variant="contained" sx={{ bgcolor: "#22C55E" }} onClick={() => navigate("/admin/requirements/new")}>
+      <Box
+        sx={{
+          display: "flex",
+          gap: 2,
+          flexWrap: "wrap",
+          justifyContent: "flex-end",
+        }}
+      >
+        <Button
+          variant="contained"
+          sx={{ bgcolor: "#22C55E" }}
+          onClick={() => navigate("/admin/requirements/new")}
+        >
           הוספת דרישה
         </Button>
-        <Button variant="contained" sx={{ bgcolor: "#6C63FF" }} onClick={() => navigate("/admin/courses/new")}>
+        <Button
+          variant="contained"
+          sx={{ bgcolor: "#6C63FF" }}
+          onClick={() => navigate("/admin/courses/new")}
+        >
           הוספת קורס
         </Button>
-        <Button variant="contained" sx={{ bgcolor: "#8B5CF6" }} onClick={() => navigate("/admin/deadlines/new")}>
+        <Button
+          variant="contained"
+          sx={{ bgcolor: "#8B5CF6" }}
+          onClick={() => navigate("/admin/deadlines/new")}
+        >
           הוספת מועד הרשמה
         </Button>
-        <Button variant="contained" sx={{ bgcolor: "#F97316" }} onClick={() => navigate("/admin/requests/new")}>
+        <Button
+          variant="contained"
+          sx={{ bgcolor: "#F97316" }}
+          onClick={() => navigate("/admin/requests/new")}
+        >
           הוספת בקשה
         </Button>
-        <Button variant="contained" sx={{ bgcolor: "#3B82F6" }} onClick={() => navigate("/admin/candidates/new")}>
+        <Button
+          variant="contained"
+          sx={{ bgcolor: "#3B82F6" }}
+          onClick={() => navigate("/admin/candidates/new")}
+        >
           הוספת מועמד
         </Button>
       </Box>
 
-      <AppSnackbar open={snackbar.open} message={snackbar.message} onClose={snackbar.close} />
+      <AppSnackbar
+        open={snackbar.open}
+        message={snackbar.message}
+        onClose={snackbar.close}
+      />
     </Box>
   );
 }
