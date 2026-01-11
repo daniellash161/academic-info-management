@@ -8,6 +8,7 @@ import {
   DialogContentText,
   DialogTitle,
   IconButton,
+  LinearProgress,
   Paper,
   Table,
   TableBody,
@@ -29,16 +30,26 @@ export function CoursesPage() {
   const [rows, setRows] = useState<Course[]>([]);
   const [query, setQuery] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Course | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
 
   const navigate = useNavigate();
   const snackbar = useSnackbar();
 
-  function refresh() {
-    setRows(coursesService.getAll());
+  async function refresh() {
+    setLoading(true);
+    try {
+      const data = await coursesService.getAll();
+      setRows(data);
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה בטעינת נתונים");
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
-    refresh();
+    void refresh();
   }, []);
 
   const filtered = useMemo(() => {
@@ -58,19 +69,30 @@ export function CoursesPage() {
   }
 
   function cancelDelete() {
+    if (deleting) return;
     setDeleteTarget(null);
   }
 
-  function confirmDelete() {
-    if (!deleteTarget) return;
-    coursesService.remove(deleteTarget.code);
-    setDeleteTarget(null);
-    refresh();
-    snackbar.show("הקורס נמחק בהצלחה");
+  async function confirmDelete() {
+    if (!deleteTarget || deleting) return;
+
+    setDeleting(true);
+    try {
+      await coursesService.remove(deleteTarget.code);
+      setDeleteTarget(null);
+      await refresh();
+      snackbar.show("הקורס נמחק בהצלחה");
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה במחיקה");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
     <Box>
+      {loading && <LinearProgress />}
+
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
         <Typography variant="h5">ניהול קורסים</Typography>
         <Button variant="contained" onClick={() => navigate("/admin/courses/new")}>
@@ -122,7 +144,7 @@ export function CoursesPage() {
               </TableRow>
             ))}
 
-            {filtered.length === 0 && (
+            {filtered.length === 0 && !loading && (
               <TableRow>
                 <TableCell colSpan={6} align="center">
                   אין קורסים להצגה
@@ -141,10 +163,10 @@ export function CoursesPage() {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" onClick={cancelDelete}>
+          <Button variant="outlined" onClick={cancelDelete} disabled={deleting}>
             ביטול
           </Button>
-          <Button variant="contained" color="error" onClick={confirmDelete}>
+          <Button variant="contained" color="error" onClick={() => void confirmDelete()} disabled={deleting}>
             מחיקה
           </Button>
         </DialogActions>

@@ -4,12 +4,14 @@ import {
   Button,
   Checkbox,
   FormControlLabel,
-  MenuItem,
   ListItemText,
+  MenuItem,
   Stack,
   Switch,
   TextField,
   Typography,
+  LinearProgress,
+  Alert,
 } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
 import type { Requirement, RequirementType } from "../../models/requirement";
@@ -17,6 +19,7 @@ import { requirementsService } from "../../services/requirementsService";
 import { coursesService } from "../../services/coursesService";
 import { useSnackbar } from "../../hooks/useSnackbar";
 import { AppSnackbar } from "../../components/AppSnackbar";
+import type { Course } from "../../models/course";
 
 type FormState = {
   type: RequirementType | "";
@@ -26,7 +29,7 @@ type FormState = {
   extraInfo: string;
   displayOrder: number | "";
   isMandatory: boolean;
-  courseCodes: string[]; 
+  courseCodes: string[];
 };
 
 function validate(v: FormState, validCourseCodes: Set<string>) {
@@ -43,10 +46,13 @@ function validate(v: FormState, validCourseCodes: Set<string>) {
     errors.displayOrder = "סדר תצוגה חייב להיות מספר שלם >= 1";
   }
 
-  for (const code of v.courseCodes) {
-    if (!validCourseCodes.has(code)) {
-      errors.courseCodes = `קורס לא קיים: ${code}`;
-      break;
+  // בודקים קורסים רק אם טענו קורסים (כלומר יש סט)
+  if (validCourseCodes.size > 0) {
+    for (const code of v.courseCodes) {
+      if (!validCourseCodes.has(code)) {
+        errors.courseCodes = `קורס לא קיים: ${code}`;
+        break;
+      }
     }
   }
 
@@ -60,8 +66,13 @@ export function RequirementFormPage() {
   const snackbar = useSnackbar();
 
   const types = requirementsService.types();
-  const courses = coursesService.getAll(); // קיים אצלך כבר במערכת
+
+  const [courses, setCourses] = useState<Course[]>([]);
   const validCourseCodes = useMemo(() => new Set(courses.map((c) => c.code)), [courses]);
+
+  const [loading, setLoading] = useState(true); // כולל קורסים + (אם edit) דרישה
+  const [saving, setSaving] = useState(false);
+  const [notFound, setNotFound] = useState(false);
 
   const [values, setValues] = useState<FormState>({
     type: "",
@@ -75,20 +86,52 @@ export function RequirementFormPage() {
   });
 
   useEffect(() => {
-    if (!id) return;
-    const existing = requirementsService.getById(id);
-    if (!existing) return;
+    let alive = true;
 
-    setValues({
-      type: existing.type,
-      minScore: existing.minScore,
-      title: existing.title,
-      description: existing.description ?? "",
-      extraInfo: existing.extraInfo ?? "",
-      displayOrder: existing.displayOrder,
-      isMandatory: existing.isMandatory,
-      courseCodes: existing.courseCodes ?? [],
-    });
+    (async () => {
+      setLoading(true);
+      setNotFound(false);
+
+      try {
+        // 1) תמיד טוענים קורסים (לטופס)
+        const allCourses = await coursesService.getAll();
+        if (!alive) return;
+        setCourses(allCourses);
+
+        // 2) אם זה עריכה – טוענים את הדרישה
+        if (id) {
+          const existing = await requirementsService.getById(id);
+          if (!alive) return;
+
+          if (!existing) {
+            setNotFound(true);
+            return;
+          }
+
+          setValues({
+            type: existing.type,
+            minScore: existing.minScore,
+            title: existing.title,
+            description: existing.description ?? "",
+            extraInfo: existing.extraInfo ?? "",
+            displayOrder: existing.displayOrder,
+            isMandatory: existing.isMandatory,
+            courseCodes: existing.courseCodes ?? [],
+          });
+        }
+      } catch (e: any) {
+        if (!alive) return;
+        snackbar.show(e?.message ?? "שגיאה בטעינת טופס דרישת קבלה");
+      } finally {
+        if (!alive) return;
+        setLoading(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+    // בכוונה בלי snackbar ב-deps כדי לא ליצור לופים
   }, [id]);
 
   const errors = useMemo(() => validate(values, validCourseCodes), [values, validCourseCodes]);
@@ -98,8 +141,8 @@ export function RequirementFormPage() {
     setValues((prev) => ({ ...prev, [key]: value }));
   }
 
-  function onSave() {
-    if (!canSave) return;
+  async function onSave() {
+    if (!canSave || saving) return;
 
     const payload: Omit<Requirement, "id"> = {
       type: values.type as RequirementType,
@@ -112,19 +155,40 @@ export function RequirementFormPage() {
       courseCodes: values.courseCodes,
     };
 
-    if (isEdit && id) {
-      requirementsService.update(id, payload);
-      snackbar.show("הדרישה עודכנה בהצלחה");
-    } else {
-      requirementsService.create(payload);
-      snackbar.show("הדרישה נשמרה בהצלחה");
-    }
+    setSaving(true);
+    try {
+      if (isEdit && id) {
+        await requirementsService.update(id, payload);
+        snackbar.show("הדרישה עודכנה בהצלחה");
+      } else {
+        await requirementsService.create(payload);
+        snackbar.show("הדרישה נשמרה בהצלחה");
+      }
 
-    navigate("/admin/requirements");
+      navigate("/admin/requirements");
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה בשמירה");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <Box>
+        <LinearProgress />
+      </Box>
+    );
+  }
+
+  if (notFound) {
+    return <Alert severity="error">Requirement not found</Alert>;
   }
 
   return (
     <Box>
+      {(saving) && <LinearProgress sx={{ mb: 2 }} />}
+
       <Typography variant="h5" sx={{ mb: 2 }}>
         {isEdit ? "עריכת דרישת קבלה" : "הוספת דרישת קבלה"}
       </Typography>
@@ -192,7 +256,6 @@ export function RequirementFormPage() {
           helperText={errors.displayOrder ?? " "}
         />
 
-        {/* קשר דרישה ↔ קורסים */}
         <TextField
           select
           label="קורסים רלוונטיים (רשות)"
@@ -218,20 +281,15 @@ export function RequirementFormPage() {
         </TextField>
 
         <FormControlLabel
-          control={
-            <Switch
-              checked={values.isMandatory}
-              onChange={(e) => setField("isMandatory", e.target.checked)}
-            />
-          }
+          control={<Switch checked={values.isMandatory} onChange={(e) => setField("isMandatory", e.target.checked)} />}
           label="דרישת חובה"
         />
 
         <Stack direction="row" spacing={2}>
-          <Button variant="contained" onClick={onSave} disabled={!canSave}>
+          <Button variant="contained" onClick={() => void onSave()} disabled={!canSave || saving}>
             שמור דרישה
           </Button>
-          <Button variant="outlined" onClick={() => navigate("/admin/requirements")}>
+          <Button variant="outlined" onClick={() => navigate("/admin/requirements")} disabled={saving}>
             ביטול
           </Button>
         </Stack>

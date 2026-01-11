@@ -3,6 +3,7 @@ import {
   Box,
   Button,
   Divider,
+  LinearProgress,
   MenuItem,
   Stack,
   TextField,
@@ -38,6 +39,9 @@ export function ContactMessageFormPage() {
   const navigate = useNavigate();
   const snackbar = useSnackbar();
 
+  const [loading, setLoading] = useState<boolean>(true);
+  const [notFound, setNotFound] = useState<boolean>(false);
+
   const [message, setMessage] = useState<ContactMessage | null>(null);
 
   const [values, setValues] = useState<FormState>({
@@ -46,20 +50,35 @@ export function ContactMessageFormPage() {
   });
 
   useEffect(() => {
-    if (!id) return;
-
-    const existing = contactMessagesService.getById(id);
-    if (!existing) {
-      setMessage(null);
+    if (!id) {
+      setLoading(false);
+      setNotFound(true);
       return;
     }
 
-    setMessage(existing);
-    setValues({
-      status: existing.status,
-      adminNote: existing.adminNote ?? "",
-    });
-  }, [id]);
+    (async () => {
+      setLoading(true);
+      setNotFound(false);
+      try {
+        const existing = await contactMessagesService.getById(id);
+        if (!existing) {
+          setMessage(null);
+          setNotFound(true);
+          return;
+        }
+
+        setMessage(existing);
+        setValues({
+          status: existing.status,
+          adminNote: existing.adminNote ?? "",
+        });
+      } catch (e: any) {
+        snackbar.show(e?.message ?? "שגיאה בטעינת פנייה");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [id, snackbar]);
 
   const errors = useMemo(() => validate(values), [values]);
   const canSave = Object.keys(errors).length === 0;
@@ -77,31 +96,40 @@ export function ContactMessageFormPage() {
     }
   }
 
-  function onSave() {
+  async function onSave() {
     if (!id || !canSave) return;
 
-    contactMessagesService.update(id, {
-      status: values.status as ContactMessageStatus,
-      adminNote: values.adminNote,
-    });
+    try {
+      await contactMessagesService.update(id, {
+        status: values.status as ContactMessageStatus,
+        adminNote: values.adminNote,
+      });
 
-    snackbar.show("הפנייה עודכנה בהצלחה");
-    navigate("/admin/contacts");
+      snackbar.show("הפנייה עודכנה בהצלחה");
+      navigate("/admin/contacts");
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה בשמירה");
+    }
   }
 
   const statuses = contactMessagesService.statuses();
 
-  if (!id) {
-    return <Box sx={{ p: 2 }}>חסר מזהה פנייה</Box>;
+  if (loading) {
+    return (
+      <Box>
+        <LinearProgress />
+      </Box>
+    );
   }
 
-  if (!message) {
+  if (notFound || !message) {
     return (
       <Box sx={{ p: 2 }}>
         <Typography variant="h6">פנייה לא נמצאה</Typography>
         <Button sx={{ mt: 2 }} variant="outlined" onClick={() => navigate("/admin/contacts")}>
           חזרה לרשימה
         </Button>
+        <AppSnackbar open={snackbar.open} message={snackbar.message} onClose={snackbar.close} />
       </Box>
     );
   }
@@ -112,7 +140,6 @@ export function ContactMessageFormPage() {
         עריכת פנייה
       </Typography>
 
-      {/* פרטי פנייה + פעולות */}
       <Stack spacing={2} sx={{ maxWidth: 900 }}>
         <Typography variant="h6">פרטי פנייה</Typography>
 
@@ -145,7 +172,7 @@ export function ContactMessageFormPage() {
             gap: 2,
             rowGap: 1.5,
             justifyContent: "flex-start",
-            "& .MuiButton-endIcon": { m: 0 }, 
+            "& .MuiButton-endIcon": { m: 0 },
             "& .MuiButton-startIcon": { m: 0 },
           }}
         >
@@ -171,7 +198,7 @@ export function ContactMessageFormPage() {
             variant="outlined"
             endIcon={<ContentCopyIcon />}
             sx={{ gap: 1, whiteSpace: "nowrap", px: 2.5 }}
-            onClick={() => copyToClipboard(message.email)}
+            onClick={() => void copyToClipboard(message.email)}
           >
             העתקת מייל
           </Button>
@@ -180,7 +207,7 @@ export function ContactMessageFormPage() {
             variant="outlined"
             endIcon={<ContentCopyIcon />}
             sx={{ gap: 1, whiteSpace: "nowrap", px: 2.5 }}
-            onClick={() => copyToClipboard(message.phone)}
+            onClick={() => void copyToClipboard(message.phone)}
           >
             העתקת טלפון
           </Button>
@@ -188,7 +215,6 @@ export function ContactMessageFormPage() {
 
         <Divider sx={{ my: 1 }} />
 
-        {/* ניהול פנייה (מנהל) */}
         <Typography variant="h6">עריכת סטטוס והערת מנהל</Typography>
 
         <TextField
@@ -219,7 +245,7 @@ export function ContactMessageFormPage() {
         />
 
         <Stack direction="row" spacing={2}>
-          <Button variant="contained" onClick={onSave} disabled={!canSave}>
+          <Button variant="contained" onClick={() => void onSave()} disabled={!canSave}>
             שמירה
           </Button>
           <Button variant="outlined" onClick={() => navigate("/admin/contacts")}>

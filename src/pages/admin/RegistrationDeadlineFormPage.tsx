@@ -1,14 +1,5 @@
-// src/pages/admin/RegistrationDeadlineFormPage.tsx
 import { useEffect, useMemo, useState } from "react";
-import {
-  Box,
-  Button,
-  FormControlLabel,
-  Stack,
-  Switch,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { Box, Button, FormControlLabel, Stack, Switch, TextField, Typography, LinearProgress, Alert } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
 import type { RegistrationDeadline } from "../../models/registrationDeadline";
 import { registrationDeadlinesService } from "../../services/registrationDeadlinesService";
@@ -42,21 +33,20 @@ function validate(v: FormState) {
 
   if (v.notes.length > 300) e.notes = "עד 300 תווים";
 
-  if (v.startDate && v.startDate > "9999-99-99") e.startDate = "תאריך לא תקין";
-  if (v.endDate && v.endDate > "9999-99-99") e.endDate = "תאריך לא תקין";
-
-  if (v.startDate && v.startDate > todayYmd() && v.endDate && v.endDate < v.startDate) {
-    e.endDate = "תאריך לא תקין";
-  }
-
   return e;
 }
 
 export function RegistrationDeadlineFormPage() {
   const { id } = useParams();
-  const isEdit = Boolean(id);
+
+  const isEdit = Boolean(id && id !== "new");
+
   const navigate = useNavigate();
   const snackbar = useSnackbar();
+
+  const [loading, setLoading] = useState<boolean>(isEdit);
+  const [saving, setSaving] = useState(false);
+  const [notFound, setNotFound] = useState(false);
 
   const [values, setValues] = useState<FormState>({
     title: "",
@@ -67,18 +57,47 @@ export function RegistrationDeadlineFormPage() {
   });
 
   useEffect(() => {
-    if (!id) return;
-    const existing = registrationDeadlinesService.getById(id);
-    if (!existing) return;
+    let alive = true;
 
-    setValues({
-      title: existing.title,
-      startDate: existing.startDate,
-      endDate: existing.endDate,
-      isActive: existing.isActive,
-      notes: existing.notes ?? "",
-    });
-  }, [id]);
+    if (!isEdit || !id || id === "new") {
+      setLoading(false);
+      setNotFound(false);
+      return;
+    }
+
+    (async () => {
+      setLoading(true);
+      setNotFound(false);
+
+      try {
+        const existing = await registrationDeadlinesService.getById(id);
+        if (!alive) return;
+
+        if (!existing) {
+          setNotFound(true);
+          return;
+        }
+
+        setValues({
+          title: existing.title,
+          startDate: existing.startDate,
+          endDate: existing.endDate,
+          isActive: existing.isActive,
+          notes: existing.notes ?? "",
+        });
+      } catch (e: any) {
+        if (!alive) return;
+        snackbar.show(e?.message ?? "שגיאה בטעינת מועד הרשמה");
+      } finally {
+        if (!alive) return;
+        setLoading(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [id, isEdit]); 
 
   const errors = useMemo(() => validate(values), [values]);
   const canSave = Object.keys(errors).length === 0;
@@ -87,8 +106,8 @@ export function RegistrationDeadlineFormPage() {
     setValues((prev) => ({ ...prev, [key]: value }));
   }
 
-  function onSave() {
-    if (!canSave) return;
+  async function onSave() {
+    if (!canSave || saving) return;
 
     const payload: Omit<RegistrationDeadline, "id" | "createdAt"> = {
       title: values.title.trim(),
@@ -98,19 +117,40 @@ export function RegistrationDeadlineFormPage() {
       notes: values.notes.trim() ? values.notes.trim() : undefined,
     };
 
-    if (isEdit && id) {
-      registrationDeadlinesService.update(id, payload);
-      snackbar.show("מועד ההרשמה עודכן בהצלחה");
-    } else {
-      registrationDeadlinesService.create(payload);
-      snackbar.show("מועד ההרשמה נשמר בהצלחה");
-    }
+    setSaving(true);
+    try {
+      if (isEdit && id && id !== "new") {
+        await registrationDeadlinesService.update(id, payload);
+        snackbar.show("מועד ההרשמה עודכן בהצלחה");
+      } else {
+        await registrationDeadlinesService.create(payload);
+        snackbar.show("מועד ההרשמה נשמר בהצלחה");
+      }
 
-    navigate("/admin/deadlines");
+      navigate("/admin/deadlines");
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה בשמירה");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <Box>
+        <LinearProgress />
+      </Box>
+    );
+  }
+
+  if (notFound) {
+    return <Alert severity="error">Deadline not found</Alert>;
   }
 
   return (
     <Box>
+      {saving && <LinearProgress sx={{ mb: 2 }} />}
+
       <Typography variant="h5" sx={{ mb: 2 }}>
         {isEdit ? "עריכת מועד הרשמה" : "הוספת מועד הרשמה"}
       </Typography>
@@ -148,12 +188,7 @@ export function RegistrationDeadlineFormPage() {
         />
 
         <FormControlLabel
-          control={
-            <Switch
-              checked={values.isActive}
-              onChange={(e) => setField("isActive", e.target.checked)}
-            />
-          }
+          control={<Switch checked={values.isActive} onChange={(e) => setField("isActive", e.target.checked)} />}
           label="מועד פעיל"
         />
 
@@ -168,10 +203,10 @@ export function RegistrationDeadlineFormPage() {
         />
 
         <Stack direction="row" spacing={2}>
-          <Button variant="contained" onClick={onSave} disabled={!canSave}>
+          <Button variant="contained" onClick={() => void onSave()} disabled={!canSave || saving}>
             שמירה
           </Button>
-          <Button variant="outlined" onClick={() => navigate("/admin/deadlines")}>
+          <Button variant="outlined" onClick={() => navigate("/admin/deadlines")} disabled={saving}>
             ביטול
           </Button>
         </Stack>

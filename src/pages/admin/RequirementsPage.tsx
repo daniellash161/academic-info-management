@@ -2,7 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   IconButton,
+  LinearProgress,
   MenuItem,
   Paper,
   Table,
@@ -16,30 +22,90 @@ import {
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import { useNavigate } from "react-router-dom";
-import type { RequirementType } from "../../models/requirement";
+import type { Requirement, RequirementType } from "../../models/requirement";
 import { requirementsService } from "../../services/requirementsService";
+import { useSnackbar } from "../../hooks/useSnackbar";
+import { AppSnackbar } from "../../components/AppSnackbar";
 
 export function RequirementsPage() {
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<RequirementType | "ALL">("ALL");
-  const [refreshKey, setRefreshKey] = useState(0);
-  const navigate = useNavigate();
+  const [all, setAll] = useState<Requirement[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<Requirement | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {}, [refreshKey]);
+  const navigate = useNavigate();
+  const snackbar = useSnackbar();
+
+  async function refresh() {
+    setLoading(true);
+    try {
+      const items = await requirementsService.getAll();
+      setAll(items);
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה בטעינת דרישות");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void refresh();
+  }, []);
 
   const types = requirementsService.types();
 
   const rows = useMemo(() => {
-    return requirementsService.searchAndFilter(query, typeFilter);
-  }, [query, typeFilter, refreshKey]);
+    const q = query.trim().toLowerCase();
+    let r = all;
 
-  function onDelete(id: string) {
-    requirementsService.remove(id);
-    setRefreshKey((x) => x + 1);
+    if (typeFilter !== "ALL") r = r.filter((x) => x.type === typeFilter);
+
+    if (q) {
+      r = r.filter((x) => {
+        const hay = [
+          x.type,
+          x.title,
+          x.description ?? "",
+          x.extraInfo ?? "",
+          (x.courseCodes ?? []).join(","),
+        ]
+          .join(" ")
+          .toLowerCase();
+        return hay.includes(q);
+      });
+    }
+
+    return [...r].sort((a, b) => a.displayOrder - b.displayOrder);
+  }, [all, query, typeFilter]);
+
+  function askDelete(r: Requirement) {
+    setDeleteTarget(r);
+  }
+
+  function cancelDelete() {
+    setDeleteTarget(null);
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+
+    setLoading(true);
+    try {
+      await requirementsService.remove(deleteTarget.id);
+      setDeleteTarget(null);
+      await refresh();
+      snackbar.show("הדרישה נמחקה בהצלחה");
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה במחיקה");
+      setLoading(false);
+    }
   }
 
   return (
     <Box>
+      {loading && <LinearProgress />}
+
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
         <Typography variant="h5">ניהול דרישות קבלה</Typography>
         <Button variant="contained" onClick={() => navigate("/admin/requirements/new")}>
@@ -93,19 +159,21 @@ export function RequirementsPage() {
                 <TableCell>{r.minScore}</TableCell>
                 <TableCell>{r.isMandatory ? "כן" : "לא"}</TableCell>
                 <TableCell>{r.displayOrder}</TableCell>
-                <TableCell>{(r.courseCodes ?? []).length ? (r.courseCodes ?? []).join(", ") : "—"}</TableCell>
+                <TableCell>
+                  {(r.courseCodes ?? []).length ? (r.courseCodes ?? []).join(", ") : "—"}
+                </TableCell>
                 <TableCell align="right">
                   <IconButton onClick={() => navigate(`/admin/requirements/${r.id}/edit`)}>
                     <EditIcon />
                   </IconButton>
-                  <IconButton onClick={() => onDelete(r.id)}>
+                  <IconButton onClick={() => askDelete(r)}>
                     <DeleteIcon />
                   </IconButton>
                 </TableCell>
               </TableRow>
             ))}
 
-            {rows.length === 0 && (
+            {rows.length === 0 && !loading && (
               <TableRow>
                 <TableCell colSpan={7} align="center">
                   אין דרישות במערכת
@@ -115,6 +183,25 @@ export function RequirementsPage() {
           </TableBody>
         </Table>
       </Paper>
+
+      <Dialog open={Boolean(deleteTarget)} onClose={cancelDelete}>
+        <DialogTitle>מחיקת דרישה</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            האם למחוק את הדרישה{deleteTarget ? ` "${deleteTarget.title}"` : ""} לצמיתות?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="outlined" onClick={cancelDelete} disabled={loading}>
+            ביטול
+          </Button>
+          <Button variant="contained" color="error" onClick={() => void confirmDelete()} disabled={loading}>
+            מחיקה
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <AppSnackbar open={snackbar.open} message={snackbar.message} onClose={snackbar.close} />
     </Box>
   );
 }

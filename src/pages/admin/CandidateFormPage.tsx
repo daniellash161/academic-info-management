@@ -1,13 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
-import { Box, Button, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Button,
+  LinearProgress,
+  MenuItem,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
 import type { InterestArea, UserRole } from "../../models/user";
 import { usersService } from "../../services/usersService";
+import { useSnackbar } from "../../hooks/useSnackbar";
+import { AppSnackbar } from "../../components/AppSnackbar";
 
-const INTERESTS: InterestArea[] = [
-  "תואר ראשון במדעי המחשב",
-  "תואר שני במדעי המחשב",
-];
+const INTERESTS: InterestArea[] = ["תואר ראשון במדעי המחשב", "תואר שני במדעי המחשב"];
 
 const ROLES: Exclude<UserRole, "ADMIN">[] = ["CANDIDATE", "STUDENT", "GRADUATE"];
 
@@ -27,6 +35,24 @@ type FormState = {
   notes: string;
 };
 
+function safeDecode(x: string) {
+  const v = (x ?? "").trim();
+  try {
+    return decodeURIComponent(v).trim();
+  } catch {
+    return v;
+  }
+}
+
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) => {
+      setTimeout(() => reject(new Error(`Timeout: ${label}`)), ms);
+    }),
+  ]);
+}
+
 function validate(values: FormState) {
   const errors: Partial<Record<keyof FormState, string>> = {};
 
@@ -44,13 +70,22 @@ function validate(values: FormState) {
     errors.interest = "תחום עניין לא תקין";
   }
 
+  if (values.notes.length > 300) errors.notes = "עד 300 תווים";
+
   return errors;
 }
 
 export function CandidateFormPage() {
   const { id } = useParams();
+  const decodedId = safeDecode(id ?? "");
   const isEdit = Boolean(id);
+
   const navigate = useNavigate();
+  const snackbar = useSnackbar();
+
+  const [loading, setLoading] = useState<boolean>(isEdit);
+  const [saving, setSaving] = useState(false);
+  const [notFound, setNotFound] = useState(false);
 
   const [values, setValues] = useState<FormState>({
     fullName: "",
@@ -63,23 +98,49 @@ export function CandidateFormPage() {
   });
 
   useEffect(() => {
-    if (!id) return;
-    const existing = usersService.getById(id);
-    if (!existing) return;
+    if (!isEdit) return;
 
-    const safeRole: Exclude<UserRole, "ADMIN"> =
-      existing.role === "ADMIN" ? "CANDIDATE" : (existing.role as any);
+    let alive = true;
 
-    setValues({
-      fullName: existing.fullName,
-      nationalId: existing.nationalId,
-      email: existing.email,
-      phone: existing.phone,
-      role: safeRole,
-      interest: (existing.interest ?? "") as any,
-      notes: existing.notes ?? "",
-    });
-  }, [id]);
+    (async () => {
+      setLoading(true);
+      setNotFound(false);
+
+      try {
+        const existing = await withTimeout(usersService.getById(decodedId), 8000, "candidate");
+        if (!alive) return;
+
+        if (!existing) {
+          setNotFound(true);
+          return;
+        }
+
+        const safeRole: Exclude<UserRole, "ADMIN"> =
+          existing.role === "ADMIN" ? "CANDIDATE" : (existing.role as any);
+
+        setValues({
+          fullName: existing.fullName,
+          nationalId: existing.nationalId,
+          email: existing.email,
+          phone: existing.phone,
+          role: safeRole,
+          interest: (existing.interest ?? "") as any,
+          notes: existing.notes ?? "",
+        });
+      } catch (e: any) {
+        if (!alive) return;
+        snackbar.show(e?.message ?? "שגיאה בטעינת מועמד");
+      } finally {
+        if (!alive) return;
+        setLoading(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+
+  }, [decodedId, isEdit]);
 
   const errors = useMemo(() => validate(values), [values]);
   const canSave = Object.keys(errors).length === 0;
@@ -88,38 +149,51 @@ export function CandidateFormPage() {
     setValues((prev) => ({ ...prev, [key]: value }));
   }
 
-  function onSave() {
-    if (!canSave) return;
+  async function onSave() {
+    if (!canSave || saving) return;
 
-    if (isEdit && id) {
-      usersService.update(id, {
+    setSaving(true);
+    try {
+      const payload = {
         fullName: values.fullName.trim(),
         nationalId: values.nationalId,
         email: values.email.trim(),
         phone: values.phone,
         role: values.role as any,
         interest: (values.interest || undefined) as any,
-        notes: values.notes || undefined,
-      });
+        notes: values.notes.trim() ? values.notes.trim() : undefined,
+      };
 
-      navigate("/admin/candidates", { state: { toast: "המועמד עודכן בהצלחה" } });
-    } else {
-      usersService.create({
-        fullName: values.fullName.trim(),
-        nationalId: values.nationalId,
-        email: values.email.trim(),
-        phone: values.phone,
-        role: values.role as any,
-        interest: (values.interest || undefined) as any,
-        notes: values.notes || undefined,
-      });
-
-      navigate("/admin/candidates", { state: { toast: "המועמד נשמר בהצלחה" } });
+      if (isEdit && decodedId) {
+        await usersService.update(decodedId, payload);
+        navigate("/admin/candidates", { state: { toast: "המועמד עודכן בהצלחה" } });
+      } else {
+        await usersService.create(payload as any);
+        navigate("/admin/candidates", { state: { toast: "המועמד נשמר בהצלחה" } });
+      }
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה בשמירה");
+    } finally {
+      setSaving(false);
     }
+  }
+
+  if (loading) {
+    return (
+      <Box>
+        <LinearProgress />
+      </Box>
+    );
+  }
+
+  if (notFound) {
+    return <Alert severity="error">Candidate not found</Alert>;
   }
 
   return (
     <Box>
+      {saving && <LinearProgress sx={{ mb: 2 }} />}
+
       <Typography variant="h5" sx={{ mb: 2 }}>
         {isEdit ? "עריכת מועמד" : "הוספת מועמד"}
       </Typography>
@@ -194,22 +268,26 @@ export function CandidateFormPage() {
         </TextField>
 
         <TextField
-          label="הערות נוספות (רשות)"
+          label="הערות נוספות (רשות, עד 300 תווים)"
           value={values.notes}
           onChange={(e) => setField("notes", e.target.value)}
           multiline
           minRows={3}
+          error={Boolean(errors.notes)}
+          helperText={errors.notes ?? `${values.notes.length}/300`}
         />
 
         <Stack direction="row" spacing={2}>
-          <Button variant="contained" onClick={onSave} disabled={!canSave}>
+          <Button variant="contained" onClick={() => void onSave()} disabled={!canSave || saving}>
             שמירה
           </Button>
-          <Button variant="outlined" onClick={() => navigate("/admin/candidates")}>
+          <Button variant="outlined" onClick={() => navigate("/admin/candidates")} disabled={saving}>
             ביטול
           </Button>
         </Stack>
       </Stack>
+
+      <AppSnackbar open={snackbar.open} message={snackbar.message} onClose={snackbar.close} />
     </Box>
   );
 }

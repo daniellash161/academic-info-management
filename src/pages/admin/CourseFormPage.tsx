@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { Box, Button, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Button,
+  LinearProgress,
+  MenuItem,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
 import type { Course, Semester } from "../../models/course";
 import { coursesService } from "../../services/coursesService";
@@ -23,7 +32,7 @@ function parsePrereq(csv: string) {
     .filter(Boolean);
 }
 
-function validate(values: FormState, isEdit: boolean) {
+function validate(values: FormState) {
   const errors: Partial<Record<keyof FormState, string>> = {};
 
   if (!values.name.trim()) errors.name = "שדה חובה";
@@ -32,8 +41,6 @@ function validate(values: FormState, isEdit: boolean) {
   if (!values.code.trim()) errors.code = "שדה חובה";
   else if (!/^[A-Za-z0-9_-]+$/.test(values.code.trim())) {
     errors.code = "קוד יכול להכיל אותיות/ספרות/_- בלבד";
-  } else if (!isEdit && coursesService.getByCode(values.code)) {
-    errors.code = "קוד קורס חייב להיות ייחודי";
   }
 
   if (!values.semester) errors.semester = "שדה חובה";
@@ -43,23 +50,19 @@ function validate(values: FormState, isEdit: boolean) {
     errors.credits = "נק״ז חייב להיות בין 1 ל-5";
   }
 
-  const prereq = parsePrereq(values.prerequisites);
-  for (const p of prereq) {
-    if (!coursesService.getByCode(p)) {
-      errors.prerequisites = `קורס קדם לא קיים: ${p}`;
-      break;
-    }
-  }
-
   return errors;
 }
 
 export function CourseFormPage() {
-  const { code } = useParams();
-  const isEdit = Boolean(code);
+  const { id } = useParams();
+  const isEdit = Boolean(id);
 
   const navigate = useNavigate();
   const snackbar = useSnackbar();
+
+  const [loading, setLoading] = useState<boolean>(isEdit);
+  const [saving, setSaving] = useState(false);
+  const [notFound, setNotFound] = useState(false);
 
   const [values, setValues] = useState<FormState>({
     name: "",
@@ -72,44 +75,90 @@ export function CourseFormPage() {
   });
 
   useEffect(() => {
-    if (!code) return;
-    const existing = coursesService.getByCode(decodeURIComponent(code));
-    if (!existing) return;
+    if (!id) return;
 
-    setValues({
-      name: existing.name,
-      code: existing.code,
-      semester: existing.semester,
-      credits: existing.credits,
-      prerequisites: (existing.prerequisites ?? []).join(", "),
-      syllabus: existing.syllabus ?? "",
-      lecturer: existing.lecturer ?? "",
-    });
-  }, [code]);
+    let alive = true;
 
-  const errors = useMemo(() => validate(values, isEdit), [values, isEdit]);
+    (async () => {
+      setLoading(true);
+      setNotFound(false);
+
+      try {
+        const existing = await coursesService.getByCode(decodeURIComponent(id));
+        if (!alive) return;
+
+        if (!existing) {
+          setNotFound(true);
+          return;
+        }
+
+        setValues({
+          name: existing.name,
+          code: existing.code,
+          semester: existing.semester,
+          credits: existing.credits,
+          prerequisites: (existing.prerequisites ?? []).join(", "),
+          syllabus: existing.syllabus ?? "",
+          lecturer: existing.lecturer ?? "",
+        });
+      } catch (e: any) {
+        if (!alive) return;
+        snackbar.show(e?.message ?? "שגיאה בטעינת קורס");
+      } finally {
+        if (!alive) return;
+        setLoading(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [id]);
+
+  const errors = useMemo(() => validate(values), [values]);
   const canSave = Object.keys(errors).length === 0;
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setValues((prev) => ({ ...prev, [key]: value }));
   }
 
-  function onSave() {
-    if (!canSave) return;
+  async function validatePrereqAgainstDb(): Promise<string | null> {
+    const prereq = parsePrereq(values.prerequisites);
+    if (prereq.length === 0) return null;
 
-    const payload: Course = {
-      name: values.name.trim(),
-      code: values.code.trim(),
-      semester: values.semester as Semester,
-      credits: Number(values.credits),
-      prerequisites: parsePrereq(values.prerequisites),
-      syllabus: values.syllabus.trim() ? values.syllabus.trim() : undefined,
-      lecturer: values.lecturer.trim() ? values.lecturer.trim() : undefined,
-    };
+    // single DB call instead of many
+    const all = await coursesService.getAll();
+    const codes = new Set(all.map((c) => c.code));
 
+    for (const p of prereq) {
+      if (!codes.has(p)) return `קורס קדם לא קיים: ${p}`;
+    }
+    return null;
+  }
+
+  async function onSave() {
+    if (!canSave || saving) return;
+
+    setSaving(true);
     try {
-      if (isEdit && code) {
-        coursesService.update(decodeURIComponent(code), {
+      const prereqError = await validatePrereqAgainstDb();
+      if (prereqError) {
+        snackbar.show(prereqError);
+        return;
+      }
+
+      const payload: Course = {
+        name: values.name.trim(),
+        code: values.code.trim(),
+        semester: values.semester as Semester,
+        credits: Number(values.credits),
+        prerequisites: parsePrereq(values.prerequisites),
+        syllabus: values.syllabus.trim() ? values.syllabus.trim() : undefined,
+        lecturer: values.lecturer.trim() ? values.lecturer.trim() : undefined,
+      };
+
+      if (isEdit && id) {
+        await coursesService.update(decodeURIComponent(id), {
           name: payload.name,
           semester: payload.semester,
           credits: payload.credits,
@@ -119,20 +168,36 @@ export function CourseFormPage() {
         });
         snackbar.show("הקורס עודכן בהצלחה");
       } else {
-        coursesService.create(payload);
+        await coursesService.create(payload);
         snackbar.show("הקורס נשמר בהצלחה");
       }
 
       navigate("/admin/courses");
     } catch (e: any) {
       snackbar.show(e?.message ?? "שגיאה בשמירה");
+    } finally {
+      setSaving(false);
     }
+  }
+
+  if (loading) {
+    return (
+      <Box>
+        <LinearProgress />
+      </Box>
+    );
+  }
+
+  if (notFound) {
+    return <Alert severity="error">Course not found</Alert>;
   }
 
   return (
     <Box>
+      {saving && <LinearProgress sx={{ mb: 2 }} />}
+
       <Typography variant="h5" sx={{ mb: 2 }}>
-        {isEdit ? `עריכת קורס ${decodeURIComponent(code!)}` : "הוספת קורס חדש"}
+        {isEdit ? `עריכת קורס ${decodeURIComponent(id!)}` : "הוספת קורס חדש"}
       </Typography>
 
       <Stack spacing={2} sx={{ maxWidth: 560 }}>
@@ -143,6 +208,7 @@ export function CourseFormPage() {
           onChange={(e) => setField("name", e.target.value)}
           error={Boolean(errors.name)}
           helperText={errors.name ?? " "}
+          disabled={saving}
         />
 
         <TextField
@@ -151,8 +217,8 @@ export function CourseFormPage() {
           value={values.code}
           onChange={(e) => setField("code", e.target.value)}
           error={Boolean(errors.code)}
-          helperText={errors.code ?? (isEdit ? "קוד לא ניתן לשינוי בעריכה" : " ")}
-          disabled={isEdit}
+          helperText={errors.code ?? (isEdit ? "Code cannot be changed" : " ")}
+          disabled={isEdit || saving}
         />
 
         <TextField
@@ -163,6 +229,7 @@ export function CourseFormPage() {
           onChange={(e) => setField("semester", e.target.value as any)}
           error={Boolean(errors.semester)}
           helperText={errors.semester ?? " "}
+          disabled={saving}
         >
           <MenuItem value="א">א</MenuItem>
           <MenuItem value="ב">ב</MenuItem>
@@ -177,6 +244,7 @@ export function CourseFormPage() {
           onChange={(e) => setField("credits", Number(e.target.value) as any)}
           error={Boolean(errors.credits)}
           helperText={errors.credits ?? " "}
+          disabled={saving}
         >
           {[1, 2, 3, 4, 5].map((n) => (
             <MenuItem key={n} value={n}>
@@ -186,32 +254,33 @@ export function CourseFormPage() {
         </TextField>
 
         <TextField
-          label="קורסי קדם (רשות) — קודים מופרדים בפסיק"
+          label="קורסי קדם (optional, comma-separated)"
           value={values.prerequisites}
           onChange={(e) => setField("prerequisites", e.target.value)}
-          error={Boolean(errors.prerequisites)}
-          helperText={errors.prerequisites ?? "לדוגמה: CS101, CS102"}
+          disabled={saving}
         />
 
         <TextField
-          label="מרצה אחראי (רשות)"
+          label="מרצה אחראי (optional)"
           value={values.lecturer}
           onChange={(e) => setField("lecturer", e.target.value)}
+          disabled={saving}
         />
 
         <TextField
-          label="סילבוס (רשות)"
+          label="סילבוס (optional)"
           value={values.syllabus}
           onChange={(e) => setField("syllabus", e.target.value)}
           multiline
           minRows={4}
+          disabled={saving}
         />
 
         <Stack direction="row" spacing={2}>
-          <Button variant="contained" onClick={onSave} disabled={!canSave}>
+          <Button variant="contained" onClick={() => void onSave()} disabled={!canSave || saving}>
             שמירה
           </Button>
-          <Button variant="outlined" onClick={() => navigate("/admin/courses")}>
+          <Button variant="outlined" onClick={() => navigate("/admin/courses")} disabled={saving}>
             ביטול
           </Button>
         </Stack>

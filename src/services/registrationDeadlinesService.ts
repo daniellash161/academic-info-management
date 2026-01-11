@@ -1,22 +1,66 @@
-import { LS_KEYS } from "../storage/lsKeys";
-import { makeId, readLS, writeLS } from "../storage/storage";
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+} from "firebase/firestore";
 import type { RegistrationDeadline } from "../models/registrationDeadline";
+import { firestore } from "../firebase/config";
 
 export type RegistrationDeadlineStatus = "פתוח" | "עתידי" | "נסגר" | "לא פעיל";
+
+const COL = "registrationDeadlines";
 
 type CreateInput = Omit<RegistrationDeadline, "id" | "createdAt">;
 type UpdatePatch = Partial<Omit<RegistrationDeadline, "id" | "createdAt">>;
 
-function readAll(): RegistrationDeadline[] {
-  return readLS<RegistrationDeadline[]>(LS_KEYS.registrationDeadlines, []);
-}
-
-function writeAll(items: RegistrationDeadline[]) {
-  writeLS(LS_KEYS.registrationDeadlines, items);
-}
-
 function todayYmd() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function isYmd(s: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(s);
+}
+
+function clean<T extends Record<string, unknown>>(obj: T): Partial<T> {
+  const out: Partial<T> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v === undefined) continue;
+    (out as any)[k] = v;
+  }
+  return out;
+}
+
+function assertValidTitle(title: string) {
+  const t = (title ?? "").trim();
+  if (!t) throw new Error("title is required");
+  if (t.length > 60) throw new Error("title must be up to 60 characters");
+}
+
+function assertValidDates(startDate: string, endDate: string) {
+  if (!isYmd(startDate)) throw new Error("startDate must be YYYY-MM-DD");
+  if (!isYmd(endDate)) throw new Error("endDate must be YYYY-MM-DD");
+  if (startDate > endDate) throw new Error("endDate must be >= startDate");
+}
+
+function assertValidNotes(notes?: string) {
+  if (notes === undefined) return;
+  if (notes.length > 300) throw new Error("notes must be up to 300 characters");
+}
+
+function normalizeFromDb(id: string, data: any): RegistrationDeadline {
+  return {
+    id,
+    createdAt: typeof data?.createdAt === "string" ? data.createdAt : new Date(0).toISOString(),
+    title: String(data?.title ?? ""),
+    startDate: String(data?.startDate ?? ""),
+    endDate: String(data?.endDate ?? ""),
+    isActive: Boolean(data?.isActive),
+    notes: typeof data?.notes === "string" ? data.notes : undefined,
+  };
 }
 
 export const registrationDeadlinesService = {
@@ -32,21 +76,28 @@ export const registrationDeadlinesService = {
     return "פתוח";
   },
 
-  getAll(): RegistrationDeadline[] {
-    return [...readAll()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  async getAll(): Promise<RegistrationDeadline[]> {
+    const snap = await getDocs(collection(firestore, COL));
+    const items = snap.docs.map((d) => normalizeFromDb(d.id, d.data()));
+    return items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   },
 
-  getById(id: string): RegistrationDeadline | undefined {
-    return readAll().find((x) => x.id === id);
+  async getById(id: string): Promise<RegistrationDeadline | null> {
+    const docId = decodeURIComponent(id).trim();
+    const ref = doc(firestore, COL, docId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+    return normalizeFromDb(snap.id, snap.data());
   },
 
-  search(query: string, statusFilter: RegistrationDeadlineStatus | "ALL" = "ALL"): RegistrationDeadline[] {
+  async search(
+    query: string,
+    statusFilter: RegistrationDeadlineStatus | "ALL" = "ALL"
+  ): Promise<RegistrationDeadline[]> {
     const q = query.trim().toLowerCase();
-    let rows = readAll();
+    let rows = await this.getAll();
 
-    if (statusFilter !== "ALL") {
-      rows = rows.filter((d) => this.statusOf(d) === statusFilter);
-    }
+    if (statusFilter !== "ALL") rows = rows.filter((d) => this.statusOf(d) === statusFilter);
 
     if (q) {
       rows = rows.filter((d) => {
@@ -60,11 +111,15 @@ export const registrationDeadlinesService = {
     return rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   },
 
-  create(input: CreateInput): RegistrationDeadline {
-    const all = readAll();
+  async create(input: CreateInput): Promise<RegistrationDeadline> {
+    assertValidTitle(input.title);
+    assertValidDates(input.startDate, input.endDate);
+    assertValidNotes(input.notes);
+
+    const ref = doc(collection(firestore, COL));
 
     const item: RegistrationDeadline = {
-      id: makeId(),
+      id: ref.id,
       createdAt: new Date().toISOString(),
       title: input.title.trim(),
       startDate: input.startDate,
@@ -73,23 +128,42 @@ export const registrationDeadlinesService = {
       notes: input.notes?.trim() ? input.notes.trim() : undefined,
     };
 
-    writeAll([item, ...all]);
+    const data = clean({
+      createdAt: item.createdAt,
+      title: item.title,
+      startDate: item.startDate,
+      endDate: item.endDate,
+      isActive: item.isActive,
+      notes: item.notes,
+    });
+
+    await setDoc(ref, data);
     return item;
   },
 
-  update(id: string, patch: UpdatePatch): RegistrationDeadline {
-    const all = readAll();
-    const idx = all.findIndex((x) => x.id === id);
-    if (idx === -1) throw new Error("מועד הרשמה לא נמצא");
+  async update(id: string, patch: UpdatePatch): Promise<RegistrationDeadline> {
+    const docId = decodeURIComponent(id).trim();
+    const ref = doc(firestore, COL, docId);
 
-    const current = all[idx];
+    const snap = await getDoc(ref);
+    if (!snap.exists()) throw new Error("מועד הרשמה לא נמצא");
+
+    const current = normalizeFromDb(snap.id, snap.data());
+
+    const nextTitle = patch.title !== undefined ? patch.title : current.title;
+    const nextStart = patch.startDate !== undefined ? patch.startDate : current.startDate;
+    const nextEnd = patch.endDate !== undefined ? patch.endDate : current.endDate;
+
+    assertValidTitle(nextTitle);
+    assertValidDates(nextStart, nextEnd);
+    if (patch.notes !== undefined) assertValidNotes(patch.notes);
 
     const updated: RegistrationDeadline = {
       ...current,
       ...patch,
-      title: patch.title !== undefined ? patch.title.trim() : current.title,
-      startDate: patch.startDate !== undefined ? patch.startDate : current.startDate,
-      endDate: patch.endDate !== undefined ? patch.endDate : current.endDate,
+      title: nextTitle.trim(),
+      startDate: nextStart,
+      endDate: nextEnd,
       isActive: patch.isActive !== undefined ? Boolean(patch.isActive) : current.isActive,
       notes:
         patch.notes !== undefined
@@ -97,14 +171,24 @@ export const registrationDeadlinesService = {
             ? patch.notes.trim()
             : undefined
           : current.notes,
+      createdAt: current.createdAt,
+      id: current.id,
     };
 
-    all[idx] = updated;
-    writeAll(all);
+    const data = clean({
+      title: updated.title,
+      startDate: updated.startDate,
+      endDate: updated.endDate,
+      isActive: updated.isActive,
+      notes: updated.notes,
+    });
+
+    await updateDoc(ref, data as any);
     return updated;
   },
 
-  remove(id: string) {
-    writeAll(readAll().filter((x) => x.id !== id));
+  async remove(id: string): Promise<void> {
+    const docId = decodeURIComponent(id).trim();
+    await deleteDoc(doc(firestore, COL, docId));
   },
 };

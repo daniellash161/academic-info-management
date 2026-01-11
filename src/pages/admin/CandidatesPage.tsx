@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -8,6 +8,7 @@ import {
   DialogContentText,
   DialogTitle,
   IconButton,
+  LinearProgress,
   Paper,
   Table,
   TableBody,
@@ -24,50 +25,83 @@ import { usersService } from "../../services/usersService";
 import { useSnackbar } from "../../hooks/useSnackbar";
 import { AppSnackbar } from "../../components/AppSnackbar";
 
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) => {
+      setTimeout(() => reject(new Error(`Timeout: ${label}`)), ms);
+    }),
+  ]);
+}
+
 export function CandidatesPage() {
   const [rows, setRows] = useState<User[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
   const snackbar = useSnackbar();
 
-  function refresh() {
-    setRows(usersService.getCandidates());
+  const toastShownRef = useRef(false);
+
+  async function refresh() {
+    setLoading(true);
+    try {
+      const data = await withTimeout(usersService.getCandidates(), 8000, "candidates");
+      setRows(data);
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה בטעינת נתונים");
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
-    refresh();
+    void refresh();
   }, []);
 
   useEffect(() => {
     const toast = (location.state as any)?.toast as string | undefined;
     if (!toast) return;
+    if (toastShownRef.current) return;
 
+    toastShownRef.current = true;
     snackbar.show(toast);
-
-    // ניקוי state כדי שלא יופיע שוב ברענון/ניווט חוזר
     navigate(location.pathname, { replace: true, state: null });
-  }, [location.state, location.pathname, navigate]); // snackbar יציב מה-hook
+
+  }, [location.key]);
 
   function askDelete(u: User) {
     setDeleteTarget(u);
   }
 
   function cancelDelete() {
+    if (deleting) return;
     setDeleteTarget(null);
   }
 
-  function confirmDelete() {
-    if (!deleteTarget) return;
-    usersService.remove(deleteTarget.id);
-    setDeleteTarget(null);
-    refresh();
-    snackbar.show("המועמד נמחק בהצלחה");
+  async function confirmDelete() {
+    if (!deleteTarget || deleting) return;
+
+    setDeleting(true);
+    try {
+      await withTimeout(usersService.remove(deleteTarget.id), 8000, "delete candidate");
+      setDeleteTarget(null);
+      await refresh();
+      snackbar.show("המועמד נמחק בהצלחה");
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה במחיקה");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
     <Box>
+      {loading && <LinearProgress />}
+
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
         <Typography variant="h5">ניהול מועמדים</Typography>
         <Button variant="contained" onClick={() => navigate("/admin/candidates/new")}>
@@ -99,7 +133,7 @@ export function CandidatesPage() {
                 <TableCell align="right">
                   <IconButton
                     aria-label="edit"
-                    onClick={() => navigate(`/admin/candidates/${u.id}/edit`)}
+                    onClick={() => navigate(`/admin/candidates/${encodeURIComponent(u.id)}/edit`)}
                   >
                     <EditIcon />
                   </IconButton>
@@ -110,7 +144,7 @@ export function CandidatesPage() {
               </TableRow>
             ))}
 
-            {rows.length === 0 && (
+            {rows.length === 0 && !loading && (
               <TableRow>
                 <TableCell colSpan={6} align="center">
                   אין מועמדים להצגה
@@ -129,10 +163,10 @@ export function CandidatesPage() {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" onClick={cancelDelete}>
+          <Button variant="outlined" onClick={cancelDelete} disabled={deleting}>
             ביטול
           </Button>
-          <Button variant="contained" color="error" onClick={confirmDelete}>
+          <Button variant="contained" color="error" onClick={() => void confirmDelete()} disabled={deleting}>
             מחיקה
           </Button>
         </DialogActions>

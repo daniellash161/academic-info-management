@@ -1,16 +1,26 @@
 import { useEffect, useMemo, useState } from "react";
-import { Box, Button, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Button,
+  LinearProgress,
+  MenuItem,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import type { RegistrationRequest, RequestStatus } from "../../models/registrationRequest";
 import { requestsService } from "../../services/requestsService";
 import { usersService } from "../../services/usersService";
 import { useSnackbar } from "../../hooks/useSnackbar";
 import { AppSnackbar } from "../../components/AppSnackbar";
+import type { User } from "../../models/user";
 
 type FormState = {
   candidateId: string;
   status: RequestStatus | "";
-  createdAt: string; // YYYY-MM-DD
+  createdAt: string;
   notes: string;
 };
 
@@ -22,11 +32,6 @@ function validate(values: FormState) {
   const errors: Partial<Record<keyof FormState, string>> = {};
 
   if (!values.candidateId) errors.candidateId = "חובה לבחור מועמד";
-  else {
-    const c = usersService.getById(values.candidateId);
-    if (!c || c.role !== "CANDIDATE") errors.candidateId = "המועמד שנבחר לא קיים";
-  }
-
   if (!values.status) errors.status = "חובה לבחור סטטוס";
 
   if (!values.createdAt) errors.createdAt = "חובה לבחור תאריך";
@@ -38,8 +43,8 @@ function validate(values: FormState) {
 }
 
 export function RequestFormPage() {
-  const { requestNumber } = useParams();
-  const isEdit = Boolean(requestNumber);
+  const { id } = useParams();
+  const isEdit = Boolean(id);
 
   const [searchParams] = useSearchParams();
   const prefCandidateId = searchParams.get("candidateId") ?? "";
@@ -47,8 +52,14 @@ export function RequestFormPage() {
   const navigate = useNavigate();
   const snackbar = useSnackbar();
 
-  const candidates = usersService.getCandidates();
   const statuses = requestsService.statuses();
+
+  const [loading, setLoading] = useState<boolean>(isEdit);
+  const [saving, setSaving] = useState(false);
+  const [notFound, setNotFound] = useState(false);
+
+  const [candidatesLoading, setCandidatesLoading] = useState(true);
+  const [candidates, setCandidates] = useState<User[]>([]);
 
   const [values, setValues] = useState<FormState>({
     candidateId: prefCandidateId,
@@ -58,24 +69,72 @@ export function RequestFormPage() {
   });
 
   useEffect(() => {
+    let alive = true;
+
+    (async () => {
+      setCandidatesLoading(true);
+      try {
+        const list = await usersService.getCandidates();
+        if (!alive) return;
+        setCandidates(list);
+      } catch (e: any) {
+        if (!alive) return;
+        snackbar.show(e?.message ?? "שגיאה בטעינת מועמדים");
+      } finally {
+        if (!alive) return;
+        setCandidatesLoading(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+    
+  }, []);
+
+  useEffect(() => {
     if (!isEdit && prefCandidateId) {
       setValues((prev) => ({ ...prev, candidateId: prefCandidateId }));
     }
   }, [prefCandidateId, isEdit]);
 
   useEffect(() => {
-    if (!requestNumber) return;
-    const num = Number(requestNumber);
-    const existing = requestsService.getByNumber(num);
-    if (!existing) return;
+    if (!id) return;
 
-    setValues({
-      candidateId: existing.candidateId,
-      status: existing.status,
-      createdAt: existing.createdAt,
-      notes: existing.notes ?? "",
-    });
-  }, [requestNumber]);
+    let alive = true;
+
+    (async () => {
+      setLoading(true);
+      setNotFound(false);
+
+      try {
+        const existing = await requestsService.getById(decodeURIComponent(id));
+        if (!alive) return;
+
+        if (!existing) {
+          setNotFound(true);
+          return;
+        }
+
+        setValues({
+          candidateId: existing.candidateId,
+          status: existing.status,
+          createdAt: existing.createdAt,
+          notes: existing.notes ?? "",
+        });
+      } catch (e: any) {
+        if (!alive) return;
+        snackbar.show(e?.message ?? "שגיאה בטעינת בקשה");
+      } finally {
+        if (!alive) return;
+        setLoading(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [id]);
 
   const errors = useMemo(() => validate(values), [values]);
   const canSave = Object.keys(errors).length === 0;
@@ -85,14 +144,12 @@ export function RequestFormPage() {
   }
 
   function goCreateCandidate() {
-    const returnTo = isEdit
-      ? `/admin/requests/${requestNumber}/edit`
-      : "/admin/requests/new";
+    const returnTo = isEdit ? `/admin/requests/${id}/edit` : "/admin/requests/new";
     navigate(`/admin/candidates/new?returnTo=${encodeURIComponent(returnTo)}`);
   }
 
-  function onSave() {
-    if (!canSave) return;
+  async function onSave() {
+    if (!canSave || saving) return;
 
     const payload: Omit<RegistrationRequest, "requestNumber"> = {
       candidateId: values.candidateId,
@@ -101,21 +158,46 @@ export function RequestFormPage() {
       notes: values.notes.trim() ? values.notes.trim() : undefined,
     };
 
-    if (isEdit) {
-      requestsService.update(Number(requestNumber), payload);
-      snackbar.show("הבקשה עודכנה בהצלחה");
-    } else {
-      requestsService.create(payload);
-      snackbar.show("הבקשה נשמרה בהצלחה");
-    }
+    setSaving(true);
+    try {
+      if (isEdit && id) {
+        const requestNumber = parseInt(decodeURIComponent(id), 10);
+        if (isNaN(requestNumber)) {
+          throw new Error("מזהה בקשה לא תקין");
+        }
+        await requestsService.update(requestNumber, payload);
+        snackbar.show("הבקשה עודכנה בהצלחה");
+      } else {
+        await requestsService.create(payload);
+        snackbar.show("הבקשה נשמרה בהצלחה");
+      }
 
-    navigate("/admin/requests");
+      navigate("/admin/requests");
+    } catch (e: any) {
+      snackbar.show(e?.message ?? "שגיאה בשמירה");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <Box>
+        <LinearProgress />
+      </Box>
+    );
+  }
+
+  if (notFound) {
+    return <Alert severity="error">Request not found</Alert>;
   }
 
   return (
     <Box>
+      {saving && <LinearProgress sx={{ mb: 2 }} />}
+
       <Typography variant="h5" sx={{ mb: 2 }}>
-        {isEdit ? `עריכת בקשה #${requestNumber}` : "הוספת בקשת הרשמה"}
+        {isEdit ? `עריכת בקשה #${decodeURIComponent(id!)}` : "הוספת בקשת הרשמה"}
       </Typography>
 
       <Stack spacing={2} sx={{ maxWidth: 520 }}>
@@ -129,6 +211,7 @@ export function RequestFormPage() {
             onChange={(e) => setField("candidateId", e.target.value)}
             error={Boolean(errors.candidateId)}
             helperText={errors.candidateId ?? " "}
+            disabled={candidatesLoading || saving}
           >
             <MenuItem value="">— בחרי מועמד —</MenuItem>
             {candidates.map((c) => (
@@ -138,7 +221,12 @@ export function RequestFormPage() {
             ))}
           </TextField>
 
-          <Button variant="outlined" onClick={goCreateCandidate} sx={{ whiteSpace: "nowrap", mt: "2px" }}>
+          <Button
+            variant="outlined"
+            onClick={goCreateCandidate}
+            sx={{ whiteSpace: "nowrap", mt: "2px" }}
+            disabled={saving}
+          >
             יצירת מועמד חדש
           </Button>
         </Stack>
@@ -151,6 +239,7 @@ export function RequestFormPage() {
           onChange={(e) => setField("status", e.target.value as any)}
           error={Boolean(errors.status)}
           helperText={errors.status ?? " "}
+          disabled={saving}
         >
           {statuses.map((s) => (
             <MenuItem key={s} value={s}>
@@ -168,6 +257,7 @@ export function RequestFormPage() {
           error={Boolean(errors.createdAt)}
           helperText={errors.createdAt ?? " "}
           InputLabelProps={{ shrink: true }}
+          disabled={saving}
         />
 
         <TextField
@@ -178,13 +268,18 @@ export function RequestFormPage() {
           minRows={3}
           error={Boolean(errors.notes)}
           helperText={errors.notes ?? `${values.notes.length}/300`}
+          disabled={saving}
         />
 
         <Stack direction="row" spacing={2}>
-          <Button variant="contained" onClick={onSave} disabled={!canSave}>
+          <Button
+            variant="contained"
+            onClick={() => void onSave()}
+            disabled={!canSave || saving || candidatesLoading}
+          >
             שמירה
           </Button>
-          <Button variant="outlined" onClick={() => navigate("/admin/requests")}>
+          <Button variant="outlined" onClick={() => navigate("/admin/requests")} disabled={saving}>
             ביטול
           </Button>
         </Stack>

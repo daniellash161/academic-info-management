@@ -1,5 +1,16 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { AppBar, Box, Button, IconButton, Toolbar, Typography } from "@mui/material";
+import {
+  Alert,
+  AppBar,
+  Box,
+  Button,
+  IconButton,
+  Toolbar,
+  Typography,
+  useMediaQuery,
+} from "@mui/material";
+import { useTheme } from "@mui/material/styles";
+
 import MenuIcon from "@mui/icons-material/Menu";
 import LogoutIcon from "@mui/icons-material/Logout";
 import DashboardIcon from "@mui/icons-material/Dashboard";
@@ -11,9 +22,13 @@ import QuizIcon from "@mui/icons-material/Quiz";
 import ContactSupportIcon from "@mui/icons-material/ContactSupport";
 import EventIcon from "@mui/icons-material/Event";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
-import { useMemo, useState } from "react";
+import DarkModeIcon from "@mui/icons-material/DarkMode";
+import LightModeIcon from "@mui/icons-material/LightMode";
+
+import { useMemo, useState, useContext } from "react";
 import type { ReactNode } from "react";
 import { AdminNav } from "../components/AdminNav";
+import { ColorModeContext } from "./ColorModeProvider";
 
 type NavItem = {
   label: string;
@@ -25,6 +40,11 @@ export function AdminLayout() {
   const [navOpen, setNavOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+
+  const muiTheme = useTheme();
+  const isDesktop = useMediaQuery(muiTheme.breakpoints.up("md"));
+
+  const { toggle } = useContext(ColorModeContext);
 
   const items: NavItem[] = useMemo(
     () => [
@@ -57,7 +77,7 @@ export function AdminLayout() {
         position="sticky"
         color="inherit"
         elevation={0}
-        sx={{ borderBottom: "1px solid rgba(0,0,0,0.08)" }}
+        sx={{ borderBottom: 1, borderColor: "divider" }}
       >
         <Toolbar sx={{ minHeight: 64 }}>
           <IconButton
@@ -80,7 +100,11 @@ export function AdminLayout() {
 
           <Box sx={{ flex: 1 }} />
 
-          <IconButton onClick={logout} aria-label="logout" title="התנתקות">
+          <IconButton onClick={toggle} aria-label="toggle theme" title="Theme">
+            {muiTheme.palette.mode === "dark" ? <LightModeIcon /> : <DarkModeIcon />}
+          </IconButton>
+
+          <IconButton onClick={logout} aria-label="logout" title="Logout">
             <LogoutIcon />
           </IconButton>
         </Toolbar>
@@ -124,10 +148,16 @@ export function AdminLayout() {
         </Toolbar>
       </AppBar>
 
-      <AdminNav open={navOpen} onClose={() => setNavOpen(false)} />
+      {isDesktop && <AdminNav open={navOpen} onClose={() => setNavOpen(false)} />}
 
       <Box sx={{ p: { xs: 2, md: 3 } }}>
-        <Outlet />
+        {!isDesktop ? (
+          <Box sx={{ maxWidth: 720, mx: "auto" }}>
+            <Alert severity="info">מסכי מנהל זמינים בדסקטופ בלבד.</Alert>
+          </Box>
+        ) : (
+          <Outlet />
+        )}
       </Box>
     </Box>
   );
