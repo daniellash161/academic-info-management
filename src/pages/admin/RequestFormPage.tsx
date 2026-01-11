@@ -161,7 +161,11 @@ export function RequestFormPage() {
     setSaving(true);
     try {
       if (isEdit && id) {
-        await requestsService.update(Number(decodeURIComponent(id)), payload);
+        const requestNumber = parseInt(decodeURIComponent(id), 10);
+        if (isNaN(requestNumber)) {
+          throw new Error("מזהה בקשה לא תקין");
+        }
+        await requestsService.update(requestNumber, payload);
         snackbar.show("הבקשה עודכנה בהצלחה");
       } else {
         await requestsService.create(payload);
