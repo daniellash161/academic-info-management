@@ -13,7 +13,10 @@ import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import PhoneIcon from "@mui/icons-material/Phone";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import { useNavigate, useParams } from "react-router-dom";
-import type { ContactMessage, ContactMessageStatus } from "../../models/contactMessage";
+import type {
+  ContactMessage,
+  ContactMessageStatus,
+} from "../../models/contactMessage";
 import { contactMessagesService } from "../../services/contactMessagesService";
 import { useSnackbar } from "../../hooks/useSnackbar";
 import { AppSnackbar } from "../../components/AppSnackbar";
@@ -40,6 +43,7 @@ export function ContactMessageFormPage() {
   const snackbar = useSnackbar();
 
   const [loading, setLoading] = useState<boolean>(true);
+  const [saving, setSaving] = useState(false);
   const [notFound, setNotFound] = useState<boolean>(false);
 
   const [message, setMessage] = useState<ContactMessage | null>(null);
@@ -50,17 +54,24 @@ export function ContactMessageFormPage() {
   });
 
   useEffect(() => {
-    if (!id) {
-      setLoading(false);
-      setNotFound(true);
-      return;
-    }
+    let alive = true;
 
-    (async () => {
+    const run = async () => {
+      if (!id) {
+        if (!alive) return;
+        setLoading(false);
+        setNotFound(true);
+        return;
+      }
+
+      if (!alive) return;
       setLoading(true);
       setNotFound(false);
+
       try {
         const existing = await contactMessagesService.getById(id);
+        if (!alive) return;
+
         if (!existing) {
           setMessage(null);
           setNotFound(true);
@@ -73,12 +84,20 @@ export function ContactMessageFormPage() {
           adminNote: existing.adminNote ?? "",
         });
       } catch (e: any) {
+        if (!alive) return;
         snackbar.show(e?.message ?? "שגיאה בטעינת פנייה");
       } finally {
+        if (!alive) return;
         setLoading(false);
       }
-    })();
-  }, [id, snackbar]);
+    };
+
+    void run();
+
+    return () => {
+      alive = false;
+    };
+  }, [id]);
 
   const errors = useMemo(() => validate(values), [values]);
   const canSave = Object.keys(errors).length === 0;
@@ -97,8 +116,9 @@ export function ContactMessageFormPage() {
   }
 
   async function onSave() {
-    if (!id || !canSave) return;
+    if (!id || !canSave || saving) return;
 
+    setSaving(true);
     try {
       await contactMessagesService.update(id, {
         status: values.status as ContactMessageStatus,
@@ -109,6 +129,8 @@ export function ContactMessageFormPage() {
       navigate("/admin/contacts");
     } catch (e: any) {
       snackbar.show(e?.message ?? "שגיאה בשמירה");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -126,16 +148,26 @@ export function ContactMessageFormPage() {
     return (
       <Box sx={{ p: 2 }}>
         <Typography variant="h6">פנייה לא נמצאה</Typography>
-        <Button sx={{ mt: 2 }} variant="outlined" onClick={() => navigate("/admin/contacts")}>
+        <Button
+          sx={{ mt: 2 }}
+          variant="outlined"
+          onClick={() => navigate("/admin/contacts")}
+        >
           חזרה לרשימה
         </Button>
-        <AppSnackbar open={snackbar.open} message={snackbar.message} onClose={snackbar.close} />
+        <AppSnackbar
+          open={snackbar.open}
+          message={snackbar.message}
+          onClose={snackbar.close}
+        />
       </Box>
     );
   }
 
   return (
     <Box>
+      {saving && <LinearProgress sx={{ mb: 2 }} />}
+
       <Typography variant="h5" sx={{ mb: 2 }}>
         עריכת פנייה
       </Typography>
@@ -144,16 +176,41 @@ export function ContactMessageFormPage() {
         <Typography variant="h6">פרטי פנייה</Typography>
 
         <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-          <TextField label="שם" value={message.fullName} fullWidth InputProps={{ readOnly: true }} />
-          <TextField label="מייל" value={message.email} fullWidth InputProps={{ readOnly: true }} />
+          <TextField
+            label="שם"
+            value={message.fullName}
+            fullWidth
+            InputProps={{ readOnly: true }}
+          />
+          <TextField
+            label="מייל"
+            value={message.email}
+            fullWidth
+            InputProps={{ readOnly: true }}
+          />
         </Stack>
 
         <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-          <TextField label="טלפון" value={message.phone} fullWidth InputProps={{ readOnly: true }} />
-          <TextField label="תאריך" value={ymd(message.createdAt)} fullWidth InputProps={{ readOnly: true }} />
+          <TextField
+            label="טלפון"
+            value={message.phone}
+            fullWidth
+            InputProps={{ readOnly: true }}
+          />
+          <TextField
+            label="תאריך"
+            value={ymd(message.createdAt)}
+            fullWidth
+            InputProps={{ readOnly: true }}
+          />
         </Stack>
 
-        <TextField label="נושא" value={message.subject} fullWidth InputProps={{ readOnly: true }} />
+        <TextField
+          label="נושא"
+          value={message.subject}
+          fullWidth
+          InputProps={{ readOnly: true }}
+        />
 
         <TextField
           label="הודעה"
@@ -245,16 +302,28 @@ export function ContactMessageFormPage() {
         />
 
         <Stack direction="row" spacing={2}>
-          <Button variant="contained" onClick={() => void onSave()} disabled={!canSave}>
+          <Button
+            variant="contained"
+            onClick={() => void onSave()}
+            disabled={!canSave || saving}
+          >
             שמירה
           </Button>
-          <Button variant="outlined" onClick={() => navigate("/admin/contacts")}>
+          <Button
+            variant="outlined"
+            onClick={() => navigate("/admin/contacts")}
+            disabled={saving}
+          >
             ביטול
           </Button>
         </Stack>
       </Stack>
 
-      <AppSnackbar open={snackbar.open} message={snackbar.message} onClose={snackbar.close} />
+      <AppSnackbar
+        open={snackbar.open}
+        message={snackbar.message}
+        onClose={snackbar.close}
+      />
     </Box>
   );
 }
