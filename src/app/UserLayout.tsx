@@ -54,7 +54,7 @@ export function UserLayout() {
 
             <Stack direction="row" spacing={1}>
               <Button variant="outlined" onClick={() => navigate("/login")}>
-                כניסה
+                מערכת מנהל
               </Button>
             </Stack>
           </Stack>
