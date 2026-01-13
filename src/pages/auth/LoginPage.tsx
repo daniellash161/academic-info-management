@@ -31,15 +31,20 @@ export function LoginPage() {
     const e: FieldErrors = {};
 
     if (!nextEmail.trim()) e.email = "שדה חובה";
-    else if (!/^\S+@\S+\.\S+$/.test(nextEmail.trim())) e.email = "אימייל לא תקין";
+    else if (!/^\S+@\S+\.\S+$/.test(nextEmail.trim()))
+      e.email = "אימייל לא תקין";
 
     if (!nextPassword.trim()) e.password = "שדה חובה";
-    else if (nextPassword.trim().length < 6) e.password = "סיסמה חייבת להיות לפחות 6 תווים";
+    else if (nextPassword.trim().length < 6)
+      e.password = "סיסמה חייבת להיות לפחות 6 תווים";
 
     return e;
   }
 
-  const liveErrors = useMemo(() => validate(email, password), [email, password]);
+  const liveErrors = useMemo(
+    () => validate(email, password),
+    [email, password]
+  );
 
   const canSubmit = useMemo(() => {
     return Object.keys(liveErrors).length === 0;
@@ -58,7 +63,10 @@ export function LoginPage() {
     const adminEmail = "admin@csih.com";
     const adminPassword = "admin123";
 
-    if (email.trim().toLowerCase() !== adminEmail || password !== adminPassword) {
+    if (
+      email.trim().toLowerCase() !== adminEmail ||
+      password !== adminPassword
+    ) {
       setFormError("אימייל או סיסמה שגויים");
       return;
     }
@@ -108,8 +116,14 @@ export function LoginPage() {
               onChange={(ev) => setEmail(ev.target.value)}
               onBlur={() => setTouched((t) => ({ ...t, email: true }))}
               required
-              error={Boolean((touched.email || errors.email) && liveErrors.email)}
-              helperText={(touched.email || errors.email) && liveErrors.email ? liveErrors.email : " "}
+              error={Boolean(
+                (touched.email || errors.email) && liveErrors.email
+              )}
+              helperText={
+                (touched.email || errors.email) && liveErrors.email
+                  ? liveErrors.email
+                  : " "
+              }
               autoComplete="email"
               fullWidth
             />
@@ -121,7 +135,9 @@ export function LoginPage() {
               onChange={(ev) => setPassword(ev.target.value)}
               onBlur={() => setTouched((t) => ({ ...t, password: true }))}
               required
-              error={Boolean((touched.password || errors.password) && liveErrors.password)}
+              error={Boolean(
+                (touched.password || errors.password) && liveErrors.password
+              )}
               helperText={
                 (touched.password || errors.password) && liveErrors.password
                   ? liveErrors.password
@@ -135,7 +151,7 @@ export function LoginPage() {
               התחברות
             </Button>
 
-            <Button variant="text" onClick={() => navigate("/admin")} sx={{ fontWeight: 900 }}>
+            <Button variant="outlined" onClick={() => navigate("/user")}>
               חזרה לבית
             </Button>
           </Stack>

@@ -112,7 +112,7 @@ export function UserLayout() {
                   )}
                 </IconButton>
 
-                <Button variant="outlined" onClick={() => navigate("/admin")}>
+                <Button variant="outlined" onClick={() => navigate("/login")}>
                   מעבר למנהל
                 </Button>
               </Stack>
