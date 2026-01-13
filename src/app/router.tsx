@@ -29,7 +29,6 @@ import { HelpPage } from "../pages/admin/HelpPage";
 import { LoginPage } from "../pages/auth/LoginPage";
 
 import { UserLayout } from "./UserLayout";
-
 import { UserHomePage } from "../pages/user/UserHomePage";
 import { UserCoursesPage } from "../pages/user/UserCoursesPage";
 import { UserRequirementsPage } from "../pages/user/UserRequirementsPage";
@@ -37,21 +36,7 @@ import { UserHelpPage } from "../pages/user/UserHelpPage";
 import { UserContactPage } from "../pages/user/UserContactPage";
 
 export const router = createBrowserRouter([
-  { path: "/", element: <Navigate to="/admin" replace /> },
-
-  {
-    path: "/app",
-    element: <UserLayout />,
-    children: [
-      { index: true, element: <UserHomePage /> },
-      { path: "courses", element: <UserCoursesPage /> },
-      { path: "requirements", element: <UserRequirementsPage /> },
-      { path: "help", element: <UserHelpPage /> },
-      { path: "contact", element: <UserContactPage /> },
-      { path: "*", element: <div style={{ padding: 24 }}>404</div> },
-    ],
-  },
-
+  { path: "/", element: <Navigate to="/user" replace /> },
   {
     path: "/admin",
     element: <AdminLayout />,
@@ -91,7 +76,19 @@ export const router = createBrowserRouter([
     ],
   },
 
-  { path: "/help", element: <HelpPage /> },
+  {
+    path: "/user",
+    element: <UserLayout />,
+    children: [
+      { index: true, element: <UserHomePage /> },
+      { path: "courses", element: <UserCoursesPage /> },
+      { path: "requirements", element: <UserRequirementsPage /> },
+      { path: "help", element: <UserHelpPage /> },
+      { path: "contact", element: <UserContactPage /> },
+      { path: "*", element: <div style={{ padding: 24 }}>404</div> },
+    ],
+  },
+
   { path: "/login", element: <LoginPage /> },
 
   { path: "*", element: <div style={{ padding: 24 }}>404</div> },

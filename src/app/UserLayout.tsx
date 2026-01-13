@@ -34,23 +34,19 @@ export function UserLayout() {
                 spacing={1}
                 sx={{ "& a": { textDecoration: "none" } }}
               >
-                <Button component={NavLink} to="/app" end variant="text">
+                <Button component={NavLink} to="." end variant="text">
                   בית
                 </Button>
-                <Button component={NavLink} to="/app/courses" variant="text">
+                <Button component={NavLink} to="courses" variant="text">
                   קורסים
                 </Button>
-                <Button
-                  component={NavLink}
-                  to="/app/requirements"
-                  variant="text"
-                >
+                <Button component={NavLink} to="requirements" variant="text">
                   דרישות קבלה
                 </Button>
-                <Button component={NavLink} to="/app/help" variant="text">
+                <Button component={NavLink} to="help" variant="text">
                   שאלות נפוצות
                 </Button>
-                <Button component={NavLink} to="/app/contact" variant="text">
+                <Button component={NavLink} to="contact" variant="text">
                   צור קשר
                 </Button>
               </Stack>
