@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import {
   Box,
   Button,
@@ -19,13 +20,12 @@ import SendRoundedIcon from "@mui/icons-material/SendRounded";
 
 import { useSnackbar } from "../../hooks/useSnackbar";
 import { AppSnackbar } from "../../components/AppSnackbar";
-
 import { contactMessagesService } from "../../services/contactMessagesService";
 
 type ContactCardProps = {
   title: string;
   lines: string[];
-  icon: React.ReactNode;
+  icon: ReactNode;
   iconBg: string;
 };
 
@@ -60,9 +60,9 @@ function ContactCard({ title, lines, icon, iconBg }: ContactCardProps) {
             width: 46,
             height: 46,
             borderRadius: 2.2,
-            bgcolor: iconBg,
+            background: iconBg,
             color: "#fff",
-            "&:hover": { bgcolor: iconBg },
+            "&:hover": { background: iconBg },
           }}
         >
           {icon}
@@ -147,8 +147,11 @@ export function UserContactPage() {
 
       <Stack
         direction={{ xs: "column", md: "row" }}
-        spacing={2.5}
         alignItems="stretch"
+        sx={{
+          gap: { xs: 3, md: 7 },
+          justifyContent: "space-between",
+        }}
       >
         <Box sx={{ width: { xs: "100%", md: 360 } }}>
           <Stack spacing={2}>
