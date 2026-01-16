@@ -185,8 +185,7 @@ export function UserRequestPage() {
           <Box sx={{ minWidth: 0 }}>
             <Typography sx={{ fontWeight: 900, mb: 0.25 }}>שימו לב</Typography>
             <Typography sx={{ opacity: 0.85, lineHeight: 1.7 }}>
-              לאחר שליחת הבקשה, ניצור איתכם קשר תוך 3–5 ימי עסקים. ניתן לעקוב
-              בעמוד “מועדי הרשמה” ו”דרישות קבלה”.
+              לאחר שליחת הבקשה, ניצור איתכם קשר תוך 3–5 ימי עסקים.
             </Typography>
           </Box>
         </Stack>

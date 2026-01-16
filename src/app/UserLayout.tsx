@@ -82,8 +82,8 @@ export function UserLayout() {
                   >
                     מועדי הרשמה
                   </Button>
-                  <Button component={NavLink} to="/user/faqs" variant="text">
-                    שאלות נפוצות
+                  <Button component={NavLink} to="/user/help" variant="text">
+                    עזרה
                   </Button>
                   <Button component={NavLink} to="/user/contact" variant="text">
                     צור קשר
