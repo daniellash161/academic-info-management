@@ -178,41 +178,107 @@ export function UserHomePage() {
     borderRadius: 10,
     p: { xs: 3, md: 5 },
     overflow: "hidden",
-    background:
-      "linear-gradient(90deg, rgba(132, 43, 187, 0.95) 0%, rgba(82, 97, 214, 0.92) 100%)",
     color: "common.white",
+    position: "relative",
+    border: "1px solid rgba(255,255,255,0.10)",
+    boxShadow: "0 22px 70px rgba(0,0,0,0.45)",
+    background:
+      "radial-gradient(1200px 520px at 18% 18%, rgba(56,189,248,0.35), transparent 60%), radial-gradient(1000px 520px at 82% 20%, rgba(168,85,247,0.30), transparent 55%), linear-gradient(135deg, rgba(15,23,42,0.72) 0%, rgba(30,41,59,0.62) 45%, rgba(17,24,39,0.70) 100%)",
+    "&:after": {
+      content: '""',
+      position: "absolute",
+      inset: 0,
+      pointerEvents: "none",
+      background:
+        "linear-gradient(90deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 35%, rgba(255,255,255,0.06) 100%)",
+      opacity: 0.9,
+    },
   } as const;
 
   const heroPillSx = {
-    bgcolor: "rgba(255,255,255,0.12)",
-    border: "1px solid rgba(255,255,255,0.18)",
+    bgcolor: "rgba(255,255,255,0.08)",
+    border: "1px solid rgba(255,255,255,0.14)",
     borderRadius: 999,
     px: 2,
-    py: 1.2,
+    py: 1.25,
     display: "flex",
     alignItems: "center",
     gap: 1.2,
     minWidth: 0,
+    backdropFilter: "blur(10px)",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+    transition:
+      "transform 140ms ease, background 140ms ease, border-color 140ms ease",
+    "&:hover": {
+      transform: "translateY(-2px)",
+      bgcolor: "rgba(255,255,255,0.10)",
+      borderColor: "rgba(255,255,255,0.22)",
+    },
+    "& svg": { opacity: 0.95 },
   } as const;
 
   const cardSx = {
     p: { xs: 2.2, md: 2.8 },
     borderRadius: 6,
     minWidth: 0,
+    position: "relative",
+    border: "1px solid",
+    borderColor: "rgba(255,255,255,0.06)",
+    background:
+      "linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.03) 100%)",
+    backdropFilter: "blur(10px)",
+    boxShadow: "0 16px 55px rgba(0,0,0,0.35)",
+    transition:
+      "transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease",
+    "&:hover": {
+      transform: "translateY(-3px)",
+      boxShadow: "0 22px 70px rgba(0,0,0,0.42)",
+      borderColor: "rgba(255,255,255,0.10)",
+    },
+  } as const;
+
+  const softDividerSx = {
+    borderColor: "rgba(255,255,255,0.08)",
+    opacity: 0.9,
   } as const;
 
   return (
-    <Box sx={{ pb: 5 }}>
-      {loading && <LinearProgress sx={{ mb: 2 }} />}
+    <Box
+      sx={{
+        pb: 5,
+        position: "relative",
+        "&:before": {
+          content: '""',
+          position: "absolute",
+          inset: 0,
+          zIndex: 0,
+          pointerEvents: "none",
+          background:
+            "radial-gradient(900px 520px at 12% 18%, rgba(59,130,246,0.16), transparent 60%), radial-gradient(900px 520px at 82% 14%, rgba(168,85,247,0.14), transparent 55%), radial-gradient(900px 520px at 55% 95%, rgba(34,197,94,0.10), transparent 55%)",
+        },
+        "& > *": { position: "relative", zIndex: 1 },
+      }}
+    >
+      {loading && (
+        <LinearProgress
+          sx={{
+            mb: 2,
+            borderRadius: 999,
+            height: 6,
+            boxShadow: "0 10px 26px rgba(0,0,0,0.25)",
+          }}
+        />
+      )}
 
       <Paper sx={heroSx}>
-        <Stack spacing={2.2}>
+        <Stack spacing={2.2} sx={{ position: "relative", zIndex: 1 }}>
           <Stack spacing={0.8}>
             <Typography
               sx={{
                 fontWeight: 900,
                 lineHeight: 1.05,
                 fontSize: { xs: 34, md: 56 },
+                textShadow: "0 10px 30px rgba(0,0,0,0.40)",
               }}
             >
               תוכנית מדעי המחשב
@@ -223,6 +289,7 @@ export function UserHomePage() {
                 opacity: 0.92,
                 maxWidth: 860,
                 fontSize: { xs: 14.5, md: 16 },
+                textShadow: "0 10px 30px rgba(0,0,0,0.30)",
               }}
             >
               צפייה בדרישות קבלה, מועדי הרשמה וקורסים — וחיפוש מהיר בכל המידע
@@ -244,11 +311,13 @@ export function UserHomePage() {
                 onClick={() => navigate("/user/requirements")}
                 disabled={loading}
                 sx={{
-                  bgcolor: "rgba(255,255,255,0.92)",
-                  color: "rgba(35,35,35,1)",
                   fontWeight: 900,
                   borderRadius: 3,
-                  "&:hover": { bgcolor: "rgba(255,255,255,0.85)" },
+                  px: 2.2,
+                  bgcolor: "rgba(255,255,255,0.92)",
+                  color: "rgba(17,24,39,1)",
+                  boxShadow: "0 14px 35px rgba(0,0,0,0.35)",
+                  "&:hover": { bgcolor: "rgba(255,255,255,0.86)" },
                 }}
               >
                 דרישות קבלה
@@ -260,11 +329,17 @@ export function UserHomePage() {
                 disabled={loading}
                 startIcon={<SendOutlinedIcon />}
                 sx={{
-                  borderColor: "rgba(255,255,255,0.55)",
+                  borderColor: "rgba(255,255,255,0.45)",
                   color: "common.white",
                   fontWeight: 900,
                   borderRadius: 3,
-                  "&:hover": { borderColor: "rgba(255,255,255,0.8)" },
+                  px: 2.2,
+                  backdropFilter: "blur(8px)",
+                  bgcolor: "rgba(255,255,255,0.06)",
+                  "&:hover": {
+                    borderColor: "rgba(255,255,255,0.70)",
+                    bgcolor: "rgba(255,255,255,0.08)",
+                  },
                 }}
               >
                 הגשת בקשת הרשמה
@@ -365,10 +440,16 @@ export function UserHomePage() {
               size="small"
               label={`${requirements.length} דרישות`}
               variant="outlined"
+              sx={{
+                borderColor: "rgba(255,255,255,0.14)",
+                bgcolor: "rgba(255,255,255,0.06)",
+                backdropFilter: "blur(8px)",
+                fontWeight: 900,
+              }}
             />
           </Stack>
 
-          <Divider sx={{ mb: 2.2 }} />
+          <Divider sx={{ ...softDividerSx, mb: 2.2 }} />
 
           <Box
             sx={{
@@ -383,7 +464,20 @@ export function UserHomePage() {
                 <Paper
                   key={t}
                   variant="outlined"
-                  sx={{ p: 2, borderRadius: 4, minWidth: 0 }}
+                  sx={{
+                    p: 2,
+                    borderRadius: 4,
+                    minWidth: 0,
+                    borderColor: "rgba(255,255,255,0.10)",
+                    bgcolor: "rgba(255,255,255,0.03)",
+                    backdropFilter: "blur(8px)",
+                    boxShadow: "0 12px 35px rgba(0,0,0,0.22)",
+                    transition: "transform 160ms ease, box-shadow 160ms ease",
+                    "&:hover": {
+                      transform: "translateY(-2px)",
+                      boxShadow: "0 18px 46px rgba(0,0,0,0.28)",
+                    },
+                  }}
                 >
                   <Stack
                     direction="row"
@@ -392,7 +486,15 @@ export function UserHomePage() {
                     sx={{ mb: 1 }}
                   >
                     <Typography sx={{ fontWeight: 900 }}>{t}</Typography>
-                    <Chip size="small" label={`${list.length}`} />
+                    <Chip
+                      size="small"
+                      label={`${list.length}`}
+                      sx={{
+                        bgcolor: "rgba(255,255,255,0.06)",
+                        borderColor: "rgba(255,255,255,0.10)",
+                      }}
+                      variant="outlined"
+                    />
                   </Stack>
 
                   {list.length === 0 ? (
@@ -407,7 +509,8 @@ export function UserHomePage() {
                           sx={{
                             p: 1.2,
                             borderRadius: 3,
-                            bgcolor: "background.paper",
+                            bgcolor: "rgba(255,255,255,0.03)",
+                            border: "1px solid rgba(255,255,255,0.06)",
                           }}
                         >
                           <Stack
@@ -422,6 +525,10 @@ export function UserHomePage() {
                               size="small"
                               label={`מינימום: ${r.minScore}`}
                               variant="outlined"
+                              sx={{
+                                borderColor: "rgba(255,255,255,0.12)",
+                                bgcolor: "rgba(255,255,255,0.05)",
+                              }}
                             />
                             <Chip
                               size="small"
@@ -455,7 +562,15 @@ export function UserHomePage() {
           <Box sx={{ mt: 2.2 }}>
             <Paper
               variant="outlined"
-              sx={{ p: 2, borderRadius: 4, minWidth: 0 }}
+              sx={{
+                p: 2,
+                borderRadius: 4,
+                minWidth: 0,
+                borderColor: "rgba(255,255,255,0.10)",
+                bgcolor: "rgba(255,255,255,0.03)",
+                backdropFilter: "blur(8px)",
+                boxShadow: "0 12px 35px rgba(0,0,0,0.22)",
+              }}
             >
               <Stack
                 direction="row"
@@ -467,6 +582,11 @@ export function UserHomePage() {
                 <Chip
                   size="small"
                   label={`${(reqByType["אנגלית"] ?? []).length}`}
+                  sx={{
+                    bgcolor: "rgba(255,255,255,0.06)",
+                    borderColor: "rgba(255,255,255,0.10)",
+                  }}
+                  variant="outlined"
                 />
               </Stack>
 
@@ -482,7 +602,8 @@ export function UserHomePage() {
                       sx={{
                         p: 1.2,
                         borderRadius: 3,
-                        bgcolor: "background.paper",
+                        bgcolor: "rgba(255,255,255,0.03)",
+                        border: "1px solid rgba(255,255,255,0.06)",
                       }}
                     >
                       <Stack
@@ -497,6 +618,10 @@ export function UserHomePage() {
                           size="small"
                           label={`מינימום: ${r.minScore}`}
                           variant="outlined"
+                          sx={{
+                            borderColor: "rgba(255,255,255,0.12)",
+                            bgcolor: "rgba(255,255,255,0.05)",
+                          }}
                         />
                       </Stack>
                     </Box>
@@ -517,7 +642,16 @@ export function UserHomePage() {
             <Typography variant="h6" sx={{ fontWeight: 900 }}>
               מחשבון בדיקת התאמה
             </Typography>
-            <Chip size="small" label="דוגמה" variant="outlined" />
+            <Chip
+              size="small"
+              label="דוגמה"
+              variant="outlined"
+              sx={{
+                borderColor: "rgba(255,255,255,0.14)",
+                bgcolor: "rgba(255,255,255,0.06)",
+                fontWeight: 900,
+              }}
+            />
           </Stack>
 
           <Typography sx={{ opacity: 0.75, mb: 2 }}>
@@ -529,6 +663,11 @@ export function UserHomePage() {
               display: "grid",
               gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
               gap: 1.2,
+              "& .MuiOutlinedInput-root": {
+                borderRadius: 3,
+                bgcolor: "rgba(255,255,255,0.03)",
+                backdropFilter: "blur(8px)",
+              },
             }}
           >
             <TextField
@@ -554,14 +693,24 @@ export function UserHomePage() {
             />
             <Button
               variant="contained"
-              sx={{ fontWeight: 900 }}
+              sx={{
+                fontWeight: 900,
+                borderRadius: 3,
+                background:
+                  "linear-gradient(135deg, rgba(56,189,248,0.95), rgba(168,85,247,0.92))",
+                boxShadow: "0 16px 40px rgba(0,0,0,0.35)",
+                "&:hover": {
+                  background:
+                    "linear-gradient(135deg, rgba(56,189,248,0.88), rgba(168,85,247,0.85))",
+                },
+              }}
               onClick={() => navigate("/user/requirements")}
             >
               בדוק התאמה
             </Button>
           </Box>
 
-          <Divider sx={{ my: 2 }} />
+          <Divider sx={{ ...softDividerSx, my: 2 }} />
 
           {!fitResult.anyEntered ? (
             <Typography sx={{ opacity: 0.75 }}>
@@ -638,7 +787,7 @@ export function UserHomePage() {
             <MenuBookOutlinedIcon />
           </Stack>
 
-          <Divider sx={{ mb: 2 }} />
+          <Divider sx={{ ...softDividerSx, mb: 2 }} />
 
           {sampleCourses.length === 0 ? (
             <Typography sx={{ opacity: 0.75 }}>אין קורסים להצגה.</Typography>
@@ -648,7 +797,19 @@ export function UserHomePage() {
                 <Paper
                   key={c.code}
                   variant="outlined"
-                  sx={{ p: 2, borderRadius: 4 }}
+                  sx={{
+                    p: 2,
+                    borderRadius: 4,
+                    borderColor: "rgba(255,255,255,0.10)",
+                    bgcolor: "rgba(255,255,255,0.03)",
+                    backdropFilter: "blur(8px)",
+                    boxShadow: "0 12px 35px rgba(0,0,0,0.22)",
+                    transition: "transform 160ms ease, box-shadow 160ms ease",
+                    "&:hover": {
+                      transform: "translateY(-2px)",
+                      boxShadow: "0 18px 46px rgba(0,0,0,0.28)",
+                    },
+                  }}
                 >
                   <Stack
                     direction="row"
@@ -666,7 +827,17 @@ export function UserHomePage() {
                       size="small"
                       variant="outlined"
                       onClick={() => navigate("/user/courses")}
-                      sx={{ fontWeight: 900, borderRadius: 3, flexShrink: 0 }}
+                      sx={{
+                        fontWeight: 900,
+                        borderRadius: 3,
+                        flexShrink: 0,
+                        borderColor: "rgba(255,255,255,0.18)",
+                        bgcolor: "rgba(255,255,255,0.04)",
+                        "&:hover": {
+                          borderColor: "rgba(255,255,255,0.28)",
+                          bgcolor: "rgba(255,255,255,0.06)",
+                        },
+                      }}
                     >
                       צפייה
                     </Button>
@@ -702,7 +873,19 @@ export function UserHomePage() {
                   <Paper
                     key={d.id}
                     variant="outlined"
-                    sx={{ p: 1.6, borderRadius: 4 }}
+                    sx={{
+                      p: 1.6,
+                      borderRadius: 4,
+                      borderColor: "rgba(255,255,255,0.10)",
+                      bgcolor: "rgba(255,255,255,0.03)",
+                      backdropFilter: "blur(8px)",
+                      boxShadow: "0 12px 35px rgba(0,0,0,0.22)",
+                      transition: "transform 160ms ease, box-shadow 160ms ease",
+                      "&:hover": {
+                        transform: "translateY(-2px)",
+                        boxShadow: "0 18px 46px rgba(0,0,0,0.28)",
+                      },
+                    }}
                   >
                     <Stack
                       direction="row"
@@ -712,7 +895,15 @@ export function UserHomePage() {
                       <Typography sx={{ fontWeight: 900 }}>
                         {d.title}
                       </Typography>
-                      <Chip size="small" label={status} />
+                      <Chip
+                        size="small"
+                        label={status}
+                        sx={{
+                          bgcolor: "rgba(255,255,255,0.06)",
+                          borderColor: "rgba(255,255,255,0.12)",
+                        }}
+                        variant="outlined"
+                      />
                     </Stack>
                     <Typography sx={{ opacity: 0.8, mt: 0.6, fontSize: 13 }}>
                       {d.startDate} — {d.endDate}
@@ -723,13 +914,23 @@ export function UserHomePage() {
             </Stack>
           )}
 
-          <Divider sx={{ my: 2 }} />
+          <Divider sx={{ ...softDividerSx, my: 2 }} />
 
           <Button
             fullWidth
             variant="contained"
             onClick={() => navigate("/user/request")}
-            sx={{ fontWeight: 900, borderRadius: 3 }}
+            sx={{
+              fontWeight: 900,
+              borderRadius: 3,
+              background:
+                "linear-gradient(135deg, rgba(34,197,94,0.92), rgba(56,189,248,0.90))",
+              boxShadow: "0 16px 40px rgba(0,0,0,0.35)",
+              "&:hover": {
+                background:
+                  "linear-gradient(135deg, rgba(34,197,94,0.85), rgba(56,189,248,0.82))",
+              },
+            }}
             disabled={loading}
             startIcon={<SendOutlinedIcon />}
           >
@@ -750,9 +951,18 @@ export function UserHomePage() {
             <HelpOutlineOutlinedIcon />
           </Stack>
 
-          <Divider sx={{ mb: 1.5 }} />
+          <Divider sx={{ ...softDividerSx, mb: 1.5 }} />
 
-          <Accordion>
+          <Accordion
+            sx={{
+              borderRadius: 3,
+              bgcolor: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.06)",
+              "&:before": { display: "none" },
+              overflow: "hidden",
+              mb: 1.1,
+            }}
+          >
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <Typography sx={{ fontWeight: 900 }}>
                 מהם תנאי הקבלה לתוכנית?
@@ -766,7 +976,15 @@ export function UserHomePage() {
             </AccordionDetails>
           </Accordion>
 
-          <Accordion>
+          <Accordion
+            sx={{
+              borderRadius: 3,
+              bgcolor: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.06)",
+              "&:before": { display: "none" },
+              overflow: "hidden",
+            }}
+          >
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <Typography sx={{ fontWeight: 900 }}>
                 איך מגישים בקשת הרשמה?
@@ -784,7 +1002,16 @@ export function UserHomePage() {
             <Button
               variant="outlined"
               onClick={() => navigate("/user/help")}
-              sx={{ fontWeight: 900, borderRadius: 3 }}
+              sx={{
+                fontWeight: 900,
+                borderRadius: 3,
+                borderColor: "rgba(255,255,255,0.18)",
+                bgcolor: "rgba(255,255,255,0.04)",
+                "&:hover": {
+                  borderColor: "rgba(255,255,255,0.28)",
+                  bgcolor: "rgba(255,255,255,0.06)",
+                },
+              }}
             >
               מעבר לכל השאלות
             </Button>
@@ -795,9 +1022,11 @@ export function UserHomePage() {
           sx={{
             ...cardSx,
             gridArea: "cta",
-            background:
-              "linear-gradient(90deg, rgba(82, 97, 214, 0.90) 0%, rgba(132, 43, 187, 0.92) 100%)",
             color: "common.white",
+            borderColor: "rgba(255,255,255,0.10)",
+            background:
+              "radial-gradient(900px 420px at 15% 20%, rgba(56,189,248,0.28), transparent 60%), radial-gradient(900px 420px at 85% 10%, rgba(168,85,247,0.26), transparent 55%), linear-gradient(135deg, rgba(15,23,42,0.62) 0%, rgba(17,24,39,0.72) 100%)",
+            boxShadow: "0 22px 70px rgba(0,0,0,0.45)",
           }}
         >
           <Stack spacing={1.2}>
@@ -815,9 +1044,10 @@ export function UserHomePage() {
                 sx={{
                   fontWeight: 900,
                   bgcolor: "rgba(255,255,255,0.92)",
-                  color: "rgba(35,35,35,1)",
+                  color: "rgba(17,24,39,1)",
                   borderRadius: 3,
-                  "&:hover": { bgcolor: "rgba(255,255,255,0.85)" },
+                  boxShadow: "0 14px 35px rgba(0,0,0,0.35)",
+                  "&:hover": { bgcolor: "rgba(255,255,255,0.86)" },
                 }}
               >
                 הגשת בקשה אישית
@@ -827,11 +1057,16 @@ export function UserHomePage() {
                 onClick={() => navigate("/user/request")}
                 startIcon={<SendOutlinedIcon />}
                 sx={{
-                  borderColor: "rgba(255,255,255,0.55)",
+                  borderColor: "rgba(255,255,255,0.45)",
                   color: "common.white",
                   fontWeight: 900,
                   borderRadius: 3,
-                  "&:hover": { borderColor: "rgba(255,255,255,0.85)" },
+                  bgcolor: "rgba(255,255,255,0.06)",
+                  backdropFilter: "blur(8px)",
+                  "&:hover": {
+                    borderColor: "rgba(255,255,255,0.70)",
+                    bgcolor: "rgba(255,255,255,0.08)",
+                  },
                 }}
               >
                 בקשת הרשמה
