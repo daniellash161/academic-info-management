@@ -7,7 +7,7 @@ import {
   setDoc,
   updateDoc,
 } from "firebase/firestore";
-import type { Course, Semester } from "../models/course";
+import type { Course, Semester, Year } from "../models/course";
 import { firestore } from "../firebase/config";
 
 const COL = "courses";
@@ -25,10 +25,15 @@ function normalizeSemester(x: any): Semester {
   return x === "א" || x === "ב" || x === "קיץ" ? x : "א";
 }
 
+function normalizeYear(x: any): Year {
+  return x === "א" || x === "ב" || x === "ג" ? x : "א";
+}
+
 function normalizeFromDb(id: string, data: any): Course {
   return {
     code: id,
     name: String(data?.name ?? ""),
+    year: normalizeYear(data?.year),
     semester: normalizeSemester(data?.semester),
     credits: Number(data?.credits ?? 0),
     prerequisites: Array.isArray(data?.prerequisites)
@@ -64,9 +69,12 @@ export const coursesService = {
 
     const data = clean({
       name: course.name.trim(),
+      year: course.year,
       semester: course.semester,
       credits: Number(course.credits),
-      prerequisites: course.prerequisites?.length ? course.prerequisites : undefined,
+      prerequisites: course.prerequisites?.length
+        ? course.prerequisites
+        : undefined,
       syllabus: course.syllabus?.trim() ? course.syllabus.trim() : undefined,
       lecturer: course.lecturer?.trim() ? course.lecturer.trim() : undefined,
     });
@@ -74,7 +82,10 @@ export const coursesService = {
     await setDoc(ref, data);
   },
 
-  async update(code: string, patch: Partial<Omit<Course, "code">>): Promise<void> {
+  async update(
+    code: string,
+    patch: Partial<Omit<Course, "code">>
+  ): Promise<void> {
     const id = decodeURIComponent(code).trim();
     const ref = doc(firestore, COL, id);
 
@@ -83,6 +94,7 @@ export const coursesService = {
 
     const data = clean({
       name: patch.name !== undefined ? patch.name.trim() : undefined,
+      year: patch.year,
       semester: patch.semester,
       credits: patch.credits !== undefined ? Number(patch.credits) : undefined,
       prerequisites: patch.prerequisites,

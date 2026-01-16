@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
+  Chip,
   LinearProgress,
   MenuItem,
   Stack,
@@ -10,7 +12,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
-import type { Course, Semester } from "../../models/course";
+import type { Course, Semester, Year } from "../../models/course";
 import { coursesService } from "../../services/coursesService";
 import { useSnackbar } from "../../hooks/useSnackbar";
 import { AppSnackbar } from "../../components/AppSnackbar";
@@ -18,18 +20,29 @@ import { AppSnackbar } from "../../components/AppSnackbar";
 type FormState = {
   name: string;
   code: string;
+  year: Year | "";
   semester: Semester | "";
   credits: number | "";
-  prerequisites: string;
+  prerequisites: string[];
   syllabus: string;
   lecturer: string;
 };
 
-function parsePrereq(csv: string) {
-  return csv
-    .split(",")
-    .map((x) => x.trim())
-    .filter(Boolean);
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(`Timeout: ${label}`)), ms);
+    p.then((v) => {
+      clearTimeout(t);
+      resolve(v);
+    }).catch((e) => {
+      clearTimeout(t);
+      reject(e);
+    });
+  });
+}
+
+function uniq(arr: string[]) {
+  return Array.from(new Set(arr.map((x) => x.trim()).filter(Boolean)));
 }
 
 function validate(values: FormState) {
@@ -43,6 +56,7 @@ function validate(values: FormState) {
     errors.code = "קוד יכול להכיל אותיות/ספרות/_- בלבד";
   }
 
+  if (!values.year) errors.year = "שדה חובה";
   if (!values.semester) errors.semester = "שדה חובה";
 
   if (values.credits === "") errors.credits = "שדה חובה";
@@ -59,32 +73,52 @@ export function CourseFormPage() {
 
   const navigate = useNavigate();
   const snackbar = useSnackbar();
+  const snackbarRef = useRef(snackbar);
+  useEffect(() => {
+    snackbarRef.current = snackbar;
+  }, [snackbar]);
 
   const [loading, setLoading] = useState<boolean>(isEdit);
   const [saving, setSaving] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
+  const [allCourses, setAllCourses] = useState<Course[]>([]);
+
   const [values, setValues] = useState<FormState>({
     name: "",
     code: "",
+    year: "א",
     semester: "א",
     credits: 3,
-    prerequisites: "",
+    prerequisites: [],
     syllabus: "",
     lecturer: "",
   });
 
   useEffect(() => {
-    if (!id) return;
-
     let alive = true;
 
-    (async () => {
-      setLoading(true);
+    const run = async () => {
+      setLoading(Boolean(isEdit));
       setNotFound(false);
 
       try {
-        const existing = await coursesService.getByCode(decodeURIComponent(id));
+        const all = await withTimeout(
+          coursesService.getAll(),
+          12000,
+          "courses.getAll"
+        );
+        if (!alive) return;
+        setAllCourses(all);
+
+        if (!id) return;
+
+        const existing = await withTimeout(
+          coursesService.getByCode(decodeURIComponent(id)),
+          12000,
+          "courses.getByCode"
+        );
+
         if (!alive) return;
 
         if (!existing) {
@@ -95,25 +129,28 @@ export function CourseFormPage() {
         setValues({
           name: existing.name,
           code: existing.code,
+          year: existing.year,
           semester: existing.semester,
           credits: existing.credits,
-          prerequisites: (existing.prerequisites ?? []).join(", "),
+          prerequisites: uniq(existing.prerequisites ?? []),
           syllabus: existing.syllabus ?? "",
           lecturer: existing.lecturer ?? "",
         });
       } catch (e: any) {
         if (!alive) return;
-        snackbar.show(e?.message ?? "שגיאה בטעינת קורס");
+        snackbarRef.current.show(e?.message ?? "שגיאה בטעינת קורס");
+        if (isEdit) setNotFound(true);
       } finally {
         if (!alive) return;
         setLoading(false);
       }
-    })();
+    };
 
+    void run();
     return () => {
       alive = false;
     };
-  }, [id]);
+  }, [id, isEdit]);
 
   const errors = useMemo(() => validate(values), [values]);
   const canSave = Object.keys(errors).length === 0;
@@ -122,14 +159,23 @@ export function CourseFormPage() {
     setValues((prev) => ({ ...prev, [key]: value }));
   }
 
+  const prereqOptions = useMemo(() => {
+    const currentCode = (values.code ?? "").trim();
+    return allCourses
+      .filter((c) => c.code && c.code !== currentCode)
+      .sort((a, b) => a.code.localeCompare(b.code));
+  }, [allCourses, values.code]);
+
+  const prereqSelectedCourses = useMemo(() => {
+    const picked = new Set(uniq(values.prerequisites));
+    return prereqOptions.filter((c) => picked.has(c.code));
+  }, [values.prerequisites, prereqOptions]);
+
   async function validatePrereqAgainstDb(): Promise<string | null> {
-    const prereq = parsePrereq(values.prerequisites);
+    const prereq = uniq(values.prerequisites);
     if (prereq.length === 0) return null;
 
-    // single DB call instead of many
-    const all = await coursesService.getAll();
-    const codes = new Set(all.map((c) => c.code));
-
+    const codes = new Set(allCourses.map((c) => c.code));
     for (const p of prereq) {
       if (!codes.has(p)) return `קורס קדם לא קיים: ${p}`;
     }
@@ -150,9 +196,10 @@ export function CourseFormPage() {
       const payload: Course = {
         name: values.name.trim(),
         code: values.code.trim(),
+        year: values.year as Year,
         semester: values.semester as Semester,
         credits: Number(values.credits),
-        prerequisites: parsePrereq(values.prerequisites),
+        prerequisites: uniq(values.prerequisites),
         syllabus: values.syllabus.trim() ? values.syllabus.trim() : undefined,
         lecturer: values.lecturer.trim() ? values.lecturer.trim() : undefined,
       };
@@ -160,6 +207,7 @@ export function CourseFormPage() {
       if (isEdit && id) {
         await coursesService.update(decodeURIComponent(id), {
           name: payload.name,
+          year: payload.year,
           semester: payload.semester,
           credits: payload.credits,
           prerequisites: payload.prerequisites,
@@ -223,6 +271,21 @@ export function CourseFormPage() {
 
         <TextField
           select
+          label="שנה"
+          required
+          value={values.year}
+          onChange={(e) => setField("year", e.target.value as any)}
+          error={Boolean(errors.year)}
+          helperText={errors.year ?? " "}
+          disabled={saving}
+        >
+          <MenuItem value="א">א</MenuItem>
+          <MenuItem value="ב">ב</MenuItem>
+          <MenuItem value="ג">ג</MenuItem>
+        </TextField>
+
+        <TextField
+          select
           label="סמסטר"
           required
           value={values.semester}
@@ -253,10 +316,18 @@ export function CourseFormPage() {
           ))}
         </TextField>
 
-        <TextField
-          label="קורסי קדם (optional, comma-separated)"
-          value={values.prerequisites}
-          onChange={(e) => setField("prerequisites", e.target.value)}
+        <Autocomplete
+          multiple
+          options={prereqOptions}
+          value={prereqSelectedCourses}
+          getOptionLabel={(opt) => `${opt.name} (${opt.code})`}
+          isOptionEqualToValue={(a, b) => a.code === b.code}
+          onChange={(_, newValue) => {
+            setField("prerequisites", uniq(newValue.map((c) => c.code)));
+          }}
+          renderInput={(params) => (
+            <TextField {...params} label="קורסי קדם (בחירה מרשימה)" />
+          )}
           disabled={saving}
         />
 
@@ -277,16 +348,28 @@ export function CourseFormPage() {
         />
 
         <Stack direction="row" spacing={2}>
-          <Button variant="contained" onClick={() => void onSave()} disabled={!canSave || saving}>
+          <Button
+            variant="contained"
+            onClick={() => void onSave()}
+            disabled={!canSave || saving}
+          >
             שמירה
           </Button>
-          <Button variant="outlined" onClick={() => navigate("/admin/courses")} disabled={saving}>
+          <Button
+            variant="outlined"
+            onClick={() => navigate("/admin/courses")}
+            disabled={saving}
+          >
             ביטול
           </Button>
         </Stack>
       </Stack>
 
-      <AppSnackbar open={snackbar.open} message={snackbar.message} onClose={snackbar.close} />
+      <AppSnackbar
+        open={snackbar.open}
+        message={snackbar.message}
+        onClose={snackbar.close}
+      />
     </Box>
   );
 }

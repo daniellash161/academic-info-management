@@ -60,7 +60,15 @@ export function CoursesPage() {
       const name = c.name.toLowerCase();
       const code = c.code.toLowerCase();
       const lecturer = (c.lecturer ?? "").toLowerCase();
-      return name.includes(q) || code.includes(q) || lecturer.includes(q);
+      const year = String(c.year ?? "").toLowerCase();
+      const semester = String(c.semester ?? "").toLowerCase();
+      return (
+        name.includes(q) ||
+        code.includes(q) ||
+        lecturer.includes(q) ||
+        year.includes(q) ||
+        semester.includes(q)
+      );
     });
   }, [rows, query]);
 
@@ -93,9 +101,19 @@ export function CoursesPage() {
     <Box>
       {loading && <LinearProgress />}
 
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          mb: 2,
+        }}
+      >
         <Typography variant="h5">ניהול קורסים</Typography>
-        <Button variant="contained" onClick={() => navigate("/admin/courses/new")}>
+        <Button
+          variant="contained"
+          onClick={() => navigate("/admin/courses/new")}
+        >
           הוספת קורס חדש
         </Button>
       </Box>
@@ -103,7 +121,7 @@ export function CoursesPage() {
       <Box sx={{ mb: 2, maxWidth: 360 }}>
         <TextField
           fullWidth
-          label="חיפוש לפי שם / קוד / מרצה"
+          label="חיפוש לפי שם / קוד / מרצה / שנה"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -115,9 +133,10 @@ export function CoursesPage() {
             <TableRow>
               <TableCell>שם</TableCell>
               <TableCell>קוד</TableCell>
+              <TableCell>שנה</TableCell>
+              <TableCell>סמסטר</TableCell>
               <TableCell>מרצה</TableCell>
               <TableCell>נק״ז</TableCell>
-              <TableCell>סמסטר</TableCell>
               <TableCell align="right">פעולות</TableCell>
             </TableRow>
           </TableHead>
@@ -127,13 +146,18 @@ export function CoursesPage() {
               <TableRow key={c.code} hover>
                 <TableCell>{c.name}</TableCell>
                 <TableCell>{c.code}</TableCell>
+                <TableCell>{c.year}</TableCell>
+                <TableCell>{c.semester}</TableCell>
                 <TableCell>{c.lecturer ?? "-"}</TableCell>
                 <TableCell>{c.credits}</TableCell>
-                <TableCell>{c.semester}</TableCell>
                 <TableCell align="right">
                   <IconButton
                     aria-label="edit"
-                    onClick={() => navigate(`/admin/courses/${encodeURIComponent(c.code)}/edit`)}
+                    onClick={() =>
+                      navigate(
+                        `/admin/courses/${encodeURIComponent(c.code)}/edit`
+                      )
+                    }
                   >
                     <EditIcon />
                   </IconButton>
@@ -146,7 +170,7 @@ export function CoursesPage() {
 
             {filtered.length === 0 && !loading && (
               <TableRow>
-                <TableCell colSpan={6} align="center">
+                <TableCell colSpan={7} align="center">
                   אין קורסים להצגה
                 </TableCell>
               </TableRow>
@@ -159,20 +183,33 @@ export function CoursesPage() {
         <DialogTitle>מחיקת קורס</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            האם למחוק את הקורס{deleteTarget ? ` "${deleteTarget.name}" (${deleteTarget.code})` : ""} לצמיתות?
+            האם למחוק את הקורס
+            {deleteTarget
+              ? ` "${deleteTarget.name}" (${deleteTarget.code})`
+              : ""}{" "}
+            לצמיתות?
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button variant="outlined" onClick={cancelDelete} disabled={deleting}>
             ביטול
           </Button>
-          <Button variant="contained" color="error" onClick={() => void confirmDelete()} disabled={deleting}>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={() => void confirmDelete()}
+            disabled={deleting}
+          >
             מחיקה
           </Button>
         </DialogActions>
       </Dialog>
 
-      <AppSnackbar open={snackbar.open} message={snackbar.message} onClose={snackbar.close} />
+      <AppSnackbar
+        open={snackbar.open}
+        message={snackbar.message}
+        onClose={snackbar.close}
+      />
     </Box>
   );
 }
