@@ -3,10 +3,6 @@ import {
   Box,
   Button,
   Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   LinearProgress,
   Paper,
   Stack,
@@ -18,6 +14,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { useNavigate } from "react-router-dom";
 import type { Course } from "../../models/course";
 import { coursesService } from "../../services/coursesService";
 import { useSnackbar } from "../../hooks/useSnackbar";
@@ -60,6 +57,8 @@ function normalizeSemesterLabel(s: Course["semester"]) {
 }
 
 export function UserCoursesPage() {
+  const navigate = useNavigate();
+
   const snackbar = useSnackbar();
   const snackbarRef = useRef(snackbar);
   useEffect(() => {
@@ -69,9 +68,6 @@ export function UserCoursesPage() {
   const [rows, setRows] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
-
-  const [syllabusOpen, setSyllabusOpen] = useState(false);
-  const [syllabusCourse, setSyllabusCourse] = useState<Course | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -115,21 +111,11 @@ export function UserCoursesPage() {
     });
   }, [rows, query]);
 
-  const totalCourses = rows.length;
   const shownCourses = filtered.length;
-  const totalCredits = useMemo(
-    () => rows.reduce((sum, c) => sum + (Number(c.credits) || 0), 0),
-    [rows]
-  );
 
-  function openSyllabus(course: Course) {
-    setSyllabusCourse(course);
-    setSyllabusOpen(true);
-  }
-
-  function closeSyllabus() {
-    setSyllabusOpen(false);
-    setSyllabusCourse(null);
+  function goToSyllabus(course: Course) {
+    const code = encodeURIComponent(course.code);
+    navigate(`/user/courses/${code}`);
   }
 
   return (
@@ -221,7 +207,7 @@ export function UserCoursesPage() {
                       size="small"
                       variant="outlined"
                       disabled={!hasSyllabus}
-                      onClick={() => openSyllabus(c)}
+                      onClick={() => goToSyllabus(c)}
                       sx={{ fontWeight: 900, whiteSpace: "nowrap" }}
                     >
                       {hasSyllabus ? "צפייה" : "אין"}
@@ -241,35 +227,6 @@ export function UserCoursesPage() {
           </TableBody>
         </Table>
       </Paper>
-
-      <Dialog
-        open={syllabusOpen}
-        onClose={closeSyllabus}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle sx={{ fontWeight: 900 }}>
-          {syllabusCourse
-            ? `סילבוס – ${syllabusCourse.name} (${syllabusCourse.code})`
-            : "סילבוס"}
-        </DialogTitle>
-        <DialogContent dividers>
-          <Typography sx={{ whiteSpace: "pre-wrap", lineHeight: 1.8 }}>
-            {syllabusCourse?.syllabus?.trim()
-              ? syllabusCourse.syllabus.trim()
-              : "אין סילבוס לקורס זה."}
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button
-            variant="contained"
-            onClick={closeSyllabus}
-            sx={{ fontWeight: 900 }}
-          >
-            סגירה
-          </Button>
-        </DialogActions>
-      </Dialog>
 
       <AppSnackbar
         open={snackbar.open}

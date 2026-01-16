@@ -35,6 +35,7 @@ import { UserRequirementsPage } from "../pages/user/UserRequirementsPage";
 import { UserHelpPage } from "../pages/user/UserHelpPage";
 import { UserContactPage } from "../pages/user/UserContactPage";
 import { UserRequestPage } from "../pages/user/UserRequestPage";
+import { UserCourseDetailsPage } from "../pages/user/UserCourseDetailsPage";
 
 export const router = createBrowserRouter([
   { path: "/", element: <Navigate to="/user" replace /> },
@@ -83,6 +84,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <UserHomePage /> },
       { path: "courses", element: <UserCoursesPage /> },
+      { path: "courses/:code", element: <UserCourseDetailsPage /> },
       { path: "requirements", element: <UserRequirementsPage /> },
       { path: "help", element: <UserHelpPage /> },
       { path: "contact", element: <UserContactPage /> },

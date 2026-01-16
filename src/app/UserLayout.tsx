@@ -75,13 +75,6 @@ export function UserLayout() {
                   >
                     דרישות קבלה
                   </Button>
-                  <Button
-                    component={NavLink}
-                    to="/user/deadlines"
-                    variant="text"
-                  >
-                    מועדי הרשמה
-                  </Button>
                   <Button component={NavLink} to="/user/help" variant="text">
                     עזרה
                   </Button>

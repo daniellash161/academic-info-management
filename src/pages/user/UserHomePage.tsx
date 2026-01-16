@@ -172,8 +172,6 @@ export function UserHomePage() {
     return () => {
       alive = false;
     };
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const heroSx = {
