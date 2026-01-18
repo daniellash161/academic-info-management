@@ -1,9 +1,12 @@
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState, useContext } from "react";
+import { Outlet, useLocation, useNavigate, Navigate } from "react-router-dom";
+import type { ReactNode } from "react";
 import {
   Alert,
   AppBar,
   Box,
   Button,
+  Chip,
   IconButton,
   Toolbar,
   Typography,
@@ -25,10 +28,45 @@ import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import LightModeIcon from "@mui/icons-material/LightMode";
 
-import { useMemo, useState, useContext } from "react";
-import type { ReactNode } from "react";
 import { AdminNav } from "../components/AdminNav";
 import { ColorModeContext } from "./ColorModeProvider";
+
+const AUTH_KEY = "csih_auth";
+
+type AuthState = {
+  role: "admin" | "user";
+  email: string;
+  loginAt: string;
+};
+
+function getAuth(): AuthState | null {
+  try {
+    const raw = localStorage.getItem(AUTH_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<AuthState>;
+    if (!parsed || typeof parsed !== "object") return null;
+
+    const role = parsed.role;
+    const email = parsed.email;
+    const loginAt = parsed.loginAt;
+
+    if (
+      (role !== "admin" && role !== "user") ||
+      typeof email !== "string" ||
+      typeof loginAt !== "string"
+    ) {
+      return null;
+    }
+
+    return { role, email, loginAt };
+  } catch {
+    return null;
+  }
+}
+
+function isAdminAuthed(): boolean {
+  return getAuth()?.role === "admin";
+}
 
 type NavItem = {
   label: string;
@@ -46,29 +84,80 @@ export function AdminLayout() {
 
   const { toggle } = useContext(ColorModeContext);
 
+  const auth = useMemo(() => getAuth(), []);
+  const authed = auth?.role === "admin";
+
+  useEffect(() => {
+    if (!isAdminAuthed()) {
+      navigate("/login", { replace: true, state: { from: location.pathname } });
+    }
+  }, [navigate, location.pathname]);
+
   const items: NavItem[] = useMemo(
     () => [
-      { label: "בית", path: "/admin", icon: <DashboardIcon fontSize="small" /> },
-      { label: "מועמדים", path: "/admin/candidates", icon: <PeopleIcon fontSize="small" /> },
-      { label: "בקשות הרשמה", path: "/admin/requests", icon: <AssignmentIcon fontSize="small" /> },
-      { label: "קורסים", path: "/admin/courses", icon: <MenuBookIcon fontSize="small" /> },
-      { label: "דרישות קבלה", path: "/admin/requirements", icon: <RuleIcon fontSize="small" /> },
-      { label: "שאלות נפוצות", path: "/admin/faqs", icon: <QuizIcon fontSize="small" /> },
-      { label: "פניות", path: "/admin/contacts", icon: <ContactSupportIcon fontSize="small" /> },
-      { label: "מועדי הרשמה", path: "/admin/deadlines", icon: <EventIcon fontSize="small" /> },
-      { label: "עזרה", path: "/admin/help", icon: <HelpOutlineIcon fontSize="small" /> },
+      {
+        label: "בית",
+        path: "/admin",
+        icon: <DashboardIcon fontSize="small" />,
+      },
+      {
+        label: "מועמדים",
+        path: "/admin/candidates",
+        icon: <PeopleIcon fontSize="small" />,
+      },
+      {
+        label: "בקשות הרשמה",
+        path: "/admin/requests",
+        icon: <AssignmentIcon fontSize="small" />,
+      },
+      {
+        label: "קורסים",
+        path: "/admin/courses",
+        icon: <MenuBookIcon fontSize="small" />,
+      },
+      {
+        label: "דרישות קבלה",
+        path: "/admin/requirements",
+        icon: <RuleIcon fontSize="small" />,
+      },
+      {
+        label: "שאלות נפוצות",
+        path: "/admin/faqs",
+        icon: <QuizIcon fontSize="small" />,
+      },
+      {
+        label: "פניות",
+        path: "/admin/contacts",
+        icon: <ContactSupportIcon fontSize="small" />,
+      },
+      {
+        label: "מועדי הרשמה",
+        path: "/admin/deadlines",
+        icon: <EventIcon fontSize="small" />,
+      },
+      {
+        label: "עזרה",
+        path: "/admin/help",
+        icon: <HelpOutlineIcon fontSize="small" />,
+      },
     ],
-    []
+    [],
   );
 
   function isActive(path: string) {
     if (path === "/admin") return location.pathname === "/admin";
-    return location.pathname === path || location.pathname.startsWith(path + "/");
+    return (
+      location.pathname === path || location.pathname.startsWith(path + "/")
+    );
   }
 
   function logout() {
-    localStorage.removeItem("csih_auth");
-    navigate("/login", { replace: true });
+    localStorage.removeItem(AUTH_KEY);
+    navigate("/login", { replace: true, state: { from: location.pathname } });
+  }
+
+  if (!authed) {
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
   return (
@@ -100,8 +189,19 @@ export function AdminLayout() {
 
           <Box sx={{ flex: 1 }} />
 
+          <Chip
+            size="small"
+            label={auth?.email ?? "admin"}
+            variant="outlined"
+            sx={{ mr: 1.2, fontWeight: 900 }}
+          />
+
           <IconButton onClick={toggle} aria-label="toggle theme" title="Theme">
-            {muiTheme.palette.mode === "dark" ? <LightModeIcon /> : <DarkModeIcon />}
+            {muiTheme.palette.mode === "dark" ? (
+              <LightModeIcon />
+            ) : (
+              <DarkModeIcon />
+            )}
           </IconButton>
 
           <IconButton onClick={logout} aria-label="logout" title="Logout">
@@ -148,7 +248,9 @@ export function AdminLayout() {
         </Toolbar>
       </AppBar>
 
-      {isDesktop && <AdminNav open={navOpen} onClose={() => setNavOpen(false)} />}
+      {isDesktop && (
+        <AdminNav open={navOpen} onClose={() => setNavOpen(false)} />
+      )}
 
       <Box sx={{ p: { xs: 2, md: 3 } }}>
         {!isDesktop ? (

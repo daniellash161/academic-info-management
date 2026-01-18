@@ -18,12 +18,22 @@ import DarkModeIcon from "@mui/icons-material/DarkMode";
 import LightModeIcon from "@mui/icons-material/LightMode";
 
 import { ColorModeContext } from "./ColorModeProvider";
+import { getAuth } from "../pages/auth/auth";
 
 export function UserLayout() {
   const navigate = useNavigate();
   const muiTheme = useTheme();
   const isDesktop = useMediaQuery(muiTheme.breakpoints.up("md"));
   const { toggle } = useContext(ColorModeContext);
+
+  function goAdmin() {
+    const auth = getAuth();
+    if (auth?.role === "admin") {
+      navigate("/admin");
+      return;
+    }
+    navigate("/login", { state: { from: "/admin" } });
+  }
 
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
@@ -105,7 +115,7 @@ export function UserLayout() {
                   )}
                 </IconButton>
 
-                <Button variant="outlined" onClick={() => navigate("/login")}>
+                <Button variant="outlined" onClick={goAdmin}>
                   מעבר למנהל
                 </Button>
               </Stack>

@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -17,8 +17,36 @@ type FieldErrors = {
   password?: string;
 };
 
+type AuthSession = {
+  role: "admin";
+  email: string;
+  loginAt: string;
+};
+
+function readSession(): AuthSession | null {
+  try {
+    const raw = localStorage.getItem(AUTH_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (
+      parsed &&
+      parsed.role === "admin" &&
+      typeof parsed.email === "string" &&
+      typeof parsed.loginAt === "string"
+    ) {
+      return parsed as AuthSession;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const from = (location.state as any)?.from ?? "/admin";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -26,6 +54,11 @@ export function LoginPage() {
   const [touched, setTouched] = useState({ email: false, password: false });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const s = readSession();
+    if (s) navigate(from, { replace: true });
+  }, [from, navigate]);
 
   function validate(nextEmail: string, nextPassword: string): FieldErrors {
     const e: FieldErrors = {};
@@ -43,7 +76,7 @@ export function LoginPage() {
 
   const liveErrors = useMemo(
     () => validate(email, password),
-    [email, password]
+    [email, password],
   );
 
   const canSubmit = useMemo(() => {
@@ -77,10 +110,10 @@ export function LoginPage() {
         role: "admin",
         email: adminEmail,
         loginAt: new Date().toISOString(),
-      })
+      }),
     );
 
-    navigate("/admin", { replace: true });
+    navigate(from, { replace: true });
   }
 
   return (
@@ -117,7 +150,7 @@ export function LoginPage() {
               onBlur={() => setTouched((t) => ({ ...t, email: true }))}
               required
               error={Boolean(
-                (touched.email || errors.email) && liveErrors.email
+                (touched.email || errors.email) && liveErrors.email,
               )}
               helperText={
                 (touched.email || errors.email) && liveErrors.email
@@ -136,7 +169,7 @@ export function LoginPage() {
               onBlur={() => setTouched((t) => ({ ...t, password: true }))}
               required
               error={Boolean(
-                (touched.password || errors.password) && liveErrors.password
+                (touched.password || errors.password) && liveErrors.password,
               )}
               helperText={
                 (touched.password || errors.password) && liveErrors.password

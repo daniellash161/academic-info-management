@@ -37,11 +37,18 @@ import { UserContactPage } from "../pages/user/UserContactPage";
 import { UserRequestPage } from "../pages/user/UserRequestPage";
 import { UserCourseDetailsPage } from "../pages/user/UserCourseDetailsPage";
 
+import { RequireAdmin } from "./RequireAdmin";
+
 export const router = createBrowserRouter([
   { path: "/", element: <Navigate to="/user" replace /> },
+
   {
     path: "/admin",
-    element: <AdminLayout />,
+    element: (
+      <RequireAdmin>
+        <AdminLayout />
+      </RequireAdmin>
+    ),
     children: [
       { index: true, element: <AdminHomePage /> },
 
