@@ -12,19 +12,27 @@ import {
   useMediaQuery,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { useContext } from "react";
+import { useContext, useEffect, useState } from "react";
 
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import LightModeIcon from "@mui/icons-material/LightMode";
 
 import { ColorModeContext } from "./ColorModeProvider";
-import { getAuthState, logoutAll } from "../pages/auth/auth";
+import { getAuthState } from "../pages/auth/auth";
 
 export function UserLayout() {
   const navigate = useNavigate();
   const muiTheme = useTheme();
   const isDesktop = useMediaQuery(muiTheme.breakpoints.up("md"));
   const { toggle } = useContext(ColorModeContext);
+
+  const [adminEmail, setAdminEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    const a = getAuthState();
+    if (a?.role === "admin" && a.email) setAdminEmail(a.email);
+    else setAdminEmail(null);
+  }, []);
 
   function goAdmin() {
     const auth = getAuthState();
@@ -103,6 +111,24 @@ export function UserLayout() {
               </Stack>
 
               <Stack direction="row" spacing={1} alignItems="center">
+                {adminEmail && (
+                  <Typography
+                    sx={{
+                      fontSize: 13,
+                      fontWeight: 900,
+                      opacity: 0.8,
+                      display: { xs: "none", md: "block" },
+                      maxWidth: 240,
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                    title={adminEmail}
+                  >
+                    מחובר כמנהל: {adminEmail}
+                  </Typography>
+                )}
+
                 <IconButton
                   onClick={toggle}
                   aria-label="toggle theme"

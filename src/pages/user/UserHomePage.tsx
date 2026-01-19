@@ -97,7 +97,7 @@ export function UserHomePage() {
 
   const reqByType = useMemo(
     () => groupRequirements(requirements),
-    [requirements]
+    [requirements],
   );
 
   const activeDeadlines = useMemo(() => {
@@ -151,7 +151,7 @@ export function UserHomePage() {
           withTimeout(
             registrationDeadlinesService.getAll(),
             12000,
-            "deadlines"
+            "deadlines",
           ),
         ]);
         if (!alive) return;
@@ -340,6 +340,13 @@ export function UserHomePage() {
                     borderColor: "rgba(255,255,255,0.70)",
                     bgcolor: "rgba(255,255,255,0.08)",
                   },
+                  "& .MuiButton-startIcon": {
+                    marginInlineStart: 0,
+                    marginInlineEnd: "10px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    flexShrink: 0,
+                  },
                 }}
               >
                 הגשת בקשת הרשמה
@@ -411,7 +418,8 @@ export function UserHomePage() {
           mt: 3.5,
           display: "grid",
           gridTemplateColumns: { xs: "1fr", lg: "1.15fr 0.85fr" },
-          gap: 3,
+          rowGap: { xs: 1.6, lg: 2 },
+          columnGap: { xs: 2, lg: 3 },
           alignItems: "start",
           gridTemplateAreas: {
             xs: `"requirements"
@@ -729,8 +737,8 @@ export function UserHomePage() {
                     fitResult.psychOk === null
                       ? "default"
                       : fitResult.psychOk
-                      ? "success"
-                      : "error"
+                        ? "success"
+                        : "error"
                   }
                   variant={fitResult.psychOk === null ? "outlined" : "filled"}
                 />
@@ -744,8 +752,8 @@ export function UserHomePage() {
                     fitResult.bagrutOk === null
                       ? "default"
                       : fitResult.bagrutOk
-                      ? "success"
-                      : "error"
+                        ? "success"
+                        : "error"
                   }
                   variant={fitResult.bagrutOk === null ? "outlined" : "filled"}
                 />
@@ -759,8 +767,8 @@ export function UserHomePage() {
                     fitResult.engOk === null
                       ? "default"
                       : fitResult.engOk
-                      ? "success"
-                      : "error"
+                        ? "success"
+                        : "error"
                   }
                   variant={fitResult.engOk === null ? "outlined" : "filled"}
                 />
@@ -930,6 +938,13 @@ export function UserHomePage() {
                 background:
                   "linear-gradient(135deg, rgba(34,197,94,0.85), rgba(56,189,248,0.82))",
               },
+              "& .MuiButton-startIcon": {
+                marginInlineStart: 0,
+                marginInlineEnd: "10px",
+                display: "inline-flex",
+                alignItems: "center",
+                flexShrink: 0,
+              },
             }}
             disabled={loading}
             startIcon={<SendOutlinedIcon />}
@@ -1066,6 +1081,13 @@ export function UserHomePage() {
                   "&:hover": {
                     borderColor: "rgba(255,255,255,0.70)",
                     bgcolor: "rgba(255,255,255,0.08)",
+                  },
+                  "& .MuiButton-startIcon": {
+                    marginInlineStart: 0,
+                    marginInlineEnd: "10px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    flexShrink: 0,
                   },
                 }}
               >
