@@ -1,46 +1,15 @@
-import type { ReactElement } from "react";
+import type { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
+import { getAuthState } from "../pages/auth/auth";
 
-const AUTH_KEY = "csih_auth";
-
-type AuthState = {
-  role: "admin" | "user";
-  email: string;
-  loginAt: string;
-};
-
-function getAuth(): AuthState | null {
-  try {
-    const raw = localStorage.getItem(AUTH_KEY);
-    if (!raw) return null;
-
-    const parsed = JSON.parse(raw) as Partial<AuthState>;
-    if (!parsed || typeof parsed !== "object") return null;
-
-    if (
-      (parsed.role !== "admin" && parsed.role !== "user") ||
-      typeof parsed.email !== "string"
-    ) {
-      return null;
-    }
-
-    return {
-      role: parsed.role,
-      email: parsed.email,
-      loginAt: String(parsed.loginAt ?? ""),
-    };
-  } catch {
-    return null;
-  }
-}
-
-export function RequireAdmin({ children }: { children: ReactElement }) {
+export function RequireAdmin({ children }: { children: ReactNode }) {
   const location = useLocation();
-  const auth = getAuth();
+  const a = getAuthState();
+  const ok = a?.role === "admin";
 
-  if (!auth || auth.role !== "admin") {
+  if (!ok) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
-  return children;
+  return <>{children}</>;
 }

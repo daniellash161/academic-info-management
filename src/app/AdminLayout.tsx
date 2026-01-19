@@ -1,6 +1,4 @@
-import { useEffect, useMemo, useState, useContext } from "react";
-import { Outlet, useLocation, useNavigate, Navigate } from "react-router-dom";
-import type { ReactNode } from "react";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   Alert,
   AppBar,
@@ -13,6 +11,8 @@ import {
   useMediaQuery,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
+import { useContext, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 
 import MenuIcon from "@mui/icons-material/Menu";
 import LogoutIcon from "@mui/icons-material/Logout";
@@ -30,43 +30,7 @@ import LightModeIcon from "@mui/icons-material/LightMode";
 
 import { AdminNav } from "../components/AdminNav";
 import { ColorModeContext } from "./ColorModeProvider";
-
-const AUTH_KEY = "csih_auth";
-
-type AuthState = {
-  role: "admin" | "user";
-  email: string;
-  loginAt: string;
-};
-
-function getAuth(): AuthState | null {
-  try {
-    const raw = localStorage.getItem(AUTH_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<AuthState>;
-    if (!parsed || typeof parsed !== "object") return null;
-
-    const role = parsed.role;
-    const email = parsed.email;
-    const loginAt = parsed.loginAt;
-
-    if (
-      (role !== "admin" && role !== "user") ||
-      typeof email !== "string" ||
-      typeof loginAt !== "string"
-    ) {
-      return null;
-    }
-
-    return { role, email, loginAt };
-  } catch {
-    return null;
-  }
-}
-
-function isAdminAuthed(): boolean {
-  return getAuth()?.role === "admin";
-}
+import { getAuthState, logoutAll } from "../pages/auth/auth";
 
 type NavItem = {
   label: string;
@@ -84,14 +48,7 @@ export function AdminLayout() {
 
   const { toggle } = useContext(ColorModeContext);
 
-  const auth = useMemo(() => getAuth(), []);
-  const authed = auth?.role === "admin";
-
-  useEffect(() => {
-    if (!isAdminAuthed()) {
-      navigate("/login", { replace: true, state: { from: location.pathname } });
-    }
-  }, [navigate, location.pathname]);
+  const authState = getAuthState();
 
   const items: NavItem[] = useMemo(
     () => [
@@ -151,13 +108,9 @@ export function AdminLayout() {
     );
   }
 
-  function logout() {
-    localStorage.removeItem(AUTH_KEY);
-    navigate("/login", { replace: true, state: { from: location.pathname } });
-  }
-
-  if (!authed) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  async function onLogout() {
+    await logoutAll();
+    navigate("/login", { replace: true });
   }
 
   return (
@@ -191,7 +144,7 @@ export function AdminLayout() {
 
           <Chip
             size="small"
-            label={auth?.email ?? "admin"}
+            label={authState?.email ?? "admin"}
             variant="outlined"
             sx={{ mr: 1.2, fontWeight: 900 }}
           />
@@ -204,7 +157,7 @@ export function AdminLayout() {
             )}
           </IconButton>
 
-          <IconButton onClick={logout} aria-label="logout" title="Logout">
+          <IconButton onClick={onLogout} aria-label="logout" title="Logout">
             <LogoutIcon />
           </IconButton>
         </Toolbar>

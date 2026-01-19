@@ -18,7 +18,7 @@ import DarkModeIcon from "@mui/icons-material/DarkMode";
 import LightModeIcon from "@mui/icons-material/LightMode";
 
 import { ColorModeContext } from "./ColorModeProvider";
-import { getAuth } from "../pages/auth/auth";
+import { getAuthState, logoutAll } from "../pages/auth/auth";
 
 export function UserLayout() {
   const navigate = useNavigate();
@@ -27,7 +27,7 @@ export function UserLayout() {
   const { toggle } = useContext(ColorModeContext);
 
   function goAdmin() {
-    const auth = getAuth();
+    const auth = getAuthState();
     if (auth?.role === "admin") {
       navigate("/admin");
       return;

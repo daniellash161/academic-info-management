@@ -27,6 +27,7 @@ import { RegistrationDeadlineFormPage } from "../pages/admin/RegistrationDeadlin
 import { HelpPage } from "../pages/admin/HelpPage";
 
 import { LoginPage } from "../pages/auth/LoginPage";
+import { SignupPage } from "../pages/auth/SignupPage"; // ✅ הוספה
 
 import { UserLayout } from "./UserLayout";
 import { UserHomePage } from "../pages/user/UserHomePage";
@@ -101,6 +102,7 @@ export const router = createBrowserRouter([
   },
 
   { path: "/login", element: <LoginPage /> },
+  { path: "/signup", element: <SignupPage /> },
 
   { path: "*", element: <div style={{ padding: 24 }}>404</div> },
 ]);

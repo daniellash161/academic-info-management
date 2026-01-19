@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -9,44 +9,16 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-
-const AUTH_KEY = "csih_auth";
+import { loginAdmin } from "./auth";
 
 type FieldErrors = {
   email?: string;
   password?: string;
 };
 
-type AuthSession = {
-  role: "admin";
-  email: string;
-  loginAt: string;
-};
-
-function readSession(): AuthSession | null {
-  try {
-    const raw = localStorage.getItem(AUTH_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (
-      parsed &&
-      parsed.role === "admin" &&
-      typeof parsed.email === "string" &&
-      typeof parsed.loginAt === "string"
-    ) {
-      return parsed as AuthSession;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
 export function LoginPage() {
   const navigate = useNavigate();
-  const location = useLocation();
-
-  const from = (location.state as any)?.from ?? "/admin";
+  const location = useLocation() as any;
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -54,11 +26,7 @@ export function LoginPage() {
   const [touched, setTouched] = useState({ email: false, password: false });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const s = readSession();
-    if (s) navigate(from, { replace: true });
-  }, [from, navigate]);
+  const [saving, setSaving] = useState(false);
 
   function validate(nextEmail: string, nextPassword: string): FieldErrors {
     const e: FieldErrors = {};
@@ -79,11 +47,12 @@ export function LoginPage() {
     [email, password],
   );
 
-  const canSubmit = useMemo(() => {
-    return Object.keys(liveErrors).length === 0;
-  }, [liveErrors]);
+  const canSubmit = useMemo(
+    () => Object.keys(liveErrors).length === 0,
+    [liveErrors],
+  );
 
-  function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setFormError(null);
 
@@ -93,27 +62,16 @@ export function LoginPage() {
 
     if (Object.keys(nextErrors).length > 0) return;
 
-    const adminEmail = "admin@csih.com";
-    const adminPassword = "admin123";
-
-    if (
-      email.trim().toLowerCase() !== adminEmail ||
-      password !== adminPassword
-    ) {
-      setFormError("אימייל או סיסמה שגויים");
-      return;
+    setSaving(true);
+    try {
+      await loginAdmin(email.trim(), password);
+      const to = location?.state?.from ? String(location.state.from) : "/admin";
+      navigate(to, { replace: true });
+    } catch (err: any) {
+      setFormError(err?.message ?? "אימייל או סיסמה שגויים");
+    } finally {
+      setSaving(false);
     }
-
-    localStorage.setItem(
-      AUTH_KEY,
-      JSON.stringify({
-        role: "admin",
-        email: adminEmail,
-        loginAt: new Date().toISOString(),
-      }),
-    );
-
-    navigate(from, { replace: true });
   }
 
   return (
@@ -159,6 +117,7 @@ export function LoginPage() {
               }
               autoComplete="email"
               fullWidth
+              disabled={saving}
             />
 
             <TextField
@@ -178,20 +137,33 @@ export function LoginPage() {
               }
               autoComplete="current-password"
               fullWidth
+              disabled={saving}
             />
 
-            <Button type="submit" variant="contained" disabled={!canSubmit}>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={!canSubmit || saving}
+            >
               התחברות
             </Button>
 
-            <Button variant="outlined" onClick={() => navigate("/user")}>
+            <Button
+              variant="outlined"
+              onClick={() => navigate("/user")}
+              disabled={saving}
+            >
               חזרה לבית
             </Button>
-          </Stack>
-        </Box>
 
-        <Box sx={{ mt: 2, opacity: 0.6, fontSize: 12 }}>
-          פרטי דמו (לבדיקה): admin@csih.com / admin123
+            <Button
+              variant="text"
+              onClick={() => navigate("/signup")}
+              disabled={saving}
+            >
+              אין לך משתמש מנהל? הרשמה
+            </Button>
+          </Stack>
         </Box>
       </Paper>
     </Box>

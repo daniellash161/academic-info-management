@@ -1,4 +1,5 @@
 import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
 import { initializeFirestore } from "firebase/firestore";
 
 const REQUIRED_ENVS = [
@@ -13,26 +14,12 @@ const REQUIRED_ENVS = [
 type RequiredEnvKey = (typeof REQUIRED_ENVS)[number];
 
 function env(name: RequiredEnvKey): string {
-  return import.meta.env[name] ?? "";
+  return (import.meta.env[name] as string | undefined) ?? "";
 }
 
 const missing = REQUIRED_ENVS.filter((k) => !env(k));
-
-if (missing.length) {
-  console.error("[FIREBASE CONFIG] Missing env vars:", missing);
-
- 
-  console.error("[FIREBASE CONFIG] Loaded values (masked):", {
-    VITE_FIREBASE_API_KEY: env("VITE_FIREBASE_API_KEY") ? "OK" : "",
-    VITE_FIREBASE_AUTH_DOMAIN: env("VITE_FIREBASE_AUTH_DOMAIN"),
-    VITE_FIREBASE_PROJECT_ID: env("VITE_FIREBASE_PROJECT_ID"),
-    VITE_FIREBASE_STORAGE_BUCKET: env("VITE_FIREBASE_STORAGE_BUCKET"),
-    VITE_FIREBASE_MESSAGING_SENDER_ID: env("VITE_FIREBASE_MESSAGING_SENDER_ID") ? "OK" : "",
-    VITE_FIREBASE_APP_ID: env("VITE_FIREBASE_APP_ID") ? "OK" : "",
-  });
-
+if (missing.length)
   throw new Error(`Firebase env missing: ${missing.join(", ")}`);
-}
 
 const firebaseConfig = {
   apiKey: env("VITE_FIREBASE_API_KEY"),
@@ -44,6 +31,7 @@ const firebaseConfig = {
 };
 
 export const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
 
 export const firestore = initializeFirestore(app, {
   experimentalForceLongPolling: true,
