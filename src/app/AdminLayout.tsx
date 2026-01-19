@@ -108,13 +108,13 @@ export function AdminLayout() {
     );
   }
 
-  function goUserHome() {
-    navigate("/user");
-  }
-
   async function onLogout() {
     await logoutAll();
     navigate("/login", { replace: true });
+  }
+
+  function goUserHome() {
+    navigate("/user");
   }
 
   return (
@@ -146,25 +146,15 @@ export function AdminLayout() {
 
           <Box sx={{ flex: 1 }} />
 
-          <Button
-            variant="outlined"
-            onClick={goUserHome}
-            sx={{
-              ml: 1,
-              fontWeight: 900,
-              borderRadius: 999,
-              px: 2,
-              height: 36,
-            }}
-          >
-            מעבר לאזור משתמש
+          <Button variant="outlined" onClick={goUserHome} sx={{ mr: 1 }}>
+            מסך משתמש
           </Button>
 
           <Chip
             size="small"
             label={authState?.email ?? "admin"}
             variant="outlined"
-            sx={{ mr: 1.2, ml: 1.2, fontWeight: 900 }}
+            sx={{ mr: 1.2, fontWeight: 900 }}
           />
 
           <IconButton onClick={toggle} aria-label="toggle theme" title="Theme">

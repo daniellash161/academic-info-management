@@ -2,6 +2,8 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
+  onAuthStateChanged,
+  type User,
 } from "firebase/auth";
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, firestore } from "../../firebase/config";
@@ -34,23 +36,17 @@ export function getAuthState(): AppAuth | null {
   }
 }
 
-export async function loginAdmin(
-  email: string,
-  password: string,
-): Promise<AppAuth> {
-  const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
-
-  const ref = doc(firestore, "admin_users", cred.user.uid);
+async function buildAdminAuthFromUid(uid: string, fallbackEmail?: string) {
+  const ref = doc(firestore, "admin_users", uid);
   const snap = await getDoc(ref);
-
-  if (!snap.exists()) throw new Error("החשבון קיים אבל לא מוגדר כמנהל במערכת.");
+  if (!snap.exists()) return null;
 
   const data: any = snap.data();
-  if (data?.role !== "admin") throw new Error("למשתמש אין הרשאת מנהל");
+  if (data?.role !== "admin") return null;
 
   const a: AppAuth = {
-    uid: cred.user.uid,
-    email: cred.user.email ?? email.trim(),
+    uid,
+    email: typeof data?.email === "string" ? data.email : fallbackEmail ?? "",
     role: "admin",
     fullName: typeof data?.fullName === "string" ? data.fullName : undefined,
     employeeNumber:
@@ -58,6 +54,22 @@ export async function loginAdmin(
         ? data.employeeNumber
         : undefined,
   };
+
+  return a;
+}
+
+export async function loginAdmin(
+  email: string,
+  password: string,
+): Promise<AppAuth> {
+  const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+
+  const a = await buildAdminAuthFromUid(
+    cred.user.uid,
+    cred.user.email ?? email.trim(),
+  );
+
+  if (!a) throw new Error("החשבון קיים אבל לא מוגדר כמנהל במערכת.");
 
   saveAuth(a);
   return a;
@@ -98,4 +110,33 @@ export async function signupAdmin(
 export async function logoutAll() {
   clearAuth();
   await signOut(auth);
+}
+
+export function subscribeAuthSync(onReady?: () => void) {
+  let first = true;
+
+  return onAuthStateChanged(auth, async (u: User | null) => {
+    try {
+      if (!u) {
+        clearAuth();
+        return;
+      }
+
+      const existing = getAuthState();
+      if (existing?.uid === u.uid && existing.role === "admin") {
+        return;
+      }
+
+      const a = await buildAdminAuthFromUid(u.uid, u.email ?? "");
+      if (a) saveAuth(a);
+      else clearAuth();
+    } catch {
+      clearAuth();
+    } finally {
+      if (first) {
+        first = false;
+        onReady?.();
+      }
+    }
+  });
 }

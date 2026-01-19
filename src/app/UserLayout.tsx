@@ -4,6 +4,7 @@ import {
   AppBar,
   Box,
   Button,
+  Chip,
   Container,
   IconButton,
   Stack,
@@ -12,13 +13,14 @@ import {
   useMediaQuery,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { useContext, useEffect, useState } from "react";
+import { useContext } from "react";
 
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import LightModeIcon from "@mui/icons-material/LightMode";
+import LogoutIcon from "@mui/icons-material/Logout";
 
 import { ColorModeContext } from "./ColorModeProvider";
-import { getAuthState } from "../pages/auth/auth";
+import { getAuthState, logoutAll } from "../pages/auth/auth";
 
 export function UserLayout() {
   const navigate = useNavigate();
@@ -26,21 +28,20 @@ export function UserLayout() {
   const isDesktop = useMediaQuery(muiTheme.breakpoints.up("md"));
   const { toggle } = useContext(ColorModeContext);
 
-  const [adminEmail, setAdminEmail] = useState<string | null>(null);
-
-  useEffect(() => {
-    const a = getAuthState();
-    if (a?.role === "admin" && a.email) setAdminEmail(a.email);
-    else setAdminEmail(null);
-  }, []);
+  const auth = getAuthState();
+  const isAdmin = auth?.role === "admin";
 
   function goAdmin() {
-    const auth = getAuthState();
-    if (auth?.role === "admin") {
+    if (isAdmin) {
       navigate("/admin");
       return;
     }
     navigate("/login", { state: { from: "/admin" } });
+  }
+
+  async function onLogout() {
+    await logoutAll();
+    navigate("/user", { replace: true });
   }
 
   return (
@@ -111,22 +112,13 @@ export function UserLayout() {
               </Stack>
 
               <Stack direction="row" spacing={1} alignItems="center">
-                {adminEmail && (
-                  <Typography
-                    sx={{
-                      fontSize: 13,
-                      fontWeight: 900,
-                      opacity: 0.8,
-                      display: { xs: "none", md: "block" },
-                      maxWidth: 240,
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                    title={adminEmail}
-                  >
-                    מחובר כמנהל: {adminEmail}
-                  </Typography>
+                {isAdmin && (
+                  <Chip
+                    size="small"
+                    label={auth?.email ?? "admin"}
+                    variant="outlined"
+                    sx={{ fontWeight: 900 }}
+                  />
                 )}
 
                 <IconButton
@@ -144,6 +136,16 @@ export function UserLayout() {
                 <Button variant="outlined" onClick={goAdmin}>
                   מעבר למנהל
                 </Button>
+
+                {isAdmin && (
+                  <IconButton
+                    onClick={onLogout}
+                    aria-label="logout"
+                    title="Logout"
+                  >
+                    <LogoutIcon />
+                  </IconButton>
+                )}
               </Stack>
             </Stack>
           </Container>
