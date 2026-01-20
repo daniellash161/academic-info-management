@@ -20,7 +20,8 @@ import LightModeIcon from "@mui/icons-material/LightMode";
 import LogoutIcon from "@mui/icons-material/Logout";
 
 import { ColorModeContext } from "./ColorModeProvider";
-import { getAuthState, logoutAll } from "../pages/auth/auth";
+import { logoutAll } from "../pages/auth/auth";
+import { useAuthSession } from "./AuthSessionProvider";
 
 export function UserLayout() {
   const navigate = useNavigate();
@@ -28,10 +29,11 @@ export function UserLayout() {
   const isDesktop = useMediaQuery(muiTheme.breakpoints.up("md"));
   const { toggle } = useContext(ColorModeContext);
 
-  const auth = getAuthState();
-  const isAdmin = auth?.role === "admin";
+  const { initialized, admin, isAdmin } = useAuthSession();
 
   function goAdmin() {
+    if (!initialized) return;
+
     if (isAdmin) {
       navigate("/admin");
       return;
@@ -115,7 +117,7 @@ export function UserLayout() {
                 {isAdmin && (
                   <Chip
                     size="small"
-                    label={auth?.email ?? "admin"}
+                    label={admin?.email ?? "admin"}
                     variant="outlined"
                     sx={{ fontWeight: 900 }}
                   />

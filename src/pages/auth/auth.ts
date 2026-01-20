@@ -2,7 +2,6 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
-  onAuthStateChanged,
   type User,
 } from "firebase/auth";
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
@@ -18,6 +17,21 @@ export type AppAuth = {
   employeeNumber?: string;
 };
 
+export type UserSession = {
+  uid: string;
+  email: string;
+};
+
+function isAppAuth(x: any): x is AppAuth {
+  return (
+    x &&
+    typeof x === "object" &&
+    typeof x.uid === "string" &&
+    typeof x.email === "string" &&
+    x.role === "admin"
+  );
+}
+
 function saveAuth(a: AppAuth) {
   localStorage.setItem(AUTH_KEY, JSON.stringify(a));
 }
@@ -30,23 +44,31 @@ export function getAuthState(): AppAuth | null {
   const raw = localStorage.getItem(AUTH_KEY);
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as AppAuth;
+    const parsed = JSON.parse(raw);
+    return isAppAuth(parsed) ? parsed : null;
   } catch {
     return null;
   }
 }
 
-async function buildAdminAuthFromUid(uid: string, fallbackEmail?: string) {
-  const ref = doc(firestore, "admin_users", uid);
+export async function resolveAdminAuth(user: User): Promise<AppAuth | null> {
+  const ref = doc(firestore, "admin_users", user.uid);
   const snap = await getDoc(ref);
-  if (!snap.exists()) return null;
+  if (!snap.exists()) {
+    clearAuth();
+    return null;
+  }
 
   const data: any = snap.data();
-  if (data?.role !== "admin") return null;
+  if (data?.role !== "admin") {
+    clearAuth();
+    return null;
+  }
 
   const a: AppAuth = {
-    uid,
-    email: typeof data?.email === "string" ? data.email : fallbackEmail ?? "",
+    uid: user.uid,
+    email:
+      user.email ?? (typeof data?.email === "string" ? data.email : "admin"),
     role: "admin",
     fullName: typeof data?.fullName === "string" ? data.fullName : undefined,
     employeeNumber:
@@ -55,6 +77,7 @@ async function buildAdminAuthFromUid(uid: string, fallbackEmail?: string) {
         : undefined,
   };
 
+  saveAuth(a);
   return a;
 }
 
@@ -64,12 +87,24 @@ export async function loginAdmin(
 ): Promise<AppAuth> {
   const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
 
-  const a = await buildAdminAuthFromUid(
-    cred.user.uid,
-    cred.user.email ?? email.trim(),
-  );
+  const ref = doc(firestore, "admin_users", cred.user.uid);
+  const snap = await getDoc(ref);
 
-  if (!a) throw new Error("החשבון קיים אבל לא מוגדר כמנהל במערכת.");
+  if (!snap.exists()) throw new Error("החשבון קיים אבל לא מוגדר כמנהל במערכת.");
+
+  const data: any = snap.data();
+  if (data?.role !== "admin") throw new Error("למשתמש אין הרשאת מנהל");
+
+  const a: AppAuth = {
+    uid: cred.user.uid,
+    email: cred.user.email ?? email.trim(),
+    role: "admin",
+    fullName: typeof data?.fullName === "string" ? data.fullName : undefined,
+    employeeNumber:
+      typeof data?.employeeNumber === "string"
+        ? data.employeeNumber
+        : undefined,
+  };
 
   saveAuth(a);
   return a;
@@ -110,33 +145,4 @@ export async function signupAdmin(
 export async function logoutAll() {
   clearAuth();
   await signOut(auth);
-}
-
-export function subscribeAuthSync(onReady?: () => void) {
-  let first = true;
-
-  return onAuthStateChanged(auth, async (u: User | null) => {
-    try {
-      if (!u) {
-        clearAuth();
-        return;
-      }
-
-      const existing = getAuthState();
-      if (existing?.uid === u.uid && existing.role === "admin") {
-        return;
-      }
-
-      const a = await buildAdminAuthFromUid(u.uid, u.email ?? "");
-      if (a) saveAuth(a);
-      else clearAuth();
-    } catch {
-      clearAuth();
-    } finally {
-      if (first) {
-        first = false;
-        onReady?.();
-      }
-    }
-  });
 }

@@ -1,84 +1,91 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
-import { auth, firestore } from "../firebase/config";
-import { AUTH_KEY, getAuthState } from "../pages/auth/auth";
+import { onAuthStateChanged, type User } from "firebase/auth";
+import { auth } from "../firebase/config";
+import {
+  clearAuth,
+  getAuthState,
+  resolveAdminAuth,
+  type AppAuth,
+  type UserSession,
+} from "../pages/auth/auth";
 
-type AuthSessionCtx = {
-  ready: boolean;
+type AuthCtx = {
+  initialized: boolean;
+  user: UserSession | null;
+  admin: AppAuth | null;
+  isAdmin: boolean;
 };
 
-const AuthSessionContext = createContext<AuthSessionCtx>({ ready: false });
+const Ctx = createContext<AuthCtx>({
+  initialized: false,
+  user: null,
+  admin: null,
+  isAdmin: false,
+});
+
+function toUserSession(u: User): UserSession {
+  return { uid: u.uid, email: u.email ?? "" };
+}
 
 export function AuthSessionProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [ready, setReady] = useState(false);
+  const [initialized, setInitialized] = useState(false);
+  const [user, setUser] = useState<UserSession | null>(null);
+  const [admin, setAdmin] = useState<AppAuth | null>(() => getAuthState());
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
       try {
-        if (!user) {
-          localStorage.removeItem(AUTH_KEY);
-          setReady(true);
+        if (!u) {
+          clearAuth();
+          setUser(null);
+          setAdmin(null);
+          setInitialized(true);
           return;
         }
 
-        const existing = getAuthState();
-        if (existing?.uid === user.uid && existing?.role === "admin") {
-          setReady(true);
+        setUser(toUserSession(u));
+
+        const cached = getAuthState();
+        if (cached?.uid === u.uid && cached.role === "admin") {
+          const email = u.email ?? cached.email;
+          if (email && email !== cached.email) {
+            const updated: AppAuth = { ...cached, email };
+            localStorage.setItem("csih_auth", JSON.stringify(updated));
+            setAdmin(updated);
+          } else {
+            setAdmin(cached);
+          }
+          setInitialized(true);
           return;
         }
 
-        const ref = doc(firestore, "admin_users", user.uid);
-        const snap = await getDoc(ref);
-
-        if (!snap.exists()) {
-          localStorage.removeItem(AUTH_KEY);
-          setReady(true);
-          return;
-        }
-
-        const data: any = snap.data();
-        if (data?.role !== "admin") {
-          localStorage.removeItem(AUTH_KEY);
-          setReady(true);
-          return;
-        }
-
-        const a = {
-          uid: user.uid,
-          email: user.email ?? data?.email ?? "",
-          role: "admin" as const,
-          fullName:
-            typeof data?.fullName === "string" ? data.fullName : undefined,
-          employeeNumber:
-            typeof data?.employeeNumber === "string"
-              ? data.employeeNumber
-              : undefined,
-        };
-
-        localStorage.setItem(AUTH_KEY, JSON.stringify(a));
-        setReady(true);
+        const resolved = await resolveAdminAuth(u);
+        setAdmin(resolved);
+        setInitialized(true);
       } catch {
-        setReady(true);
+        setInitialized(true);
       }
     });
 
     return () => unsub();
   }, []);
 
-  const value = useMemo(() => ({ ready }), [ready]);
+  const value = useMemo<AuthCtx>(() => {
+    return {
+      initialized,
+      user,
+      admin,
+      isAdmin: admin?.role === "admin",
+    };
+  }, [initialized, user, admin]);
 
-  return (
-    <AuthSessionContext.Provider value={value}>
-      {children}
-    </AuthSessionContext.Provider>
-  );
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
 export function useAuthSession() {
-  return useContext(AuthSessionContext);
+  return useContext(Ctx);
 }
