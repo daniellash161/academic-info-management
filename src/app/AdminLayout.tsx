@@ -30,7 +30,8 @@ import LightModeIcon from "@mui/icons-material/LightMode";
 
 import { AdminNav } from "../components/AdminNav";
 import { ColorModeContext } from "./ColorModeProvider";
-import { getAuthState, logoutAll } from "../pages/auth/auth";
+import { logoutAll } from "../pages/auth/auth";
+import { useAuthSession } from "./AuthSessionProvider";
 
 type NavItem = {
   label: string;
@@ -48,7 +49,7 @@ export function AdminLayout() {
 
   const { toggle } = useContext(ColorModeContext);
 
-  const authState = getAuthState();
+  const { initialized, admin, isAdmin } = useAuthSession();
 
   const items: NavItem[] = useMemo(
     () => [
@@ -146,13 +147,18 @@ export function AdminLayout() {
 
           <Box sx={{ flex: 1 }} />
 
-          <Button variant="outlined" onClick={goUserHome} sx={{ mr: 1 }}>
+          <Button
+            variant="outlined"
+            onClick={goUserHome}
+            sx={{ mr: 1 }}
+            disabled={!initialized}
+          >
             מסך משתמש
           </Button>
 
           <Chip
             size="small"
-            label={authState?.email ?? "admin"}
+            label={admin?.email ?? "admin"}
             variant="outlined"
             sx={{ mr: 1.2, fontWeight: 900 }}
           />
@@ -165,7 +171,12 @@ export function AdminLayout() {
             )}
           </IconButton>
 
-          <IconButton onClick={onLogout} aria-label="logout" title="Logout">
+          <IconButton
+            onClick={onLogout}
+            aria-label="logout"
+            title="Logout"
+            disabled={!initialized}
+          >
             <LogoutIcon />
           </IconButton>
         </Toolbar>

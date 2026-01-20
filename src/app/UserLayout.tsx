@@ -135,7 +135,11 @@ export function UserLayout() {
                   )}
                 </IconButton>
 
-                <Button variant="outlined" onClick={goAdmin}>
+                <Button
+                  variant="outlined"
+                  onClick={goAdmin}
+                  disabled={!initialized}
+                >
                   מעבר למנהל
                 </Button>
 
@@ -144,6 +148,7 @@ export function UserLayout() {
                     onClick={onLogout}
                     aria-label="logout"
                     title="Logout"
+                    disabled={!initialized}
                   >
                     <LogoutIcon />
                   </IconButton>
