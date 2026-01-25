@@ -165,6 +165,13 @@ export function LoginPage() {
             </Button>
           </Stack>
         </Box>
+
+        <Typography
+          variant="caption"
+          sx={{ display: "block", mt: 2, opacity: 0.7, textAlign: "center" }}
+        >
+          משתמש לדוגמה: admin@gmail.com | סיסמה: admin123
+        </Typography>
       </Paper>
     </Box>
   );
