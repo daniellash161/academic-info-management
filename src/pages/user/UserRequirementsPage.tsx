@@ -3,7 +3,6 @@ import {
   Box,
   Button,
   Chip,
-  Divider,
   LinearProgress,
   Paper,
   Stack,
@@ -61,7 +60,7 @@ export function UserRequirementsPage() {
         const data = await withTimeout(
           requirementsService.getAll(),
           12000,
-          "requirements"
+          "requirements",
         );
         if (!alive) return;
         setItems(data);
@@ -97,7 +96,7 @@ export function UserRequirementsPage() {
   }, [items]);
 
   const filtered = useMemo(() => {
-    const list = tab === "ALL" ? items : grouped[tab] ?? [];
+    const list = tab === "ALL" ? items : (grouped[tab] ?? []);
     return [...list].sort(sortByDisplayOrder);
   }, [items, grouped, tab]);
 

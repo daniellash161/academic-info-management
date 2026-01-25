@@ -4,7 +4,6 @@ import {
   Autocomplete,
   Box,
   Button,
-  Chip,
   LinearProgress,
   MenuItem,
   Stack,
@@ -106,7 +105,7 @@ export function CourseFormPage() {
         const all = await withTimeout(
           coursesService.getAll(),
           12000,
-          "courses.getAll"
+          "courses.getAll",
         );
         if (!alive) return;
         setAllCourses(all);
@@ -116,7 +115,7 @@ export function CourseFormPage() {
         const existing = await withTimeout(
           coursesService.getByCode(decodeURIComponent(id)),
           12000,
-          "courses.getByCode"
+          "courses.getByCode",
         );
 
         if (!alive) return;
@@ -183,7 +182,7 @@ export function CourseFormPage() {
   }
 
   async function onSave() {
-    if (!canSave || saving) return;
+    if (Object.keys(errors).length !== 0 || saving) return;
 
     setSaving(true);
     try {

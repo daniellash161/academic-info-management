@@ -49,7 +49,7 @@ export function AdminLayout() {
 
   const { toggle } = useContext(ColorModeContext);
 
-  const { initialized, admin, isAdmin } = useAuthSession();
+  const { initialized, admin } = useAuthSession();
 
   const items: NavItem[] = useMemo(
     () => [

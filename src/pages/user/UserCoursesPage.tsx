@@ -20,36 +20,6 @@ import { coursesService } from "../../services/coursesService";
 import { useSnackbar } from "../../hooks/useSnackbar";
 import { AppSnackbar } from "../../components/AppSnackbar";
 
-type StatCardProps = {
-  title: string;
-  value: string | number;
-};
-
-function StatCard({ title, value }: StatCardProps) {
-  return (
-    <Paper
-      sx={{
-        flex: "1 1 260px",
-        minWidth: 260,
-        borderRadius: 3,
-        overflow: "hidden",
-        boxShadow: 3,
-      }}
-    >
-      <Box sx={{ height: 4, bgcolor: "primary.main" }} />
-      <Box sx={{ p: 2.25 }}>
-        <Typography sx={{ fontWeight: 900, opacity: 0.8 }}>{title}</Typography>
-        <Typography
-          variant="h3"
-          sx={{ fontWeight: 900, lineHeight: 1.1, mt: 0.75 }}
-        >
-          {value}
-        </Typography>
-      </Box>
-    </Paper>
-  );
-}
-
 function normalizeSemesterLabel(s: Course["semester"]) {
   if (s === "א") return "סמסטר א";
   if (s === "ב") return "סמסטר ב";
