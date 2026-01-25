@@ -35,23 +35,30 @@ export function seedRequestsIfEmpty() {
   seedUsersIfEmpty();
   const candidates = readLS<User[]>(LS_KEYS.users, []);
 
-  const statuses: RegistrationRequest["status"][] = ["בטיוטה", "נשלחה", "מאושרת", "נדחתה"];
+  const statuses: RegistrationRequest["status"][] = [
+    "בטיוטה",
+    "נשלחה",
+    "מאושרת",
+    "נדחתה",
+  ];
   const today = new Date();
   const ymd = (d: Date) => d.toISOString().slice(0, 10);
 
-  const requests: RegistrationRequest[] = Array.from({ length: 10 }).map((_, i) => {
-    const candidate = candidates[i % candidates.length];
-    const d = new Date(today);
-    d.setDate(today.getDate() - i);
+  const requests: RegistrationRequest[] = Array.from({ length: 10 }).map(
+    (_, i) => {
+      const candidate = candidates[i % candidates.length];
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
 
-    return {
-      requestNumber: i + 1,
-      candidateId: candidate.id,
-      status: statuses[i % statuses.length],
-      createdAt: ymd(d),
-      notes: i % 3 === 0 ? "בקשה לדוגמה" : "",
-    };
-  });
+      return {
+        requestNumber: i + 1,
+        candidateId: candidate.id,
+        status: statuses[i % statuses.length],
+        createdAt: ymd(d),
+        notes: i % 3 === 0 ? "בקשה לדוגמה" : "",
+      };
+    },
+  );
 
   writeLS(LS_KEYS.requests, requests);
 }
@@ -61,16 +68,94 @@ export function seedCoursesIfEmpty() {
   if (existing.length > 0) return;
 
   const courses: Course[] = [
-    { code: "CS101", name: "מבוא למדעי המחשב", semester: "א", credits: 5, lecturer: 'ד"ר כהן' },
-    { code: "CS102", name: "תכנות מתקדם", semester: "ב", credits: 5, lecturer: 'ד"ר לוי', prerequisites: ["CS101"] },
-    { code: "CS201", name: "מבני נתונים", semester: "א", credits: 4, lecturer: 'ד"ר שטיין', prerequisites: ["CS102"] },
-    { code: "CS202", name: "אלגוריתמים", semester: "ב", credits: 4, lecturer: 'ד"ר שטיין', prerequisites: ["CS201"] },
-    { code: "CS210", name: "בסיסי נתונים", semester: "א", credits: 3, lecturer: 'ד"ר ברק' },
-    { code: "CS220", name: "מערכות הפעלה", semester: "ב", credits: 4, lecturer: 'ד"ר נוי', prerequisites: ["CS201"] },
-    { code: "CS230", name: "רשתות מחשבים", semester: "א", credits: 3, lecturer: 'ד"ר נקר', prerequisites: ["CS201"] },
-    { code: "CS240", name: "הנדסת תוכנה", semester: "ב", credits: 3, lecturer: 'ד"ר מאיה', prerequisites: ["CS102"] },
-    { code: "CS250", name: "בינה מלאכותית", semester: "א", credits: 3, lecturer: 'ד"ר יעל', prerequisites: ["CS202"] },
-    { code: "CS260", name: "אבטחת מידע", semester: "קיץ", credits: 2, lecturer: 'ד"ר אמיר', prerequisites: ["CS230"] },
+    {
+      code: "CS101",
+      name: "מבוא למדעי המחשב",
+      year: "א",
+      semester: "א",
+      credits: 5,
+      lecturer: 'ד"ר כהן',
+    },
+    {
+      code: "CS102",
+      name: "תכנות מתקדם",
+      year: "א",
+      semester: "ב",
+      credits: 5,
+      lecturer: 'ד"ר לוי',
+      prerequisites: ["CS101"],
+    },
+    {
+      code: "CS201",
+      name: "מבני נתונים",
+      year: "ב",
+      semester: "א",
+      credits: 4,
+      lecturer: 'ד"ר שטיין',
+      prerequisites: ["CS102"],
+    },
+    {
+      code: "CS202",
+      name: "אלגוריתמים",
+      year: "ב",
+      semester: "ב",
+      credits: 4,
+      lecturer: 'ד"ר שטיין',
+      prerequisites: ["CS201"],
+    },
+    {
+      code: "CS210",
+      name: "בסיסי נתונים",
+      year: "ב",
+      semester: "א",
+      credits: 3,
+      lecturer: 'ד"ר ברק',
+    },
+    {
+      code: "CS220",
+      name: "מערכות הפעלה",
+      year: "ב",
+      semester: "ב",
+      credits: 4,
+      lecturer: 'ד"ר נוי',
+      prerequisites: ["CS201"],
+    },
+    {
+      code: "CS230",
+      name: "רשתות מחשבים",
+      year: "ב",
+      semester: "א",
+      credits: 3,
+      lecturer: 'ד"ר נקר',
+      prerequisites: ["CS201"],
+    },
+    {
+      code: "CS240",
+      name: "הנדסת תוכנה",
+      year: "ב",
+      semester: "ב",
+      credits: 3,
+      lecturer: 'ד"ר מאיה',
+      prerequisites: ["CS102"],
+    },
+    {
+      code: "CS250",
+      name: "בינה מלאכותית",
+      year: "ג",
+      semester: "א",
+      credits: 3,
+      lecturer: 'ד"ר יעל',
+      prerequisites: ["CS202"],
+    },
+    {
+      code: "CS260",
+      name: "אבטחת מידע",
+      year: "ג",
+      semester: "קיץ",
+      credits: 2,
+      lecturer: 'ד"ר אמיר',
+      prerequisites: ["CS230"],
+    },
   ];
 
   writeLS(LS_KEYS.courses, courses);
@@ -116,7 +201,11 @@ export function seedRequirementsIfEmpty() {
     },
     ...Array.from({ length: 7 }).map((_, i) => ({
       id: makeId(),
-      type: (i % 3 === 0 ? "פסיכומטרי" : i % 3 === 1 ? "בגרות" : "אנגלית") as any,
+      type: (i % 3 === 0
+        ? "פסיכומטרי"
+        : i % 3 === 1
+          ? "בגרות"
+          : "אנגלית") as any,
       minScore: 60 + i * 5,
       title: `דרישה לדוגמה ${i + 1}`,
       description: "טקסט דוגמה קצר.",
@@ -175,29 +264,34 @@ export function seedContactMessagesIfEmpty() {
 }
 
 export function seedRegistrationDeadlinesIfEmpty() {
-  const existing = readLS<RegistrationDeadline[]>(LS_KEYS.registrationDeadlines, []);
+  const existing = readLS<RegistrationDeadline[]>(
+    LS_KEYS.registrationDeadlines,
+    [],
+  );
   if (existing.length > 0) return;
 
   const today = new Date();
   const ymd = (d: Date) => d.toISOString().slice(0, 10);
 
-  const items: RegistrationDeadline[] = Array.from({ length: 10 }).map((_, i) => {
-    const start = new Date(today);
-    start.setDate(today.getDate() - i * 14);
+  const items: RegistrationDeadline[] = Array.from({ length: 10 }).map(
+    (_, i) => {
+      const start = new Date(today);
+      start.setDate(today.getDate() - i * 14);
 
-    const end = new Date(start);
-    end.setDate(start.getDate() + 10);
+      const end = new Date(start);
+      end.setDate(start.getDate() + 10);
 
-    return {
-      id: makeId(),
-      title: `מועד הרשמה #${i + 1}`,
-      startDate: ymd(start),
-      endDate: ymd(end),
-      isActive: i % 4 !== 0,
-      notes: i % 3 === 0 ? "הערה לדוגמה" : "",
-      createdAt: new Date().toISOString(),
-    };
-  });
+      return {
+        id: makeId(),
+        title: `מועד הרשמה #${i + 1}`,
+        startDate: ymd(start),
+        endDate: ymd(end),
+        isActive: i % 4 !== 0,
+        notes: i % 3 === 0 ? "הערה לדוגמה" : "",
+        createdAt: new Date().toISOString(),
+      };
+    },
+  );
 
   writeLS(LS_KEYS.registrationDeadlines, items);
 }
